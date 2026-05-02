@@ -46,9 +46,19 @@ function useHasBooks(libraryStore: LibraryStore): boolean {
   );
 }
 
+function useHasImportActivity(importStore: ImportStore): boolean {
+  return useSyncExternalStore(
+    (cb) => importStore.subscribe(cb),
+    () => importStore.getState().entries.length > 0,
+    () => importStore.getState().entries.length > 0,
+  );
+}
+
 function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
   const { wiring, libraryStore, importStore, coverCache } = boot;
   const hasBooks = useHasBooks(libraryStore);
+  const hasImportActivity = useHasImportActivity(importStore);
+  const showWorkspace = hasBooks || hasImportActivity;
 
   useEffect(() => {
     const onHide = (): void => {
@@ -90,7 +100,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
         libraryStore={libraryStore}
         importStore={importStore}
         coverCache={coverCache}
-        hasBooks={hasBooks}
+        hasBooks={showWorkspace}
         onFilesPicked={onFilesPicked}
         onPersistSort={onPersistSort}
         onRemoveBook={(book) => {

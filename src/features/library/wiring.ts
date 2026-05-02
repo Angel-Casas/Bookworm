@@ -9,6 +9,8 @@ import {
 } from '@/storage';
 import { BookId, IsoTimestamp, type Book, type ParsedMetadata } from '@/domain';
 import type { ImportInput } from './import/importMachine';
+import { detectFormat } from './import/parsers/format';
+import { parsePdfMetadata } from './import/parsers/pdf';
 
 const toHex = (buf: ArrayBuffer): string =>
   [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -56,7 +58,16 @@ export function createWiring(db: BookwormDB): Wiring {
     findByChecksum(checksum) {
       return bookRepo.findByChecksum(checksum);
     },
-    parseInWorker({ bytes, mimeType, originalName }) {
+    async parseInWorker({ bytes, mimeType, originalName }) {
+      // PDFs run pdf.js on the main thread (its own nested worker is fragile
+      // when started from inside another worker). EPUBs route to the parser
+      // worker (fflate is self-contained).
+      const format = detectFormat(bytes);
+      if (format === 'pdf') {
+        const result = await parsePdfMetadata(bytes, originalName);
+        if (result.kind === 'ok') return result.metadata;
+        throw new Error(result.reason);
+      }
       const w = ensureWorker();
       return new Promise<ParsedMetadata>((resolve, reject) => {
         const onMessage = (

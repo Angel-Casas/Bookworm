@@ -1,9 +1,11 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+// pdf.js parsing runs on the main thread only. From there, pdf.js spawns its
+// own Web Worker for the heavy work via this URL — Vite resolves the asset at
+// build time. We avoid running pdf.js inside our own worker (nested-worker
+// brittleness in some browsers, and the GlobalWorkerOptions URL can't always
+// be resolved from a worker context).
 if (typeof window !== 'undefined') {
-  // In production we ship the worker via Vite's `?worker` import.
-  // This module imports a URL-resolved worker only on the browser.
-  // The dynamic import keeps Node + tests happy.
   void import('pdfjs-dist/build/pdf.worker.mjs?url').then((mod) => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = mod.default;
   });
