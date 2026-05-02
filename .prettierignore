@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+*.tsbuildinfo
+public/icons
+
+# Project prose — leave the user's authored layout intact.
+CLAUDE.md
+docs/
