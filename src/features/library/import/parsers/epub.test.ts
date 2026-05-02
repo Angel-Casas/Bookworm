@@ -38,7 +38,9 @@ function buildEpub(opts: {
     ),
   };
   const zipped = zipSync(files);
-  return zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength);
+  const ab = new ArrayBuffer(zipped.byteLength);
+  new Uint8Array(ab).set(zipped);
+  return ab;
 }
 
 describe('parseEpubMetadata', () => {
@@ -69,7 +71,8 @@ describe('parseEpubMetadata', () => {
       'OEBPS/content.opf': strToU8('<?xml version="1.0"?><package/>'),
     };
     const zipped = zipSync(filesNoContainer);
-    const buf = zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength);
+    const buf = new ArrayBuffer(zipped.byteLength);
+    new Uint8Array(buf).set(zipped);
     const meta = await parseEpubMetadata(buf, 'broken.epub');
     expect(meta.kind).toBe('error');
   });

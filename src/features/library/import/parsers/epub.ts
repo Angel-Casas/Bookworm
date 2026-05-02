@@ -88,11 +88,10 @@ export function parseEpubMetadata(
     const coverPath = joinPath(opfPath, coverHref);
     const coverBytes = entries[coverPath];
     if (coverBytes) {
+      const ab = new ArrayBuffer(coverBytes.byteLength);
+      new Uint8Array(ab).set(coverBytes);
       cover = {
-        bytes: coverBytes.buffer.slice(
-          coverBytes.byteOffset,
-          coverBytes.byteOffset + coverBytes.byteLength,
-        ),
+        bytes: ab,
         mimeType: COVER_MIME(coverHref),
       };
     }
