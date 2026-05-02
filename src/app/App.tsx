@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { openBookwormDB } from '@/storage';
-import {
-  createLibraryStore,
-  type LibraryStore,
-} from '@/features/library/store/libraryStore';
+import { createLibraryStore, type LibraryStore } from '@/features/library/store/libraryStore';
 import { createCoverCache, type CoverCache } from '@/features/library/store/coverCache';
 import { createImportStore, type ImportStore } from '@/features/library/import/importStore';
 import { createWiring, type Wiring } from '@/features/library/wiring';

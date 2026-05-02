@@ -25,6 +25,10 @@
   padding: var(--space-12);
 }
 @media (max-width: 480px) {
-  .bookshelf__grid { grid-template-columns: repeat(2, 1fr); }
-  .bookshelf { padding: var(--space-6); }
+  .bookshelf__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bookshelf {
+    padding: var(--space-6);
+  }
 }

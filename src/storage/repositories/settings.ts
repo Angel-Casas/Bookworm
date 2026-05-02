@@ -35,9 +35,8 @@ export function createSettingsRepository(db: BookwormDB): SettingsRepository {
       await put({ key: 'librarySort', value: key });
     },
     async getStoragePersistResult() {
-      const rec = await get<Extract<SettingsRecord, { key: 'storagePersistResult' }>>(
-        'storagePersistResult',
-      );
+      const rec =
+        await get<Extract<SettingsRecord, { key: 'storagePersistResult' }>>('storagePersistResult');
       return rec?.value;
     },
     async setStoragePersistResult(value) {

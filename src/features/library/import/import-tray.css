@@ -65,13 +65,27 @@
   border: none;
   cursor: pointer;
 }
-.import-tray__item--failed { background: color-mix(in oklab, var(--color-danger) 8%, var(--color-bg)); }
-.import-tray__item--duplicate { background: color-mix(in oklab, var(--color-accent) 6%, var(--color-bg)); }
-.import-tray__item--done { background: color-mix(in oklab, var(--color-success) 6%, var(--color-bg)); }
+.import-tray__item--failed {
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-bg));
+}
+.import-tray__item--duplicate {
+  background: color-mix(in oklab, var(--color-accent) 6%, var(--color-bg));
+}
+.import-tray__item--done {
+  background: color-mix(in oklab, var(--color-success) 6%, var(--color-bg));
+}
 @keyframes import-tray-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .import-tray { animation: none; }
+  .import-tray {
+    animation: none;
+  }
 }

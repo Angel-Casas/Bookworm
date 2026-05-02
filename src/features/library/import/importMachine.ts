@@ -39,13 +39,12 @@ export type ImportOutput =
   | { kind: 'duplicate'; existingBookId: BookId }
   | { kind: 'failure'; reason: string; fileName: string };
 
-const readBytes = fromPromise(
-  ({ input }: { input: { deps: ImportInput; file: File } }) => input.deps.readBytes(input.file),
+const readBytes = fromPromise(({ input }: { input: { deps: ImportInput; file: File } }) =>
+  input.deps.readBytes(input.file),
 );
 
-const hashBytes = fromPromise(
-  ({ input }: { input: { deps: ImportInput; bytes: ArrayBuffer } }) =>
-    input.deps.hashBytes(input.bytes),
+const hashBytes = fromPromise(({ input }: { input: { deps: ImportInput; bytes: ArrayBuffer } }) =>
+  input.deps.hashBytes(input.bytes),
 );
 
 const findByChecksum = fromPromise(

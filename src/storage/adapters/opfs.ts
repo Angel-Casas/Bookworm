@@ -20,7 +20,9 @@ export class OpfsError extends Error {
 // Real OPFS implementation. Path segments separated by '/'.
 export function createOpfsAdapter(): OpfsAdapter {
   const storage =
-    typeof navigator !== 'undefined' ? (navigator.storage as StorageManager | undefined) : undefined;
+    typeof navigator !== 'undefined'
+      ? (navigator.storage as StorageManager | undefined)
+      : undefined;
   if (!storage || typeof storage.getDirectory !== 'function') {
     throw new OpfsError(undefined, 'OPFS unavailable in this environment.');
   }
@@ -37,10 +39,7 @@ export function createOpfsAdapter(): OpfsAdapter {
     return dir;
   }
 
-  async function getFileHandleAt(
-    path: string,
-    create: boolean,
-  ): Promise<FileSystemFileHandle> {
+  async function getFileHandleAt(path: string, create: boolean): Promise<FileSystemFileHandle> {
     const segments = path.split('/').filter(Boolean);
     const fileName = segments.at(-1);
     if (!fileName) {

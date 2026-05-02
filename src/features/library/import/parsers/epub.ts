@@ -48,10 +48,7 @@ function joinPath(base: string, rel: string): string {
   return out.join('/');
 }
 
-export function parseEpubMetadata(
-  bytes: ArrayBuffer,
-  fileName: string,
-): Promise<ParseResponse> {
+export function parseEpubMetadata(bytes: ArrayBuffer, fileName: string): Promise<ParseResponse> {
   let entries: ReturnType<typeof unzipSync>;
   try {
     entries = unzipSync(new Uint8Array(bytes));

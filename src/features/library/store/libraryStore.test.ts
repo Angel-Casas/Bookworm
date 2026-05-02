@@ -33,10 +33,12 @@ describe('libraryStore', () => {
 
   it('exposes a derived visibleBooks selector', () => {
     const store = createLibraryStore();
-    store.getState().setBooks([
-      make({ id: BookId('a'), title: 'Quiet Things', author: 'L. Onuma' }),
-      make({ id: BookId('b'), title: 'On Reading Slowly', author: 'A. Marek' }),
-    ]);
+    store
+      .getState()
+      .setBooks([
+        make({ id: BookId('a'), title: 'Quiet Things', author: 'L. Onuma' }),
+        make({ id: BookId('b'), title: 'On Reading Slowly', author: 'A. Marek' }),
+      ]);
     store.getState().setSearch('marek');
     const visible = store.getState().visibleBooks();
     expect(visible.map((b) => b.id)).toEqual(['b']);

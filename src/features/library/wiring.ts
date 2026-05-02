@@ -72,8 +72,7 @@ export function createWiring(db: BookwormDB): Wiring {
       return new Promise<ParsedMetadata>((resolve, reject) => {
         const onMessage = (
           event: MessageEvent<
-            | { kind: 'ok'; metadata: ParsedMetadata }
-            | { kind: 'error'; reason: string }
+            { kind: 'ok'; metadata: ParsedMetadata } | { kind: 'error'; reason: string }
           >,
         ) => {
           w.removeEventListener('message', onMessage);
@@ -113,8 +112,7 @@ export function createWiring(db: BookwormDB): Wiring {
           originalName: file.name,
           byteSize: bytes.byteLength,
           mimeType:
-            file.type ||
-            (metadata.format === 'epub' ? 'application/epub+zip' : 'application/pdf'),
+            file.type || (metadata.format === 'epub' ? 'application/epub+zip' : 'application/pdf'),
           checksum,
         },
         importStatus: { kind: 'ready' },

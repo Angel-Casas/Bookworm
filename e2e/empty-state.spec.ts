@@ -16,8 +16,5 @@ test('shows the Bookworm empty-state landing on first visit', async ({ page }) =
   await expect(page.getByText('Your books stay on this device')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Import a book to begin.' })).toBeVisible();
 
-  expect(
-    consoleErrors,
-    `unexpected console/page errors:\n${consoleErrors.join('\n')}`,
-  ).toEqual([]);
+  expect(consoleErrors, `unexpected console/page errors:\n${consoleErrors.join('\n')}`).toEqual([]);
 });

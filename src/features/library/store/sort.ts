@@ -25,8 +25,7 @@ const recentlyOpened: Cmp = (a, b) => {
 const recentlyAdded: Cmp = (a, b) =>
   b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
 
-const byTitle: Cmp = (a, b) =>
-  byString(a.title, b.title) || b.createdAt.localeCompare(a.createdAt);
+const byTitle: Cmp = (a, b) => byString(a.title, b.title) || b.createdAt.localeCompare(a.createdAt);
 
 const byAuthor: Cmp = (a, b) =>
   byString(a.author, b.author) || byString(a.title, b.title) || a.id.localeCompare(b.id);
