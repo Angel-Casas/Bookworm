@@ -25,6 +25,9 @@
     "check": "pnpm type-check && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
+    "idb": "^8.0.3",
+    "pdfjs-dist": "^5.7.284",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

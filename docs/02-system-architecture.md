@@ -321,3 +321,8 @@ No fallback path for older browsers in v1. May be revisited later.
 - Embeddings: hand-rolled cosine in a Web Worker, Float32Array stored in IndexedDB
 - NanoGPT integration: assumed OpenAI-compatible (`/v1/models`, `/v1/chat/completions`, `/v1/embeddings`); model catalog derived at runtime; "Fast / Balanced / Deep" presets map to live catalog entries
 - Prompt caching: provider-style cache breakpoints (NanoGPT/Anthropic-compatible)
+
+### 2026-05-02 — Phase 1 dependency additions
+- `idb` for IndexedDB promise wrapping
+- `fflate` for EPUB zip reading (no `foliate-js` until Phase 2)
+- `pdfjs-dist` for PDF metadata + cover thumbnail (already locked in Phase 0; introduced now)
