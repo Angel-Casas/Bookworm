@@ -5,3 +5,12 @@
   display: flex;
   flex-direction: column;
 }
+.app--loading {
+  display: grid;
+  place-items: center;
+}
+.app__loading {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--color-text-muted);
+}

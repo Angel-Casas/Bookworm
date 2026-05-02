@@ -1,6 +1,12 @@
+import { useRef } from 'react';
 import './library-empty-state.css';
 
-export function LibraryEmptyState() {
+type Props = {
+  readonly onFilesPicked: (files: readonly File[]) => void;
+};
+
+export function LibraryEmptyState({ onFilesPicked }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <section className="library-empty" aria-labelledby="library-empty-title">
       <div className="library-empty__atmosphere" aria-hidden="true" />
@@ -33,7 +39,28 @@ export function LibraryEmptyState() {
           style={{ animationDelay: '560ms' }}
         />
 
-        <p className="library-empty__privacy" style={{ animationDelay: '720ms' }}>
+        <button
+          type="button"
+          className="library-empty__cta"
+          style={{ animationDelay: '660ms' }}
+          onClick={() => inputRef.current?.click()}
+        >
+          Import a book to begin.
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".epub,.pdf,application/epub+zip,application/pdf"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (files.length > 0) onFilesPicked(files);
+            e.target.value = '';
+          }}
+        />
+
+        <p className="library-empty__privacy" style={{ animationDelay: '820ms' }}>
           Your books stay on this device. Nothing leaves until you ask.
         </p>
       </div>
