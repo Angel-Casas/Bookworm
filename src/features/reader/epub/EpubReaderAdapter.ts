@@ -177,50 +177,32 @@ export class EpubReaderAdapter implements BookReader {
     this.destroyed = true;
     this.listeners.clear();
 
-    const trackedCount = this.trackedObservers.size;
-    console.log('[reader] destroy: start, tracked observers =', trackedCount);
-
+    // Disconnect tracked observers BEFORE foliate-js teardown. foliate-js's
+    // own destroy chain mutates layout (removing the iframe from the shadow
+    // root), which fires the ResizeObserver callbacks synchronously before
+    // foliate-js's internal `#view = null` guard kicks in. Disconnecting
+    // first prevents the callbacks from firing at all.
     for (const obs of this.trackedObservers) {
       try {
         obs.disconnect();
-      } catch (err) {
-        console.warn('[reader] destroy: observer.disconnect threw', err);
+      } catch {
+        /* observer may already be GC'd; safe to ignore */
       }
     }
     this.trackedObservers.clear();
     this.uninstallResizeObserverPatch();
-    console.log('[reader] destroy: observers disconnected + patch uninstalled');
 
     try {
       this.view?.close();
-      console.log('[reader] destroy: view.close ok');
     } catch (err) {
       console.warn('[reader] destroy: view.close threw', err);
     }
     try {
       this.view?.remove();
-      console.log('[reader] destroy: view.remove ok');
     } catch (err) {
       console.warn('[reader] destroy: view.remove threw', err);
     }
     this.view = null;
-
-    // Catch any rejections that happen after destroy returns so we can see
-    // what's still firing. Removed after a window so it doesn't mask future
-    // real bugs.
-    const onRejection = (e: PromiseRejectionEvent) => {
-      console.warn(
-        '[reader] post-destroy unhandledrejection caught — reason:',
-        e.reason,
-        'stack:',
-        e.reason instanceof Error ? e.reason.stack : '(no stack)',
-      );
-    };
-    window.addEventListener('unhandledrejection', onRejection);
-    window.setTimeout(() => {
-      window.removeEventListener('unhandledrejection', onRejection);
-      console.log('[reader] destroy: post-destroy listener removed');
-    }, 5000);
   }
 
   // ----- ResizeObserver tracking patch -----

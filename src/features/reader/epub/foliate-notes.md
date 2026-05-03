@@ -103,3 +103,22 @@ renderer reads from its host context, OR baked into the injected CSS.
   adapter's `open()` defensively clears any leftover `<foliate-view>` from
   the host before mounting its own; without that, the host could end up with
   two stacked views in dev mode.
+- **`iframe sandbox` browser warning is unavoidable.** foliate-js sets
+  `<iframe sandbox="allow-same-origin allow-scripts">` to render EPUB
+  content, with an explicit comment in `paginator.js` referencing
+  [WebKit bug #218086](https://bugs.webkit.org/show_bug.cgi?id=218086).
+  Chrome warns that the combination defeats sandboxing — that's a dev
+  console warning we cannot eliminate from this side.
+- **Legacy EPUBs (e.g. Project Gutenberg's Pride and Prejudice) trigger
+  one `Body_onLoad is not defined` error per chapter** because they have
+  `<body onload="Body_onLoad()">` referencing a function defined elsewhere
+  in the EPUB that doesn't load in foliate-js's iframe sandbox. The error
+  itself is single-fire and harmless to navigation. **However:** if the
+  user has an extension installed that hooks SES (MetaMask, Lavamoat-
+  protected wallets, etc.), `lockdown-install.js` may amplify that single
+  iframe error into a console flood of `SES_UNCAUGHT_EXCEPTION: null`.
+  The flood disappears in incognito (no extension) and never appears with
+  modern EPUBs (no inline onload handlers). It is a known
+  [MetaMask quirk](https://github.com/MetaMask/metamask-extension/issues/20937),
+  not a bug in our code or in foliate-js. Documented here so we don't
+  chase it again.
