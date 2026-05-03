@@ -1,10 +1,10 @@
 import type { DBSchema } from 'idb';
-import type { Book } from '@/domain';
+import type { Book, Bookmark } from '@/domain';
 import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
 export const DB_NAME = 'bookworm';
-export const CURRENT_DB_VERSION = 2;
+export const CURRENT_DB_VERSION = 3;
 
 export type AppView =
   | { readonly kind: 'library' }
@@ -49,9 +49,15 @@ export interface BookwormDBSchema extends DBSchema {
     key: string;
     value: ReaderPreferencesRecord;
   };
+  bookmarks: {
+    key: string;
+    value: Bookmark;
+    indexes: { 'by-book': string };
+  };
 }
 
 export const BOOK_STORE = 'books' as const;
 export const SETTINGS_STORE = 'settings' as const;
 export const READING_PROGRESS_STORE = 'reading_progress' as const;
 export const READER_PREFERENCES_STORE = 'reader_preferences' as const;
+export const BOOKMARKS_STORE = 'bookmarks' as const;
