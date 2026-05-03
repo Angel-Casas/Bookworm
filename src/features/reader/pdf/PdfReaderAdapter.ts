@@ -112,16 +112,41 @@ export class PdfReaderAdapter implements BookReader {
     const mode = prefs.modeByFormat.pdf;
     const scale = SCALE_BY_STEP[prefs.typography.fontSizeStep];
     const modeChanged = mode !== this.currentMode;
+    const scaleChanged = scale !== this.currentScale;
     this.currentMode = mode;
     this.currentScale = scale;
     this.applyTheme(prefs);
     if (modeChanged || !this.pagesContainer) {
       this.buildLayoutForMode();
-    }
-    if (mode === 'paginated') {
-      void this.mountPaginatedPage(this.currentPage);
+      if (mode === 'paginated') {
+        void this.mountPaginatedPage(this.currentPage);
+      }
+    } else if (scaleChanged) {
+      // Re-render at new scale without rebuilding layout.
+      if (mode === 'paginated') {
+        void this.mountPaginatedPage(this.currentPage);
+      } else {
+        this.resizeScrollPlaceholders();
+        for (const view of this.scrollViews.values()) view.destroy();
+        this.scrollViews.clear();
+        this.renderScrollWindow(this.currentPage);
+      }
     }
     this.refreshNavStrip();
+  }
+
+  private resizeScrollPlaceholders(): void {
+    if (!this.pdfDoc) return;
+    void this.pdfDoc.getPage(1).then((firstPage) => {
+      if (this.destroyed || this.currentMode !== 'scroll') return;
+      const viewport = firstPage.getViewport({ scale: this.currentScale });
+      const cssWidth = Math.floor(viewport.width);
+      const cssHeight = Math.floor(viewport.height);
+      for (const slot of this.scrollPlaceholders) {
+        slot.style.width = `${String(cssWidth)}px`;
+        slot.style.height = `${String(cssHeight)}px`;
+      }
+    });
   }
 
   onLocationChange(listener: LocationChangeListener): () => void {
