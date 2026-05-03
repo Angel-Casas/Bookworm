@@ -18,6 +18,7 @@ export type ReaderFontFamily =
 
 export type ReaderTheme = 'light' | 'dark' | 'sepia';
 export type ReaderMode = 'scroll' | 'paginated';
+export type FocusMode = 'normal' | 'focus';
 
 export type ReaderTypography = {
   readonly fontFamily: ReaderFontFamily;
@@ -30,6 +31,7 @@ export type ReaderPreferences = {
   readonly typography: ReaderTypography;
   readonly theme: ReaderTheme;
   readonly modeByFormat: { readonly epub: ReaderMode; readonly pdf: ReaderMode };
+  readonly focusMode: FocusMode;
 };
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -41,6 +43,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   },
   theme: 'light',
   modeByFormat: { epub: 'paginated', pdf: 'paginated' },
+  focusMode: 'normal',
 };
 
 // ----- BookReader contract (just-in-time minimal API) -----
