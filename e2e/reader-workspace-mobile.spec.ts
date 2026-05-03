@@ -30,8 +30,9 @@ test('mobile workspace: no rail, bottom sheet for TOC and typography', async ({ 
   await expect(tocSheet).toBeVisible();
   await expect(tocSheet.locator('aside.toc-panel')).toBeVisible();
 
-  // Tap scrim to dismiss
-  await page.locator('.mobile-sheet__scrim').click();
+  // Tap scrim to dismiss — click near the top so we hit the area not
+  // covered by the bottom-anchored sheet (60vh).
+  await page.locator('.mobile-sheet__scrim').click({ position: { x: 50, y: 50 } });
   await expect(tocSheet).toBeHidden();
 
   // Tap ⚙ → Typography sheet
