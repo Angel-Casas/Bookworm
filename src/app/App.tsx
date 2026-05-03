@@ -13,6 +13,7 @@ import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
 import { useAppView } from '@/app/useAppView';
 import { useReaderHost } from '@/app/useReaderHost';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
+import type { FocusMode } from '@/domain/reader';
 import './app.css';
 
 type ReadyBoot = {
@@ -22,6 +23,8 @@ type ReadyBoot = {
   readonly importStore: ImportStore;
   readonly coverCache: CoverCache;
   readonly initialView: AppView;
+  readonly initialFocusMode: FocusMode;
+  readonly initialFocusModeHintShown: boolean;
 };
 
 type BootState =
@@ -46,7 +49,15 @@ function useHasImportActivity(importStore: ImportStore): boolean {
 }
 
 function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
-  const { wiring, libraryStore, importStore, coverCache, initialView } = boot;
+  const {
+    wiring,
+    libraryStore,
+    importStore,
+    coverCache,
+    initialView,
+    initialFocusMode,
+    initialFocusModeHintShown,
+  } = boot;
   const view = useAppView({
     settingsRepo: wiring.settingsRepo,
     libraryStore,
@@ -56,6 +67,8 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     wiring,
     libraryStore,
     view: view.current,
+    initialFocusMode,
+    initialFocusModeHintShown,
     onBookRemovedWhileInReader: view.goLibrary,
   });
   const hasBooks = useHasBooks(libraryStore);
@@ -153,7 +166,11 @@ export function App() {
         void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
-        const persistedView = await wiring.settingsRepo.getView();
+        const [persistedView, prefs, hintShown] = await Promise.all([
+          wiring.settingsRepo.getView(),
+          wiring.readerPreferencesRepo.get(),
+          wiring.settingsRepo.getFocusModeHintShown(),
+        ]);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!activeRef.current) return;
         setBoot({
@@ -163,6 +180,8 @@ export function App() {
           importStore,
           coverCache,
           initialView: persistedView ?? LIBRARY_VIEW,
+          initialFocusMode: prefs.focusMode,
+          initialFocusModeHintShown: hintShown,
         });
       } catch (err) {
         const reason = err instanceof Error ? err.message : 'Unknown error';

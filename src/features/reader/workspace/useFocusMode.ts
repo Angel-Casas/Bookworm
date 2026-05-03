@@ -59,7 +59,7 @@ export function useFocusMode(opts: Options): FocusModeState {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isInputElement(e.target)) return;
-      if (e.key === 'F' && !e.metaKey && !e.ctrlKey) toggle();
+      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey) toggle();
       else if (e.key === 'Escape' && mode === 'focus') toggle();
       else if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
@@ -72,23 +72,25 @@ export function useFocusMode(opts: Options): FocusModeState {
     };
   }, [mode, toggle]);
 
-  // Hover-reveal: only when in focus mode
+  // Hover-reveal: only when in focus mode.
+  // Events from the reader iframe (foliate-js) don't bubble to the window,
+  // so we can't rely on "mousemove outside the top zone" to schedule the
+  // hide. Instead: any mousemove at the top reveals chrome and (re)starts
+  // a hide timer; if the cursor stops moving in the top zone — or moves
+  // into the iframe area — the timer fires and hides the chrome.
   useEffect(() => {
     if (mode !== 'focus') return undefined;
     let hideTimer: number | undefined;
+    const scheduleHide = (): void => {
+      if (hideTimer !== undefined) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        setIsChromeRevealed(false);
+      }, HIDE_DELAY_MS);
+    };
     const onMove = (e: MouseEvent): void => {
-      const inHoverZone = e.clientY <= HOVER_ZONE_PX;
-      if (inHoverZone) {
+      if (e.clientY <= HOVER_ZONE_PX) {
         setIsChromeRevealed(true);
-        if (hideTimer !== undefined) {
-          window.clearTimeout(hideTimer);
-          hideTimer = undefined;
-        }
-      } else {
-        if (hideTimer !== undefined) window.clearTimeout(hideTimer);
-        hideTimer = window.setTimeout(() => {
-          setIsChromeRevealed(false);
-        }, HIDE_DELAY_MS);
+        scheduleHide();
       }
     };
     window.addEventListener('mousemove', onMove);

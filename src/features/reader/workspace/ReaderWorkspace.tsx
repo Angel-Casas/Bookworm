@@ -125,7 +125,7 @@ export function ReaderWorkspace(props: Props) {
         </MobileSheet>
       ) : null}
 
-      {!isDesktop && activeSheet === 'typography' && readerState?.prefs ? (
+      {activeSheet === 'typography' && readerState?.prefs ? (
         <MobileSheet
           onDismiss={() => {
             setActiveSheet(null);

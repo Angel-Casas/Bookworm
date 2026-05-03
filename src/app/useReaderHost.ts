@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
@@ -38,6 +38,8 @@ type UseReaderHostOptions = {
   readonly wiring: Wiring;
   readonly libraryStore: LibraryStore;
   readonly view: AppView;
+  readonly initialFocusMode: FocusMode;
+  readonly initialFocusModeHintShown: boolean;
   readonly onBookRemovedWhileInReader?: () => void;
 };
 
@@ -45,19 +47,11 @@ export function useReaderHost({
   wiring,
   libraryStore,
   view,
+  initialFocusMode,
+  initialFocusModeHintShown,
   onBookRemovedWhileInReader,
 }: UseReaderHostOptions): ReaderHostHandle {
-  const [initialFocusMode, setInitialFocusMode] = useState<FocusMode>('normal');
-  const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(false);
-
-  useEffect(() => {
-    void wiring.readerPreferencesRepo.get().then((p) => {
-      setInitialFocusMode(p.focusMode);
-    });
-    void wiring.settingsRepo.getFocusModeHintShown().then((shown) => {
-      setHasShownFirstTimeHint(shown);
-    });
-  }, [wiring]);
+  const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(initialFocusModeHintShown);
 
   const loadBookForReader = useCallback(
     async (

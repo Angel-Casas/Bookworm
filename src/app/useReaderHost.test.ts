@@ -2,7 +2,7 @@
    The spies on Wiring's repo methods are vi.fn() and don't use `this`;
    passing them to expect() is the standard pattern. */
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useReaderHost } from './useReaderHost';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
 import type { Wiring } from '@/features/library/wiring';
@@ -59,15 +59,18 @@ function fakeWiring(): Wiring {
       listKeys: vi.fn(() => Promise.resolve([])),
     },
     readerPreferencesRepo: {
-      get: vi.fn(() =>
-        Promise.resolve({ ...DEFAULT_READER_PREFERENCES, focusMode: 'focus' as const }),
-      ),
+      get: vi.fn(() => Promise.resolve({ ...DEFAULT_READER_PREFERENCES })),
       put: vi.fn(() => Promise.resolve()),
     },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
   };
 }
+
+const baseOpts = {
+  initialFocusMode: 'normal' as const,
+  initialFocusModeHintShown: false,
+};
 
 describe('useReaderHost', () => {
   it('returns the expected callback bundle', () => {
@@ -76,6 +79,7 @@ describe('useReaderHost', () => {
         wiring: fakeWiring(),
         libraryStore: fakeLibraryStore(),
         view: LIBRARY_VIEW,
+        ...baseOpts,
       }),
     );
     expect(typeof result.current.loadBookForReader).toBe('function');
@@ -89,35 +93,48 @@ describe('useReaderHost', () => {
     expect(typeof result.current.findBook).toBe('function');
   });
 
-  it('reads initialFocusMode from readerPreferences at mount', async () => {
-    const wiring = fakeWiring();
+  it('exposes initialFocusMode passed in by caller (no async load)', () => {
     const { result } = renderHook(() =>
       useReaderHost({
-        wiring,
+        wiring: fakeWiring(),
         libraryStore: fakeLibraryStore(),
         view: LIBRARY_VIEW,
+        ...baseOpts,
+        initialFocusMode: 'focus',
       }),
     );
-    expect(result.current.initialFocusMode).toBe('normal');
-    await waitFor(() => {
-      expect(result.current.initialFocusMode).toBe('focus');
-    });
-    expect(wiring.readerPreferencesRepo.get).toHaveBeenCalled();
+    expect(result.current.initialFocusMode).toBe('focus');
   });
 
-  it('reads hasShownFirstTimeHint from settings at mount', async () => {
+  it('exposes hasShownFirstTimeHint seeded from initialFocusModeHintShown', () => {
+    const { result } = renderHook(() =>
+      useReaderHost({
+        wiring: fakeWiring(),
+        libraryStore: fakeLibraryStore(),
+        view: LIBRARY_VIEW,
+        ...baseOpts,
+        initialFocusModeHintShown: true,
+      }),
+    );
+    expect(result.current.hasShownFirstTimeHint).toBe(true);
+  });
+
+  it('onFirstTimeHintShown flips local state and writes to settings', () => {
     const wiring = fakeWiring();
-    wiring.settingsRepo.getFocusModeHintShown = vi.fn(() => Promise.resolve(true));
     const { result } = renderHook(() =>
       useReaderHost({
         wiring,
         libraryStore: fakeLibraryStore(),
         view: LIBRARY_VIEW,
+        ...baseOpts,
       }),
     );
-    await waitFor(() => {
-      expect(result.current.hasShownFirstTimeHint).toBe(true);
+    expect(result.current.hasShownFirstTimeHint).toBe(false);
+    act(() => {
+      result.current.onFirstTimeHintShown();
     });
+    expect(result.current.hasShownFirstTimeHint).toBe(true);
+    expect(wiring.settingsRepo.setFocusModeHintShown).toHaveBeenCalledWith(true);
   });
 
   it('onFocusModeChange persists via readerPreferencesRepo', async () => {
@@ -127,12 +144,11 @@ describe('useReaderHost', () => {
         wiring,
         libraryStore: fakeLibraryStore(),
         view: LIBRARY_VIEW,
+        ...baseOpts,
       }),
     );
-    await waitFor(() => {
-      expect(wiring.readerPreferencesRepo.get).toHaveBeenCalled();
-    });
     await result.current.onFocusModeChange('focus');
+    expect(wiring.readerPreferencesRepo.get).toHaveBeenCalled();
     expect(wiring.readerPreferencesRepo.put).toHaveBeenCalledWith(
       expect.objectContaining({ focusMode: 'focus' }),
     );

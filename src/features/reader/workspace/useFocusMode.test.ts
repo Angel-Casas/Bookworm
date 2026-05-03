@@ -51,6 +51,14 @@ describe('useFocusMode', () => {
     expect(result.current.mode).toBe('focus');
   });
 
+  it('lowercase f key toggles too (no Shift required)', () => {
+    const { result } = renderHook(() => useFocusMode(baseOpts));
+    act(() => {
+      press('f');
+    });
+    expect(result.current.mode).toBe('focus');
+  });
+
   it('Cmd+\\ toggles', () => {
     const { result } = renderHook(() => useFocusMode(baseOpts));
     act(() => {
