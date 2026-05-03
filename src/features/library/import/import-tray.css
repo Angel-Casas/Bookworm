@@ -1,0 +1,91 @@
+.import-tray {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: var(--space-5) var(--space-10);
+  animation: import-tray-in var(--duration-base) var(--ease-out) forwards;
+}
+.import-tray__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.import-tray__summary {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.import-tray__clear {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+.import-tray__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.import-tray__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+.import-tray__icon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+}
+.import-tray__name {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+.import-tray__status {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+.import-tray__action,
+.import-tray__dismiss {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.import-tray__item--failed {
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-bg));
+}
+.import-tray__item--duplicate {
+  background: color-mix(in oklab, var(--color-accent) 6%, var(--color-bg));
+}
+.import-tray__item--done {
+  background: color-mix(in oklab, var(--color-success) 6%, var(--color-bg));
+}
+@keyframes import-tray-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .import-tray {
+    animation: none;
+  }
+}

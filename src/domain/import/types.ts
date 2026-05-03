@@ -12,4 +12,5 @@ export type SourceRef = {
   readonly originalName: string;
   readonly byteSize: number;
   readonly mimeType: string;
+  readonly checksum: string; // SHA-256 hex; used for duplicate detection
 };

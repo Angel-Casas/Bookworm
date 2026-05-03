@@ -37,6 +37,7 @@ export type Book = {
   readonly importStatus: ImportStatus;
   readonly indexingStatus: IndexingStatus;
   readonly aiProfileStatus: AIProfileStatus;
+  readonly lastOpenedAt?: IsoTimestamp; // undefined = never opened
   readonly createdAt: IsoTimestamp;
   readonly updatedAt: IsoTimestamp;
 };

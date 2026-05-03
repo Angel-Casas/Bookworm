@@ -1,0 +1,102 @@
+.library-chrome {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-7);
+  padding: var(--space-7) var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg);
+}
+.library-chrome__wordmark {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+.library-chrome__search {
+  max-width: 32rem;
+}
+.library-chrome__actions {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+}
+.library-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  transition: border-color var(--duration-base) var(--ease-out);
+}
+.library-search:focus-within {
+  border-color: var(--color-accent);
+}
+.library-search__icon {
+  font-size: var(--text-md);
+  color: var(--color-text-subtle);
+}
+.library-search__input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  outline: none;
+}
+.library-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.library-sort__label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.library-sort__select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: 6px 10px;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.library-import-button {
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-base);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.library-import-button:hover {
+  background: color-mix(in oklab, var(--color-text) 88%, var(--color-accent) 12%);
+}
+
+@media (max-width: 640px) {
+  .library-chrome {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: var(--space-5);
+    padding: var(--space-6);
+  }
+  .library-chrome__wordmark {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .library-chrome__actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .library-chrome__search {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    max-width: none;
+  }
+}

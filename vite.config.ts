@@ -50,6 +50,9 @@ export default defineConfig(() => ({
     target: 'es2022',
     sourcemap: true,
   },
+  worker: {
+    format: 'es' as const,
+  },
   server: {
     port: 5173,
     strictPort: false,
