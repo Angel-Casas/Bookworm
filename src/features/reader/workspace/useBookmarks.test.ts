@@ -57,6 +57,11 @@ function fakeReaderState(
     getCurrentAnchor: () => ANCHOR,
     getSnippetAt: () => Promise.resolve('a fresh snippet'),
     getSectionTitleAt: () => 'Chapter 4',
+    loadHighlights: () => undefined,
+    addHighlight: () => undefined,
+    removeHighlight: () => undefined,
+    onSelectionChange: () => () => undefined,
+    onHighlightTap: () => () => undefined,
     ...overrides,
   };
 }

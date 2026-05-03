@@ -8,7 +8,11 @@ import type {
   ReaderInitOptions,
   ReaderMode,
   ReaderPreferences,
+  SelectionListener,
+  HighlightTapListener,
 } from '@/domain/reader';
+import type { HighlightId } from '@/domain';
+import type { Highlight } from '@/domain/annotations/types';
 import { PdfPageView } from './PdfPageView';
 import { PdfNavStrip } from './PdfNavStrip';
 
@@ -192,6 +196,26 @@ export class PdfReaderAdapter implements BookReader {
     }
     if (best) return best.title;
     return `Page ${String(anchor.page)}`;
+  }
+
+  loadHighlights(_highlights: readonly Highlight[]): void {
+    // implemented in Task 9
+  }
+
+  addHighlight(_highlight: Highlight): void {
+    // implemented in Task 9
+  }
+
+  removeHighlight(_id: HighlightId): void {
+    // implemented in Task 9
+  }
+
+  onSelectionChange(_listener: SelectionListener): () => void {
+    return () => undefined;
+  }
+
+  onHighlightTap(_listener: HighlightTapListener): () => void {
+    return () => undefined;
   }
 
   destroy(): void {

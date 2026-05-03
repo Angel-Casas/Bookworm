@@ -5,7 +5,8 @@
 // them for use here but does NOT re-export — consumers import them from
 // '@/domain' directly. We only export reader-only types from this module.
 
-import type { LocationAnchor, TocEntry } from '@/domain';
+import type { LocationAnchor, TocEntry, HighlightId } from '@/domain';
+import type { Highlight, HighlightAnchor } from '@/domain/annotations/types';
 
 // ----- Reader preferences -----
 
@@ -55,6 +56,18 @@ export type ReaderInitOptions = {
 
 export type LocationChangeListener = (anchor: LocationAnchor) => void;
 
+export type SelectionInfo = {
+  readonly anchor: HighlightAnchor;
+  readonly selectedText: string;
+  readonly screenRect: { x: number; y: number; width: number; height: number };
+};
+
+export type SelectionListener = (selection: SelectionInfo | null) => void;
+export type HighlightTapListener = (
+  id: HighlightId,
+  screenPos: { x: number; y: number },
+) => void;
+
 export interface BookReader {
   open(file: Blob, options: ReaderInitOptions): Promise<{ toc: readonly TocEntry[] }>;
   goToAnchor(anchor: LocationAnchor): Promise<void>;
@@ -65,6 +78,12 @@ export interface BookReader {
   // Both return null on failure (image-only PDF page, unresolvable CFI, etc.).
   getSnippetAt(anchor: LocationAnchor): Promise<string | null>;
   getSectionTitleAt(anchor: LocationAnchor): string | null;
+  // Highlights (Phase 3.2).
+  loadHighlights(highlights: readonly Highlight[]): void;
+  addHighlight(highlight: Highlight): void;
+  removeHighlight(id: HighlightId): void;
+  onSelectionChange(listener: SelectionListener): () => void;
+  onHighlightTap(listener: HighlightTapListener): () => void;
   destroy(): void;
 }
 

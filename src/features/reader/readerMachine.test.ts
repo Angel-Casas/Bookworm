@@ -35,6 +35,21 @@ function fakeAdapter(): BookReader & { destroyed: boolean } {
     getSectionTitleAt() {
       return null;
     },
+    loadHighlights() {
+      // noop
+    },
+    addHighlight() {
+      // noop
+    },
+    removeHighlight() {
+      // noop
+    },
+    onSelectionChange() {
+      return () => undefined;
+    },
+    onHighlightTap() {
+      return () => undefined;
+    },
     destroy() {
       out.destroyed = true;
     },
@@ -110,6 +125,11 @@ describe('readerMachine', () => {
       onLocationChange: () => () => undefined,
       getSnippetAt: () => Promise.resolve(null),
       getSectionTitleAt: () => null,
+      loadHighlights: () => undefined,
+      addHighlight: () => undefined,
+      removeHighlight: () => undefined,
+      onSelectionChange: () => () => undefined,
+      onHighlightTap: () => () => undefined,
       destroy() {
         this.destroyed = true;
       },

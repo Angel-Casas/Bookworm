@@ -7,7 +7,11 @@ import type {
   LocationChangeListener,
   ReaderInitOptions,
   ReaderPreferences,
+  SelectionListener,
+  HighlightTapListener,
 } from '@/domain/reader';
+import type { HighlightId } from '@/domain';
+import type { Highlight } from '@/domain/annotations/types';
 
 const FONT_SIZE_PX: Readonly<Record<0 | 1 | 2 | 3 | 4, number>> = {
   0: 14,
@@ -213,6 +217,26 @@ export class EpubReaderAdapter implements BookReader {
     if (this.currentSectionIndex < 0) return null;
     const topLevel = this.currentTocEntries.filter((e) => e.depth === 0);
     return topLevel[this.currentSectionIndex]?.title ?? null;
+  }
+
+  loadHighlights(_highlights: readonly Highlight[]): void {
+    // implemented in Task 8
+  }
+
+  addHighlight(_highlight: Highlight): void {
+    // implemented in Task 8
+  }
+
+  removeHighlight(_id: HighlightId): void {
+    // implemented in Task 8
+  }
+
+  onSelectionChange(_listener: SelectionListener): () => void {
+    return () => undefined;
+  }
+
+  onHighlightTap(_listener: HighlightTapListener): () => void {
+    return () => undefined;
   }
 
   // Pull text from the currently rendered section's body when the visible
