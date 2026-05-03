@@ -4,6 +4,7 @@ import {
   type ReaderMode,
   type ReaderPreferences,
   type ReaderTheme,
+  type ReaderTypography,
 } from '@/domain/reader';
 import type { BookwormDB } from '../db/open';
 import { READER_PREFERENCES_STORE, type ReaderPreferencesRecord } from '../db/schema';
@@ -13,9 +14,9 @@ export type ReaderPreferencesRepository = {
   put(prefs: ReaderPreferences): Promise<void>;
 };
 
-const VALID_THEMES: ReadonlySet<ReaderTheme> = new Set(['light', 'dark', 'sepia']);
-const VALID_MODES: ReadonlySet<ReaderMode> = new Set(['scroll', 'paginated']);
-const VALID_FONTS: ReadonlySet<ReaderFontFamily> = new Set([
+const VALID_THEMES: ReadonlySet<string> = new Set(['light', 'dark', 'sepia']);
+const VALID_MODES: ReadonlySet<string> = new Set(['scroll', 'paginated']);
+const VALID_FONTS: ReadonlySet<string> = new Set([
   'system-serif',
   'system-sans',
   'georgia',
@@ -23,20 +24,57 @@ const VALID_FONTS: ReadonlySet<ReaderFontFamily> = new Set([
   'inter',
 ]);
 
-function isValid(value: unknown): value is ReaderPreferences {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Partial<ReaderPreferences>;
-  if (!v.theme || !VALID_THEMES.has(v.theme)) return false;
-  if (!v.modeByFormat || !VALID_MODES.has(v.modeByFormat.epub)) return false;
-  if (!v.typography) return false;
+function isValidTheme(v: unknown): v is ReaderTheme {
+  return typeof v === 'string' && VALID_THEMES.has(v);
+}
+function isValidMode(v: unknown): v is ReaderMode {
+  return typeof v === 'string' && VALID_MODES.has(v);
+}
+function isValidFont(v: unknown): v is ReaderFontFamily {
+  return typeof v === 'string' && VALID_FONTS.has(v);
+}
+function isFontSizeStep(v: unknown): v is 0 | 1 | 2 | 3 | 4 {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 4;
+}
+function isLineOrMarginStep(v: unknown): v is 0 | 1 | 2 {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 2;
+}
+
+type LoosePreferences = {
+  typography?: Partial<ReaderTypography>;
+  theme?: unknown;
+  modeByFormat?: { epub?: unknown; pdf?: unknown };
+};
+
+function normalize(value: unknown): ReaderPreferences | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as LoosePreferences;
+  if (!isValidTheme(v.theme)) return null;
+  if (!v.typography) return null;
   const t = v.typography;
-  if (!VALID_FONTS.has(t.fontFamily)) return false;
-  if (!Number.isInteger(t.fontSizeStep) || t.fontSizeStep < 0 || t.fontSizeStep > 4) return false;
-  if (!Number.isInteger(t.lineHeightStep) || t.lineHeightStep < 0 || t.lineHeightStep > 2) {
-    return false;
-  }
-  if (!Number.isInteger(t.marginStep) || t.marginStep < 0 || t.marginStep > 2) return false;
-  return true;
+  if (!isValidFont(t.fontFamily)) return null;
+  if (!isFontSizeStep(t.fontSizeStep)) return null;
+  if (!isLineOrMarginStep(t.lineHeightStep)) return null;
+  if (!isLineOrMarginStep(t.marginStep)) return null;
+  if (!v.modeByFormat) return null;
+
+  const epub = isValidMode(v.modeByFormat.epub)
+    ? v.modeByFormat.epub
+    : DEFAULT_READER_PREFERENCES.modeByFormat.epub;
+  const pdf = isValidMode(v.modeByFormat.pdf)
+    ? v.modeByFormat.pdf
+    : DEFAULT_READER_PREFERENCES.modeByFormat.pdf;
+
+  return {
+    typography: {
+      fontFamily: t.fontFamily,
+      fontSizeStep: t.fontSizeStep,
+      lineHeightStep: t.lineHeightStep,
+      marginStep: t.marginStep,
+    },
+    theme: v.theme,
+    modeByFormat: { epub, pdf },
+  };
 }
 
 export function createReaderPreferencesRepository(db: BookwormDB): ReaderPreferencesRepository {
@@ -44,12 +82,18 @@ export function createReaderPreferencesRepository(db: BookwormDB): ReaderPrefere
     async get() {
       const rec = await db.get(READER_PREFERENCES_STORE, 'global');
       if (!rec) return DEFAULT_READER_PREFERENCES;
-      if (!isValid(rec.value)) {
-        console.warn('[readerPreferences] dropping corrupted record');
+      const normalized = normalize(rec.value);
+      if (!normalized) {
+        console.warn('[readerPreferences] dropping unrecognizable record');
         await db.delete(READER_PREFERENCES_STORE, 'global');
         return DEFAULT_READER_PREFERENCES;
       }
-      return rec.value;
+      // If normalize had to fill in defaults, persist the upgraded shape so
+      // later reads don't repeat the work.
+      if (JSON.stringify(normalized) !== JSON.stringify(rec.value)) {
+        await db.put(READER_PREFERENCES_STORE, { key: 'global', value: normalized });
+      }
+      return normalized;
     },
     async put(prefs) {
       const record: ReaderPreferencesRecord = { key: 'global', value: prefs };
