@@ -1,0 +1,26 @@
+.pdf-reader__canvas {
+  display: block;
+}
+
+.pdf-reader__text-layer {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  overflow: hidden;
+  opacity: 0.25;
+  line-height: 1;
+  user-select: text;
+  pointer-events: auto;
+}
+
+.pdf-reader__text-layer > span {
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+  color: transparent;
+}
+
+.pdf-reader__text-layer ::selection {
+  background: rgba(0, 100, 255, 0.25);
+}

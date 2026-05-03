@@ -33,7 +33,8 @@ function buildPdf(): Uint8Array {
   const parentId = objects.length + 1 + PAGE_COUNT;
   const pageIds: number[] = [];
   for (let i = 0; i < PAGE_COUNT; i += 1) {
-    const cId = contentIds[i]!;
+    const cId = contentIds[i];
+    if (cId === undefined) throw new Error('Multipage PDF: contentIds underflow');
     const pId = push(
       `<< /Type /Page /Parent ${String(parentId)} 0 R /MediaBox [0 0 612 792] /Contents ${String(cId)} 0 R /Resources << /Font << /F1 ${String(fId)} 0 R >> >> >>`,
     );
