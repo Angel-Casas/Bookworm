@@ -118,6 +118,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           onFocusModeChange={reader.onFocusModeChange}
           onFirstTimeHintShown={reader.onFirstTimeHintShown}
           bookmarksRepo={reader.bookmarksRepo}
+          highlightsRepo={reader.highlightsRepo}
         />
       </div>
     );
