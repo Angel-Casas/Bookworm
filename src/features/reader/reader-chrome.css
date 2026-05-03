@@ -1,0 +1,66 @@
+.reader-chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-block-end: 1px solid var(--color-border-subtle);
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+.reader-chrome__back {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.reader-chrome__back:hover {
+  background: var(--color-panel);
+}
+
+.reader-chrome__title {
+  flex: 1 1 auto;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-sm);
+}
+
+.reader-chrome__title-main {
+  font-weight: 600;
+}
+
+.reader-chrome__title-sub {
+  color: var(--color-text-muted);
+}
+
+.reader-chrome__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.reader-chrome__actions button {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.reader-chrome__actions button:hover {
+  background: var(--color-panel);
+}
