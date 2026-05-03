@@ -16,4 +16,8 @@ export {
   createBookmarksRepository,
   type BookmarksRepository,
 } from './repositories/bookmarks';
+export {
+  createHighlightsRepository,
+  type HighlightsRepository,
+} from './repositories/highlights';
 export type { AppView } from './db/schema';
