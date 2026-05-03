@@ -1,0 +1,13 @@
+.desktop-rail {
+  flex: 0 0 auto;
+  width: 280px;
+  height: 100%;
+  background: var(--color-panel);
+  border-inline-end: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.desktop-rail .toc-panel {
+  border-inline-start: 0;
+  height: 100%;
+}
