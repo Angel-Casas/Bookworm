@@ -47,6 +47,7 @@ export class PdfReaderAdapter implements BookReader {
   private pageCount = 0;
   private currentMode: ReaderMode = 'paginated';
   private currentScale = 1;
+  private currentTocEntries: readonly TocEntry[] = [];
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -81,6 +82,7 @@ export class PdfReaderAdapter implements BookReader {
     }
 
     const toc = await this.extractToc();
+    this.currentTocEntries = toc;
     this.applyPreferences(options.preferences);
     return { toc };
   }
@@ -156,12 +158,40 @@ export class PdfReaderAdapter implements BookReader {
     };
   }
 
-  getSnippetAt(_anchor: LocationAnchor): Promise<string | null> {
-    return Promise.resolve(null);
+  async getSnippetAt(anchor: LocationAnchor): Promise<string | null> {
+    if (anchor.kind !== 'pdf') return null;
+    if (!this.pdfDoc) return null;
+    if (anchor.page < 1 || anchor.page > this.pageCount) return null;
+    try {
+      const page = await this.pdfDoc.getPage(anchor.page);
+      const textContent = await page.getTextContent();
+      const items = textContent.items as { str?: string }[];
+      const joined = items
+        .map((i) => i.str ?? '')
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (joined.length === 0) return null;
+      return joined.slice(0, 80);
+    } catch {
+      return null;
+    }
   }
 
-  getSectionTitleAt(_anchor: LocationAnchor): string | null {
-    return null;
+  getSectionTitleAt(anchor: LocationAnchor): string | null {
+    if (anchor.kind !== 'pdf') return null;
+    // Find the deepest TOC entry whose page is ≤ anchor.page.
+    let best: TocEntry | null = null;
+    for (const entry of this.currentTocEntries) {
+      if (entry.anchor.kind !== 'pdf') continue;
+      if (entry.anchor.page <= anchor.page) {
+        if (!best || (best.anchor.kind === 'pdf' && entry.anchor.page > best.anchor.page)) {
+          best = entry;
+        }
+      }
+    }
+    if (best) return best.title;
+    return `Page ${String(anchor.page)}`;
   }
 
   destroy(): void {
@@ -173,6 +203,7 @@ export class PdfReaderAdapter implements BookReader {
     for (const view of this.scrollViews.values()) view.destroy();
     this.scrollViews.clear();
     this.scrollPlaceholders = [];
+    this.currentTocEntries = [];
     if (this.mountedPaginatedView) {
       this.mountedPaginatedView.destroy();
       this.mountedPaginatedView = null;

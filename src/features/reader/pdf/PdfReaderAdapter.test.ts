@@ -43,3 +43,11 @@ describe('PdfReaderAdapter (lifecycle)', () => {
     host.remove();
   });
 });
+
+describe('PdfReaderAdapter.getSectionTitleAt fallback', () => {
+  it('returns "Page N" when there is no TOC', () => {
+    const adapter = new PdfReaderAdapter();
+    expect(adapter.getSectionTitleAt({ kind: 'pdf', page: 7 })).toBe('Page 7');
+    expect(adapter.getSectionTitleAt({ kind: 'epub-cfi', cfi: 'x' })).toBeNull();
+  });
+});
