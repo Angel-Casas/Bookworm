@@ -1,19 +1,25 @@
-import type { OpfsAdapter, BookRepository } from '@/storage';
+import type { OpfsAdapter, BookRepository, ReadingProgressRepository } from '@/storage';
 import { BookId } from '@/domain';
 
 // Background pass: any subdirectory under `books/` whose id isn't represented
-// in IndexedDB is removed. Runs after library boot.
+// in IndexedDB is removed. Runs after library boot. Optionally also sweeps
+// reading_progress records for books that no longer exist.
 
-export async function sweepOrphans(opfs: OpfsAdapter, bookRepo: BookRepository): Promise<void> {
-  let dirs: readonly string[];
+export async function sweepOrphans(
+  opfs: OpfsAdapter,
+  bookRepo: BookRepository,
+  progressRepo?: ReadingProgressRepository,
+): Promise<void> {
+  const all = await bookRepo.getAll();
+  const known = new Set(all.map((b) => b.id));
+
+  // OPFS sweep
+  let dirs: readonly string[] = [];
   try {
     dirs = await opfs.list('books');
   } catch {
-    return;
+    /* OPFS list failed; skip directory cleanup but still try progress cleanup */
   }
-  if (dirs.length === 0) return;
-  const all = await bookRepo.getAll();
-  const known = new Set(all.map((b) => b.id));
   await Promise.all(
     dirs.map(async (id) => {
       if (!known.has(BookId(id))) {
@@ -25,4 +31,24 @@ export async function sweepOrphans(opfs: OpfsAdapter, bookRepo: BookRepository):
       }
     }),
   );
+
+  // Reading-progress sweep
+  if (progressRepo) {
+    try {
+      const keys = await progressRepo.listKeys();
+      await Promise.all(
+        keys
+          .filter((k) => !known.has(BookId(k)))
+          .map(async (k) => {
+            try {
+              await progressRepo.delete(k);
+            } catch (err) {
+              console.warn('progress sweep failed for', k, err);
+            }
+          }),
+      );
+    } catch (err) {
+      console.warn('progress sweep listKeys failed', err);
+    }
+  }
 }

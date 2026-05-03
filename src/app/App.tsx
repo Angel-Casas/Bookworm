@@ -238,8 +238,7 @@ export function App() {
         });
 
         await loadLibrary({ store: libraryStore, openDB: () => Promise.resolve(db) });
-        // T17 will pass readingProgressRepo here once sweepOrphans is extended.
-        void sweepOrphans(wiring.opfs, wiring.bookRepo).catch(() => {
+        void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
         const persistedView = await wiring.settingsRepo.getView();
