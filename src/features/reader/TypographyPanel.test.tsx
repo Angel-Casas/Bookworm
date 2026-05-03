@@ -5,11 +5,17 @@ import { DEFAULT_READER_PREFERENCES } from '@/domain/reader';
 
 afterEach(cleanup);
 
-describe('TypographyPanel', () => {
+describe('TypographyPanel (epub)', () => {
   it('changes font family', () => {
     const onChange = vi.fn();
-    render(<TypographyPanel preferences={DEFAULT_READER_PREFERENCES} onChange={onChange} />);
-    const select = screen.getByText(/font/i).closest('label')!.querySelector('select')!;
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="epub"
+        onChange={onChange}
+      />,
+    );
+    const select = screen.getByText('Font').closest('label')!.querySelector('select')!;
     fireEvent.change(select, { target: { value: 'inter' } });
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_READER_PREFERENCES,
@@ -19,26 +25,44 @@ describe('TypographyPanel', () => {
 
   it('changes theme', () => {
     const onChange = vi.fn();
-    render(<TypographyPanel preferences={DEFAULT_READER_PREFERENCES} onChange={onChange} />);
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="epub"
+        onChange={onChange}
+      />,
+    );
     const dark = screen.getByRole('radio', { name: /dark/i });
     fireEvent.click(dark);
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_READER_PREFERENCES, theme: 'dark' });
   });
 
-  it('changes mode (scroll/paginated)', () => {
+  it('changes mode (scroll/paginated) for epub', () => {
     const onChange = vi.fn();
-    render(<TypographyPanel preferences={DEFAULT_READER_PREFERENCES} onChange={onChange} />);
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="epub"
+        onChange={onChange}
+      />,
+    );
     const scroll = screen.getByRole('radio', { name: /scroll/i });
     fireEvent.click(scroll);
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_READER_PREFERENCES,
-      modeByFormat: { epub: 'scroll' },
+      modeByFormat: { ...DEFAULT_READER_PREFERENCES.modeByFormat, epub: 'scroll' },
     });
   });
 
   it('increments font size step on +', () => {
     const onChange = vi.fn();
-    render(<TypographyPanel preferences={DEFAULT_READER_PREFERENCES} onChange={onChange} />);
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="epub"
+        onChange={onChange}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: /increase font size/i }));
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_READER_PREFERENCES,
@@ -54,6 +78,7 @@ describe('TypographyPanel', () => {
           ...DEFAULT_READER_PREFERENCES,
           typography: { ...DEFAULT_READER_PREFERENCES.typography, fontSizeStep: 0 },
         }}
+        bookFormat="epub"
         onChange={onChange}
       />,
     );
@@ -63,11 +88,60 @@ describe('TypographyPanel', () => {
 
   it('toggles line height steps via aria-pressed buttons', () => {
     const onChange = vi.fn();
-    render(<TypographyPanel preferences={DEFAULT_READER_PREFERENCES} onChange={onChange} />);
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="epub"
+        onChange={onChange}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: /loose/i }));
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_READER_PREFERENCES,
       typography: { ...DEFAULT_READER_PREFERENCES.typography, lineHeightStep: 2 },
+    });
+  });
+});
+
+describe('TypographyPanel (pdf)', () => {
+  it('hides font, line-height, and margins for pdf', () => {
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="pdf"
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.queryByText('Font')).toBeNull();
+    expect(screen.queryByText('Line height')).toBeNull();
+    expect(screen.queryByText('Margins')).toBeNull();
+  });
+
+  it('relabels Size as Zoom for pdf', () => {
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="pdf"
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.getByText('Zoom')).toBeDefined();
+    expect(screen.queryByText('Size')).toBeNull();
+  });
+
+  it('mode change for pdf writes to modeByFormat.pdf only', () => {
+    const onChange = vi.fn();
+    render(
+      <TypographyPanel
+        preferences={DEFAULT_READER_PREFERENCES}
+        bookFormat="pdf"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /scroll/i }));
+    expect(onChange).toHaveBeenCalledWith({
+      ...DEFAULT_READER_PREFERENCES,
+      modeByFormat: { ...DEFAULT_READER_PREFERENCES.modeByFormat, pdf: 'scroll' },
     });
   });
 });

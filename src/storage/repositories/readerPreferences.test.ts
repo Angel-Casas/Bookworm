@@ -38,4 +38,21 @@ describe('readerPreferencesRepository', () => {
     const raw = await db.get('reader_preferences', 'global');
     expect(raw).toBeUndefined();
   });
+
+  it('loads a v2.1 record (missing modeByFormat.pdf) and synthesizes default', async () => {
+    const repo = createReaderPreferencesRepository(db);
+    // Inject a record in the v2.1 shape — modeByFormat only has epub
+    await db.put('reader_preferences', {
+      key: 'global',
+      value: {
+        typography: DEFAULT_READER_PREFERENCES.typography,
+        theme: 'dark',
+        modeByFormat: { epub: 'scroll' },
+      } as never,
+    });
+    const loaded = await repo.get();
+    expect(loaded.theme).toBe('dark');
+    expect(loaded.modeByFormat.epub).toBe('scroll');
+    expect(loaded.modeByFormat.pdf).toBe('paginated');
+  });
 });

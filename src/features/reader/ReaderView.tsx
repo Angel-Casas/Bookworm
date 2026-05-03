@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMachine } from '@xstate/react';
-import type { LocationAnchor, TocEntry } from '@/domain';
+import type { BookFormat, LocationAnchor, TocEntry } from '@/domain';
 import type {
   BookReader,
   ReaderError,
@@ -16,13 +16,14 @@ type ReaderViewProps = {
   readonly bookId: string;
   readonly bookTitle: string;
   readonly bookSubtitle?: string;
+  readonly bookFormat: BookFormat;
   readonly onBack: () => void;
   readonly loadBookForReader: (bookId: string) => Promise<{
     blob: Blob;
     preferences: ReaderPreferences;
     initialAnchor?: LocationAnchor;
   }>;
-  readonly createAdapter: (mountInto: HTMLElement) => BookReader;
+  readonly createAdapter: (mountInto: HTMLElement, format: BookFormat) => BookReader;
   readonly onAnchorChange: (bookId: string, anchor: LocationAnchor) => void;
   readonly onPreferencesChange: (prefs: ReaderPreferences) => void;
 };
@@ -41,6 +42,7 @@ export function ReaderView({
   bookId,
   bookTitle,
   bookSubtitle,
+  bookFormat,
   onBack,
   loadBookForReader,
   createAdapter,
@@ -66,12 +68,12 @@ export function ReaderView({
           if (!mountRef.current) {
             throw new Error('ReaderView: mount node not ready');
           }
-          const adapter = createAdapter(mountRef.current);
+          const adapter = createAdapter(mountRef.current, bookFormat);
           adapterRef.current = adapter;
           return adapter;
         },
       }),
-    [loadBookForReader, createAdapter],
+    [loadBookForReader, createAdapter, bookFormat],
   );
 
   const [state, send] = useMachine(machine);
@@ -198,7 +200,7 @@ export function ReaderView({
       ) : null}
       {typoOpen && prefs ? (
         <div className="reader-view__sheet reader-view__sheet--typography">
-          <TypographyPanel preferences={prefs} onChange={handlePrefChange} />
+          <TypographyPanel preferences={prefs} bookFormat={bookFormat} onChange={handlePrefChange} />
         </div>
       ) : null}
     </div>

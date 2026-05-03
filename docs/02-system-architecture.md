@@ -327,6 +327,26 @@ No fallback path for older browsers in v1. May be revisited later.
 - `fflate` for EPUB zip reading (no `foliate-js` until Phase 2)
 - `pdfjs-dist` for PDF metadata + cover thumbnail (already locked in Phase 0; introduced now)
 
+### 2026-05-03 — Phase 2.2 PDF reader adapter
+
+- `PdfReaderAdapter` (sole `pdfjs-dist` consumer for rendering) implements the
+  `BookReader` contract from Phase 2.1. No new dependencies — `pdfjs-dist@5.7.284`
+  was already in the tree from Phase 1 metadata extraction; the same dedicated
+  worker setup serves rendering.
+- `ReaderPreferences.modeByFormat` extended with `pdf`. Forward-compatible
+  validator soften (no IDB schema bump). Existing user theme/typography
+  preferences from Phase 2.1 survive the v2.2 upgrade.
+- `TypographyPanel` becomes format-aware: hides fontFamily / lineHeight /
+  margins for PDFs; relabels Size → Zoom.
+- `App.tsx` `createAdapter` callback dispatches on `book.format`.
+- PDF reader renders canvas + transparent text-layer overlay (PDF.js's
+  standard pattern for native browser text selection).
+- Scroll mode virtualizes via `IntersectionObserver` (visible + 2 above + 2
+  below = max 5 concurrent rendered canvases).
+- Dark theme via `filter: invert(1) hue-rotate(180deg)` on the pages
+  container (text-only PDFs work cleanly; image-heavy distorts — documented
+  caveat in `pdf-notes.md`).
+
 ### 2026-05-03 — Phase 2.1 dependency additions and schema migration
 - `foliate-js` pinned at `1.0.1` for EPUB rendering. Sole consumer:
   `src/features/reader/epub/EpubReaderAdapter.ts`. Mapping of foliate-js

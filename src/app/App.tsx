@@ -11,9 +11,10 @@ import { LibraryBootError } from '@/features/library/LibraryBootError';
 import { DropOverlay } from '@/features/library/DropOverlay';
 import { ReaderView } from '@/features/reader/ReaderView';
 import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
+import { PdfReaderAdapter } from '@/features/reader/pdf/PdfReaderAdapter';
 import { LIBRARY_VIEW, readerView, type AppView } from '@/app/view';
-import { BookId, type Book, type LocationAnchor, type SortKey } from '@/domain';
-import type { ReaderPreferences } from '@/domain/reader';
+import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
+import type { BookReader, ReaderPreferences } from '@/domain/reader';
 import './app.css';
 
 type ReadyBoot = {
@@ -153,9 +154,13 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     [wiring],
   );
 
-  const createAdapter = useCallback((mountInto: HTMLElement) => {
-    return new EpubReaderAdapter(mountInto);
-  }, []);
+  const createAdapter = useCallback(
+    (mountInto: HTMLElement, format: BookFormat): BookReader => {
+      if (format === 'pdf') return new PdfReaderAdapter(mountInto);
+      return new EpubReaderAdapter(mountInto);
+    },
+    [],
+  );
 
   const onAnchorChange = useCallback(
     (bookId: string, anchor: LocationAnchor) => {
@@ -184,6 +189,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           key={view.bookId}
           bookId={view.bookId}
           bookTitle={book.title}
+          bookFormat={book.format}
           {...(book.author !== undefined && { bookSubtitle: book.author })}
           onBack={handleBack}
           loadBookForReader={loadBookForReader}

@@ -29,7 +29,7 @@ export type ReaderTypography = {
 export type ReaderPreferences = {
   readonly typography: ReaderTypography;
   readonly theme: ReaderTheme;
-  readonly modeByFormat: { readonly epub: ReaderMode };
+  readonly modeByFormat: { readonly epub: ReaderMode; readonly pdf: ReaderMode };
 };
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -40,7 +40,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
     marginStep: 1,
   },
   theme: 'light',
-  modeByFormat: { epub: 'paginated' },
+  modeByFormat: { epub: 'paginated', pdf: 'paginated' },
 };
 
 // ----- BookReader contract (just-in-time minimal API) -----

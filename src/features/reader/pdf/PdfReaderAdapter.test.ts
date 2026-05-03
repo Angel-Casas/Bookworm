@@ -1,0 +1,45 @@
+import { describe, it, expect } from 'vitest';
+import { PdfReaderAdapter } from './PdfReaderAdapter';
+import { DEFAULT_READER_PREFERENCES } from '@/domain/reader';
+
+// pdfjs-dist's worker setup fails in Vitest under happy-dom (the `?url`
+// dynamic import doesn't resolve to a fetchable path; the fake-worker
+// fallback also can't load pdf.worker.mjs). Open()-path tests that need
+// real pdfjs are covered by E2E in Milestone 4 against a real Chromium
+// where the production-built worker loads correctly.
+
+describe('PdfReaderAdapter (lifecycle)', () => {
+  it('destroy is idempotent on a never-opened adapter', () => {
+    const adapter = new PdfReaderAdapter();
+    expect(() => {
+      adapter.destroy();
+      adapter.destroy();
+    }).not.toThrow();
+  });
+
+  it('throws on getCurrentAnchor before open', () => {
+    const adapter = new PdfReaderAdapter();
+    expect(() => adapter.getCurrentAnchor()).toThrow(/not opened/);
+    adapter.destroy();
+  });
+
+  it('rejects goToAnchor before open', async () => {
+    const adapter = new PdfReaderAdapter();
+    await expect(adapter.goToAnchor({ kind: 'pdf', page: 1 })).rejects.toThrow(/not opened/);
+    adapter.destroy();
+  });
+
+  it('rejects open on a non-PDF blob (synchronous error path)', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const adapter = new PdfReaderAdapter(host);
+    const garbage = new Blob([new Uint8Array([0, 1, 2, 3])], { type: 'application/pdf' });
+    // The error message varies by pdfjs version (could be "Setting up fake
+    // worker failed" or "InvalidPDFException"); we only assert that it rejects.
+    await expect(
+      adapter.open(garbage, { preferences: DEFAULT_READER_PREFERENCES }),
+    ).rejects.toBeDefined();
+    adapter.destroy();
+    host.remove();
+  });
+});
