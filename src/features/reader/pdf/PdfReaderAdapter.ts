@@ -37,6 +37,10 @@ export class PdfReaderAdapter implements BookReader {
   private pagesContainer: HTMLDivElement | null = null;
   private navStrip: PdfNavStrip | null = null;
   private mountedPaginatedView: PdfPageView | null = null;
+  private scrollPlaceholders: HTMLDivElement[] = [];
+  private scrollViews = new Map<number, PdfPageView>();
+  private scrollIntersectionObserver: IntersectionObserver | null = null;
+  private readonly scrollWindowSize = 2;
   private listeners = new Set<LocationChangeListener>();
   private destroyed = false;
   private currentPage = 1;
@@ -93,6 +97,8 @@ export class PdfReaderAdapter implements BookReader {
     if (this.currentMode === 'paginated') {
       return this.mountPaginatedPage(target);
     }
+    // scroll mode
+    this.scrollPlaceholders[target - 1]?.scrollIntoView({ block: 'start' });
     return Promise.resolve();
   }
 
@@ -129,6 +135,11 @@ export class PdfReaderAdapter implements BookReader {
     if (this.destroyed) return;
     this.destroyed = true;
     this.listeners.clear();
+    this.scrollIntersectionObserver?.disconnect();
+    this.scrollIntersectionObserver = null;
+    for (const view of this.scrollViews.values()) view.destroy();
+    this.scrollViews.clear();
+    this.scrollPlaceholders = [];
     if (this.mountedPaginatedView) {
       this.mountedPaginatedView.destroy();
       this.mountedPaginatedView = null;
@@ -207,10 +218,16 @@ export class PdfReaderAdapter implements BookReader {
 
   private buildLayoutForMode(): void {
     if (!this.root) return;
+    // Tear down all per-mode state
     if (this.mountedPaginatedView) {
       this.mountedPaginatedView.destroy();
       this.mountedPaginatedView = null;
     }
+    for (const view of this.scrollViews.values()) view.destroy();
+    this.scrollViews.clear();
+    this.scrollPlaceholders = [];
+    this.scrollIntersectionObserver?.disconnect();
+    this.scrollIntersectionObserver = null;
     if (this.pagesContainer) {
       this.pagesContainer.remove();
       this.pagesContainer = null;
@@ -279,7 +296,90 @@ export class PdfReaderAdapter implements BookReader {
   }
 
   private buildScrollPlaceholders(): void {
-    // Implemented in T8.
+    if (!this.pdfDoc || !this.pagesContainer) return;
+    this.scrollPlaceholders = [];
+    void this.pdfDoc.getPage(1).then((firstPage) => {
+      if (this.destroyed || this.currentMode !== 'scroll') return;
+      const viewport = firstPage.getViewport({ scale: this.currentScale });
+      const cssWidth = Math.floor(viewport.width);
+      const cssHeight = Math.floor(viewport.height);
+      for (let i = 0; i < this.pageCount; i += 1) {
+        const slot = document.createElement('div');
+        slot.className = 'pdf-reader__page';
+        slot.dataset.pageIndex = String(i);
+        slot.style.width = `${String(cssWidth)}px`;
+        slot.style.height = `${String(cssHeight)}px`;
+        this.pagesContainer?.appendChild(slot);
+        this.scrollPlaceholders[i] = slot;
+      }
+      this.installScrollObserver();
+      // Scroll the requested initial page into view (e.g. restored from
+      // readingProgress).
+      this.scrollPlaceholders[this.currentPage - 1]?.scrollIntoView({ block: 'start' });
+      // And eagerly render around the current position.
+      this.renderScrollWindow(this.currentPage);
+    });
+  }
+
+  private installScrollObserver(): void {
+    if (!this.pagesContainer) return;
+    this.scrollIntersectionObserver?.disconnect();
+    this.scrollIntersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (this.destroyed) return;
+        let best: { index: number; ratio: number } | null = null;
+        for (const e of entries) {
+          const idx = Number((e.target as HTMLElement).dataset.pageIndex ?? -1);
+          if (idx < 0) continue;
+          if (e.isIntersecting && (best === null || e.intersectionRatio > best.ratio)) {
+            best = { index: idx, ratio: e.intersectionRatio };
+          }
+        }
+        if (best !== null) {
+          const newPage = best.index + 1;
+          if (newPage !== this.currentPage) {
+            this.currentPage = newPage;
+            this.fireLocationChange();
+            this.refreshNavStrip();
+          }
+          this.renderScrollWindow(newPage);
+        }
+      },
+      { root: this.pagesContainer, threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    for (const slot of this.scrollPlaceholders) {
+      this.scrollIntersectionObserver.observe(slot);
+    }
+  }
+
+  private renderScrollWindow(centerPage: number): void {
+    if (!this.pdfDoc) return;
+    const lo = Math.max(1, centerPage - this.scrollWindowSize);
+    const hi = Math.min(this.pageCount, centerPage + this.scrollWindowSize);
+
+    // Drop pages outside the window
+    for (const [page, view] of this.scrollViews) {
+      if (page < lo || page > hi) {
+        view.destroy();
+        this.scrollViews.delete(page);
+      }
+    }
+    // Render new pages inside the window
+    for (let p = lo; p <= hi; p += 1) {
+      if (this.scrollViews.has(p)) continue;
+      const slot = this.scrollPlaceholders[p - 1];
+      if (!slot) continue;
+      const captured = p;
+      void this.pdfDoc.getPage(captured).then(async (page) => {
+        if (this.destroyed || this.currentMode !== 'scroll' || this.scrollViews.has(captured)) {
+          return;
+        }
+        slot.replaceChildren();
+        const view = new PdfPageView({ page, scale: this.currentScale, host: slot });
+        this.scrollViews.set(captured, view);
+        await view.render();
+      });
+    }
   }
 
   private generateFallbackToc(): TocEntry[] {
