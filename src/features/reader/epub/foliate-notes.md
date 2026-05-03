@@ -80,14 +80,19 @@ renderer reads from its host context, OR baked into the injected CSS.
   through the adapter test suite + a manual smoke pass.
 - The `foliate-view` custom element attaches a closed shadow root; we cannot
   query into it from outside. All interaction is through the View's public API.
-- **Paginator ResizeObserver leak on destroy.** `Paginator.destroy()` calls
-  `this.#observer.unobserve(this)` but never `disconnect()`s the second
-  observer in its inner View class (which observes `iframe.contentDocument.body`).
-  After we close + remove the view, the observer can still fire one or two
-  callbacks against a now-null document, throwing `TypeError: Cannot read
-  properties of null (reading 'createTreeWalker')`. The adapter's `destroy()`
-  installs a 1-second window-level error swallower for these specific
-  errors. Real errors from elsewhere are not affected.
+- **Paginator ResizeObserver leak on destroy.** `Paginator.destroy()` and
+  the inner `View.destroy()` only call `unobserve(target)` — never
+  `disconnect()`. Once the iframe is removed, queued callbacks fire against
+  a null contentDocument and throw `TypeError: Cannot read properties of
+  null (reading 'createTreeWalker')` repeatedly until the observer is GC'd.
+  Our adapter monkey-patches `window.ResizeObserver` between `open()` and
+  `destroy()` to track every observer foliate-js creates, then force-
+  `disconnect()`s them in `destroy()`. The patch is bounded: only this
+  adapter's lifetime, restored on destroy. This matters because some
+  browser extensions (SES / lockdown-install.js, used by wallets like
+  MetaMask) catch unhandled rejections at a level deeper than
+  `event.preventDefault()` can suppress, so a one-second error swallower
+  isn't enough — we have to stop the rejections from happening at all.
 - **Iframe `<body onload="...">` handlers throw inside the sandbox.** Older
   EPUBs (e.g. Project Gutenberg's Pride and Prejudice) have legacy onload
   handlers calling functions defined in the EPUB's own scripts, which the

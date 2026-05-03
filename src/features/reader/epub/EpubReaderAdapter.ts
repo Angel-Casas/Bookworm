@@ -54,25 +54,18 @@ function buildReaderCss(prefs: ReaderPreferences): string {
   `.trim();
 }
 
-// foliate-js's paginator leaks ResizeObservers after destroy: its inner View
-// class observes iframe.contentDocument.body but only `unobserve()`s — never
-// `disconnect()`s — and once the iframe is removed the observer fires render
-// callbacks against a null document. We suppress those known-shape errors for
-// a short window starting at destroy().
-const FOLIATE_TEARDOWN_MARKERS = [
-  "Cannot read properties of null (reading 'createTreeWalker')",
-  'paginator',
-];
+// foliate-js's Paginator + inner View classes both create ResizeObservers
+// without ever calling .disconnect() on destroy — only .unobserve(target),
+// which leaves callbacks queued. Once the iframe is removed those callbacks
+// fire against a null contentDocument and throw `TypeError: Cannot read
+// properties of null (reading 'createTreeWalker')` infinitely.
+//
+// We can't fix foliate-js, but we CAN intercept all ResizeObserver creations
+// during the adapter's lifetime and force-disconnect them at destroy(). This
+// is bounded: the patch is installed only between open() and destroy(), and
+// only for this adapter instance.
 
-function isFoliateTeardownError(reason: unknown): boolean {
-  const message =
-    reason instanceof Error
-      ? `${reason.message} ${reason.stack ?? ''}`
-      : typeof reason === 'string'
-        ? reason
-        : '';
-  return FOLIATE_TEARDOWN_MARKERS.every((m) => message.toLowerCase().includes(m.toLowerCase()));
-}
+const OriginalResizeObserver = typeof window !== 'undefined' ? window.ResizeObserver : undefined;
 
 export class EpubReaderAdapter implements BookReader {
   private view: FoliateViewElement | null = null;
@@ -80,6 +73,8 @@ export class EpubReaderAdapter implements BookReader {
   private listeners = new Set<LocationChangeListener>();
   private destroyed = false;
   private currentCfi = '';
+  private trackedObservers = new Set<ResizeObserver>();
+  private resizeObserverPatched = false;
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -97,6 +92,8 @@ export class EpubReaderAdapter implements BookReader {
         if (child.tagName.toLowerCase() === 'foliate-view') child.remove();
       }
     }
+
+    this.installResizeObserverPatch();
 
     const view = document.createElement('foliate-view');
     if (this.host) {
@@ -180,18 +177,6 @@ export class EpubReaderAdapter implements BookReader {
     this.destroyed = true;
     this.listeners.clear();
 
-    // Install a temporary error swallower for foliate-js's leaked
-    // ResizeObserver callbacks (see FOLIATE_TEARDOWN_MARKERS above). The
-    // observers fire on the next animation frames after we close the view.
-    const onUnhandled = (e: PromiseRejectionEvent): void => {
-      if (isFoliateTeardownError(e.reason)) e.preventDefault();
-    };
-    const onError = (e: ErrorEvent): void => {
-      if (isFoliateTeardownError(e.error ?? e.message)) e.preventDefault();
-    };
-    window.addEventListener('unhandledrejection', onUnhandled);
-    window.addEventListener('error', onError);
-
     try {
       this.view?.close();
     } catch (err) {
@@ -204,12 +189,42 @@ export class EpubReaderAdapter implements BookReader {
     }
     this.view = null;
 
-    // Two animation frames is enough for any pending ResizeObserver callbacks
-    // to drain. Then we remove the swallowers so real future errors surface.
-    window.setTimeout(() => {
-      window.removeEventListener('unhandledrejection', onUnhandled);
-      window.removeEventListener('error', onError);
-    }, 1000);
+    // Force-disconnect every ResizeObserver that foliate-js created during
+    // this adapter's lifetime. This is what stops the infinite-loop callbacks
+    // against the now-detached iframe document.
+    for (const obs of this.trackedObservers) {
+      try {
+        obs.disconnect();
+      } catch {
+        /* observer may already be GC'd; safe to ignore */
+      }
+    }
+    this.trackedObservers.clear();
+    this.uninstallResizeObserverPatch();
+  }
+
+  // ----- ResizeObserver tracking patch -----
+
+  private installResizeObserverPatch(): void {
+    if (this.resizeObserverPatched) return;
+    if (!OriginalResizeObserver) return;
+    this.resizeObserverPatched = true;
+    const tracked = this.trackedObservers;
+    class TrackedResizeObserver extends OriginalResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        super(callback);
+        tracked.add(this);
+      }
+    }
+    window.ResizeObserver = TrackedResizeObserver;
+  }
+
+  private uninstallResizeObserverPatch(): void {
+    if (!this.resizeObserverPatched) return;
+    this.resizeObserverPatched = false;
+    if (OriginalResizeObserver) {
+      window.ResizeObserver = OriginalResizeObserver;
+    }
   }
 
   // ----- internals -----
