@@ -1,5 +1,5 @@
 import type { BookId, BookmarkId, HighlightId, IsoTimestamp, NoteId } from '../ids';
-import type { LocationAnchor, LocationRange } from '../locations';
+import type { LocationAnchor } from '../locations';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink';
 
@@ -12,12 +12,27 @@ export type Bookmark = {
   readonly createdAt: IsoTimestamp;
 };
 
+export type HighlightRect = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+
+export type HighlightAnchor =
+  | { readonly kind: 'epub-cfi'; readonly cfi: string }
+  | {
+      readonly kind: 'pdf';
+      readonly page: number;
+      readonly rects: readonly HighlightRect[];
+    };
+
 export type Highlight = {
   readonly id: HighlightId;
   readonly bookId: BookId;
-  readonly range: LocationRange;
+  readonly anchor: HighlightAnchor;
   readonly selectedText: string;
-  readonly normalizedText: string;
+  readonly sectionTitle: string | null;
   readonly color: HighlightColor;
   readonly tags: readonly string[];
   readonly createdAt: IsoTimestamp;
