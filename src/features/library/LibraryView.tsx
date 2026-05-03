@@ -13,6 +13,7 @@ type Props = {
   readonly onPersistSort: (key: SortKey) => void;
   readonly onFilesPicked: (files: readonly File[]) => void;
   readonly onRemoveBook: (book: Book) => void;
+  readonly onOpenBook?: (book: Book) => void;
 };
 
 export function LibraryView(props: Props) {
@@ -25,6 +26,7 @@ export function LibraryView(props: Props) {
       onPersistSort={props.onPersistSort}
       onFilesPicked={props.onFilesPicked}
       onRemoveBook={props.onRemoveBook}
+      {...(props.onOpenBook && { onOpenBook: props.onOpenBook })}
     />
   );
 }

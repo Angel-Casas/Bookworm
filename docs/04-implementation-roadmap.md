@@ -3,7 +3,7 @@
 ## Status
 - Phase 0 — complete (2026-05-02)
 - Phase 1 — complete (2026-05-03)
-- Phase 2 — pending
+- Phase 2 — in progress (Task 2.1 complete 2026-05-03; 2.2 + 2.3 pending)
 
 ## Roadmap principles
 - Ship a narrow, polished v1

@@ -1,0 +1,67 @@
+.typography-panel {
+  background: var(--color-panel);
+  color: var(--color-text);
+  padding: var(--space-7);
+  display: grid;
+  gap: var(--space-6);
+  width: min(360px, 90vw);
+  border-inline-start: 1px solid var(--color-border-subtle);
+}
+
+.typography-panel__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.typography-panel__row > span:first-child,
+.typography-panel__row > legend {
+  flex: 0 0 auto;
+  min-width: 88px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  padding: 0;
+  margin: 0;
+}
+
+.typography-panel__row select,
+.typography-panel__row button {
+  font: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-5);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.typography-panel__row select:hover,
+.typography-panel__row button:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.typography-panel__row button[aria-pressed='true'] {
+  background: var(--color-accent-muted);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.typography-panel__row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.typography-panel__row input[type='radio'] {
+  margin-inline-end: var(--space-3);
+}
+
+.typography-panel__row label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}

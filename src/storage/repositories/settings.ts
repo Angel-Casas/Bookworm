@@ -1,4 +1,5 @@
 import type { SortKey } from '@/domain';
+import type { AppView } from '@/app/view';
 import type { BookwormDB } from '../db/open';
 import { SETTINGS_STORE, type SettingsRecord } from '../db/schema';
 
@@ -7,7 +8,17 @@ export type SettingsRepository = {
   setLibrarySort(key: SortKey): Promise<void>;
   getStoragePersistResult(): Promise<'granted' | 'denied' | undefined>;
   setStoragePersistResult(value: 'granted' | 'denied'): Promise<void>;
+  getView(): Promise<AppView | undefined>;
+  setView(view: AppView): Promise<void>;
 };
+
+function isValidView(v: unknown): v is AppView {
+  if (typeof v !== 'object' || v === null) return false;
+  const x = v as { kind?: unknown; bookId?: unknown };
+  if (x.kind === 'library') return true;
+  if (x.kind === 'reader' && typeof x.bookId === 'string' && x.bookId.length > 0) return true;
+  return false;
+}
 
 const VALID_SORT_KEYS: ReadonlySet<SortKey> = new Set([
   'recently-opened',
@@ -41,6 +52,14 @@ export function createSettingsRepository(db: BookwormDB): SettingsRepository {
     },
     async setStoragePersistResult(value) {
       await put({ key: 'storagePersistResult', value });
+    },
+    async getView() {
+      const rec = await get<Extract<SettingsRecord, { key: 'view' }>>('view');
+      if (!rec) return undefined;
+      return isValidView(rec.value) ? rec.value : undefined;
+    },
+    async setView(view) {
+      await put({ key: 'view', value: view });
     },
   };
 }
