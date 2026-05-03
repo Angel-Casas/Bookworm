@@ -1,11 +1,18 @@
-import type { PDFPageProxy, RenderTask } from 'pdfjs-dist';
+import type { PageViewport, PDFPageProxy, RenderTask } from 'pdfjs-dist';
 import { TextLayer } from 'pdfjs-dist';
 import './pdf-page.css';
+import './pdf-highlight-layer.css';
 
 type Options = {
   readonly page: PDFPageProxy;
   readonly scale: number;
   readonly host: HTMLElement;
+  readonly pageNumber: number;
+  readonly onRendered?: (
+    pageNumber: number,
+    highlightLayer: HTMLDivElement,
+    viewport: PageViewport,
+  ) => void;
 };
 
 /* eslint-disable @typescript-eslint/no-unnecessary-condition --
@@ -16,6 +23,7 @@ export class PdfPageView {
   private renderTask: RenderTask | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private textLayerEl: HTMLDivElement | null = null;
+  private highlightLayerEl: HTMLDivElement | null = null;
 
   constructor(private readonly opts: Options) {}
 
@@ -72,6 +80,21 @@ export class PdfPageView {
       if (this.destroyed) return;
       console.warn('[pdf] text layer render failed', err);
     }
+
+    // Highlight layer (Phase 3.2): a sibling of the text-layer that the
+    // adapter populates with absolutely-positioned colored divs.
+    if (this.destroyed) return;
+    const highlightLayerEl = document.createElement('div');
+    highlightLayerEl.className = 'pdf-reader__highlight-layer';
+    highlightLayerEl.style.width = `${String(Math.floor(viewport.width / dpr))}px`;
+    highlightLayerEl.style.height = `${String(Math.floor(viewport.height / dpr))}px`;
+    host.appendChild(highlightLayerEl);
+    this.highlightLayerEl = highlightLayerEl;
+
+    if (this.opts.onRendered) {
+      const cssViewport = page.getViewport({ scale });
+      this.opts.onRendered(this.opts.pageNumber, highlightLayerEl, cssViewport);
+    }
   }
 
   destroy(): void {
@@ -94,6 +117,10 @@ export class PdfPageView {
     if (this.textLayerEl) {
       this.textLayerEl.remove();
       this.textLayerEl = null;
+    }
+    if (this.highlightLayerEl) {
+      this.highlightLayerEl.remove();
+      this.highlightLayerEl = null;
     }
   }
 }

@@ -8,11 +8,16 @@ import type {
   ReaderInitOptions,
   ReaderMode,
   ReaderPreferences,
+  SelectionInfo,
   SelectionListener,
   HighlightTapListener,
 } from '@/domain/reader';
 import type { HighlightId } from '@/domain';
-import type { Highlight } from '@/domain/annotations/types';
+import type {
+  Highlight,
+  HighlightRect,
+} from '@/domain/annotations/types';
+import type { PageViewport } from 'pdfjs-dist';
 import { PdfPageView } from './PdfPageView';
 import { PdfNavStrip } from './PdfNavStrip';
 
@@ -52,6 +57,14 @@ export class PdfReaderAdapter implements BookReader {
   private currentMode: ReaderMode = 'paginated';
   private currentScale = 1;
   private currentTocEntries: readonly TocEntry[] = [];
+  // Highlights (Phase 3.2).
+  private highlightsByPage = new Map<number, Highlight[]>();
+  private highlightLayerByPage = new Map<number, HTMLDivElement>();
+  private highlightViewportByPage = new Map<number, PageViewport>();
+  private selectionListeners = new Set<SelectionListener>();
+  private highlightTapListeners = new Set<HighlightTapListener>();
+  private selectionDebounceTimer: number | undefined;
+  private documentSelectionHandler: (() => void) | null = null;
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -88,6 +101,14 @@ export class PdfReaderAdapter implements BookReader {
     const toc = await this.extractToc();
     this.currentTocEntries = toc;
     this.applyPreferences(options.preferences);
+
+    // Selection capture (Phase 3.2): listen at document level; filter to
+    // selections inside our text-layer.
+    this.documentSelectionHandler = () => {
+      this.handlePdfSelectionChange();
+    };
+    document.addEventListener('selectionchange', this.documentSelectionHandler);
+
     return { toc };
   }
 
@@ -198,24 +219,164 @@ export class PdfReaderAdapter implements BookReader {
     return `Page ${String(anchor.page)}`;
   }
 
-  loadHighlights(_highlights: readonly Highlight[]): void {
-    // implemented in Task 9
+  loadHighlights(highlights: readonly Highlight[]): void {
+    this.highlightsByPage.clear();
+    for (const h of highlights) {
+      if (h.anchor.kind !== 'pdf') continue;
+      const list = this.highlightsByPage.get(h.anchor.page) ?? [];
+      list.push(h);
+      this.highlightsByPage.set(h.anchor.page, list);
+    }
+    // Re-draw any pages currently mounted.
+    for (const [page, layer] of this.highlightLayerByPage) {
+      const vp = this.highlightViewportByPage.get(page);
+      if (vp) this.renderHighlightsOnPage(page, layer, vp);
+    }
   }
 
-  addHighlight(_highlight: Highlight): void {
-    // implemented in Task 9
+  addHighlight(highlight: Highlight): void {
+    if (highlight.anchor.kind !== 'pdf') return;
+    const page = highlight.anchor.page;
+    const list = this.highlightsByPage.get(page) ?? [];
+    const filtered = list.filter((h) => h.id !== highlight.id);
+    filtered.push(highlight);
+    this.highlightsByPage.set(page, filtered);
+    const layer = this.highlightLayerByPage.get(page);
+    const vp = this.highlightViewportByPage.get(page);
+    if (layer && vp) this.renderHighlightsOnPage(page, layer, vp);
   }
 
-  removeHighlight(_id: HighlightId): void {
-    // implemented in Task 9
+  removeHighlight(id: HighlightId): void {
+    for (const [page, list] of this.highlightsByPage) {
+      const filtered = list.filter((h) => h.id !== id);
+      if (filtered.length !== list.length) {
+        this.highlightsByPage.set(page, filtered);
+        const layer = this.highlightLayerByPage.get(page);
+        const vp = this.highlightViewportByPage.get(page);
+        if (layer && vp) this.renderHighlightsOnPage(page, layer, vp);
+      }
+    }
   }
 
-  onSelectionChange(_listener: SelectionListener): () => void {
-    return () => undefined;
+  onSelectionChange(listener: SelectionListener): () => void {
+    this.selectionListeners.add(listener);
+    return () => {
+      this.selectionListeners.delete(listener);
+    };
   }
 
-  onHighlightTap(_listener: HighlightTapListener): () => void {
-    return () => undefined;
+  onHighlightTap(listener: HighlightTapListener): () => void {
+    this.highlightTapListeners.add(listener);
+    return () => {
+      this.highlightTapListeners.delete(listener);
+    };
+  }
+
+  // Called by PdfPageView when a page finishes rendering.
+  private onPageRendered(
+    pageNumber: number,
+    highlightLayer: HTMLDivElement,
+    viewport: PageViewport,
+  ): void {
+    this.highlightLayerByPage.set(pageNumber, highlightLayer);
+    this.highlightViewportByPage.set(pageNumber, viewport);
+    highlightLayer.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null;
+      const id = target?.dataset.id;
+      if (!id) return;
+      for (const fn of this.highlightTapListeners) {
+        fn(id as never, { x: e.clientX, y: e.clientY });
+      }
+    });
+    this.renderHighlightsOnPage(pageNumber, highlightLayer, viewport);
+  }
+
+  private renderHighlightsOnPage(
+    pageNumber: number,
+    layer: HTMLDivElement,
+    viewport: PageViewport,
+  ): void {
+    layer.replaceChildren();
+    const list = this.highlightsByPage.get(pageNumber) ?? [];
+    for (const h of list) {
+      if (h.anchor.kind !== 'pdf') continue;
+      for (const rect of h.anchor.rects) {
+        const [x1, y1] = viewport.convertToViewportPoint(rect.x, rect.y) as [
+          number,
+          number,
+        ];
+        const [x2, y2] = viewport.convertToViewportPoint(
+          rect.x + rect.width,
+          rect.y + rect.height,
+        ) as [number, number];
+        const div = document.createElement('div');
+        div.className = 'pdf-highlight';
+        div.dataset.id = h.id;
+        div.dataset.color = h.color;
+        div.style.left = `${String(Math.min(x1, x2))}px`;
+        div.style.top = `${String(Math.min(y1, y2))}px`;
+        div.style.width = `${String(Math.abs(x2 - x1))}px`;
+        div.style.height = `${String(Math.abs(y2 - y1))}px`;
+        layer.appendChild(div);
+      }
+    }
+  }
+
+  private handlePdfSelectionChange(): void {
+    if (this.selectionDebounceTimer !== undefined) {
+      window.clearTimeout(this.selectionDebounceTimer);
+    }
+    this.selectionDebounceTimer = window.setTimeout(() => {
+      this.selectionDebounceTimer = undefined;
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? '';
+      if (!sel || sel.rangeCount === 0 || text.length === 0) {
+        for (const fn of this.selectionListeners) fn(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const anchorEl =
+        range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? (range.commonAncestorContainer as HTMLElement)
+          : range.commonAncestorContainer.parentElement;
+      const textLayer = anchorEl?.closest('.pdf-reader__text-layer') as HTMLElement | null;
+      if (!textLayer) return;
+      const pageNumber = this.findPageNumberFor(textLayer);
+      if (pageNumber === null) return;
+      const vp = this.highlightViewportByPage.get(pageNumber);
+      if (!vp) return;
+      const layerRect = textLayer.getBoundingClientRect();
+      const clientRects = Array.from(range.getClientRects());
+      const pdfRects: HighlightRect[] = [];
+      for (const r of clientRects) {
+        const localX1 = r.left - layerRect.left;
+        const localY1 = r.top - layerRect.top;
+        const localX2 = r.right - layerRect.left;
+        const localY2 = r.bottom - layerRect.top;
+        const [px1, py1] = vp.convertToPdfPoint(localX1, localY1) as [number, number];
+        const [px2, py2] = vp.convertToPdfPoint(localX2, localY2) as [number, number];
+        pdfRects.push({
+          x: Math.min(px1, px2),
+          y: Math.min(py1, py2),
+          width: Math.abs(px2 - px1),
+          height: Math.abs(py2 - py1),
+        });
+      }
+      const r = range.getBoundingClientRect();
+      const info: SelectionInfo = {
+        anchor: { kind: 'pdf', page: pageNumber, rects: pdfRects },
+        selectedText: text,
+        screenRect: { x: r.left, y: r.top, width: r.width, height: r.height },
+      };
+      for (const fn of this.selectionListeners) fn(info);
+    }, 100);
+  }
+
+  private findPageNumberFor(textLayer: HTMLElement): number | null {
+    for (const [page, hLayer] of this.highlightLayerByPage) {
+      if (hLayer.parentElement === textLayer.parentElement) return page;
+    }
+    return null;
   }
 
   destroy(): void {
@@ -228,6 +389,19 @@ export class PdfReaderAdapter implements BookReader {
     this.scrollViews.clear();
     this.scrollPlaceholders = [];
     this.currentTocEntries = [];
+    this.highlightsByPage.clear();
+    this.highlightLayerByPage.clear();
+    this.highlightViewportByPage.clear();
+    this.selectionListeners.clear();
+    this.highlightTapListeners.clear();
+    if (this.selectionDebounceTimer !== undefined) {
+      window.clearTimeout(this.selectionDebounceTimer);
+      this.selectionDebounceTimer = undefined;
+    }
+    if (this.documentSelectionHandler) {
+      document.removeEventListener('selectionchange', this.documentSelectionHandler);
+      this.documentSelectionHandler = null;
+    }
     if (this.mountedPaginatedView) {
       this.mountedPaginatedView.destroy();
       this.mountedPaginatedView = null;
@@ -373,7 +547,15 @@ export class PdfReaderAdapter implements BookReader {
     this.pagesContainer.appendChild(slot);
     const page = await this.pdfDoc.getPage(pageIndex1Based);
     if (this.destroyed) return;
-    const view = new PdfPageView({ page, scale: this.currentScale, host: slot });
+    const view = new PdfPageView({
+      page,
+      scale: this.currentScale,
+      host: slot,
+      pageNumber: pageIndex1Based,
+      onRendered: (n, layer, vp) => {
+        this.onPageRendered(n, layer, vp);
+      },
+    });
     this.mountedPaginatedView = view;
     await view.render();
   }
@@ -471,7 +653,15 @@ export class PdfReaderAdapter implements BookReader {
           return;
         }
         slot.replaceChildren();
-        const view = new PdfPageView({ page, scale: this.currentScale, host: slot });
+        const view = new PdfPageView({
+          page,
+          scale: this.currentScale,
+          host: slot,
+          pageNumber: captured,
+          onRendered: (n, layer, vp) => {
+            this.onPageRendered(n, layer, vp);
+          },
+        });
         this.scrollViews.set(captured, view);
         await view.render();
       });
