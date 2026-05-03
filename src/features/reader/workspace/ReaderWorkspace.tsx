@@ -75,6 +75,7 @@ export function ReaderWorkspace(props: Props) {
           showTocButton={!isDesktop}
           showFocusToggle={isDesktop}
           focusMode={focus.mode}
+          onAddBookmark={() => undefined}
         />
       ) : null}
 
