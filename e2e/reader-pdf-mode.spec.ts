@@ -38,3 +38,38 @@ test('PDF mode toggle (paginated ↔ scroll) renders both modes and persists', a
   });
   await expect(page.locator('.pdf-reader__page')).toHaveCount(5);
 });
+
+test('paginated mode keeps exactly one page slot in the DOM after multiple Next clicks', async ({
+  page,
+}) => {
+  // Regression: PdfPageView.destroy() removes its canvas + text-layer but NOT
+  // the parent slot div (the adapter owns that). Without explicit cleanup,
+  // every Next click left an empty slot behind, drifting the visible page
+  // off-screen after a few clicks.
+  await page.goto('/');
+  await importFixture(page);
+
+  await page.getByRole('button', { name: /open multipage test pdf/i }).click();
+  await expect(page.getByRole('button', { name: /back to library/i })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.locator('.pdf-reader__page')).toHaveCount(1);
+
+  // Click Next four times — should still have exactly one slot
+  for (let i = 0; i < 4; i += 1) {
+    await page.locator('button[data-action="next"]').click();
+    await expect(page.locator('.pdf-reader__page')).toHaveCount(1);
+  }
+
+  // Final indicator: page 5
+  await expect(page.locator('.pdf-reader__nav-strip')).toContainText(/Page 5 of 5/);
+  // The visible canvas should have non-zero width (page actually rendered).
+  // Render is async after the slot mount; poll until pixels arrive.
+  await expect
+    .poll(
+      () =>
+        page.locator('canvas').first().evaluate((el) => (el as HTMLCanvasElement).width),
+      { timeout: 5_000 },
+    )
+    .toBeGreaterThan(0);
+});

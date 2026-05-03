@@ -296,6 +296,14 @@ export class PdfReaderAdapter implements BookReader {
       this.mountedPaginatedView.destroy();
       this.mountedPaginatedView = null;
     }
+    // PdfPageView.destroy() removes the canvas + text-layer it created, but
+    // it doesn't own the parent slot div — the adapter does. Without clearing
+    // here, every Next click would append a new slot below the previous
+    // (now-empty) one, drifting the visible page down by one page-height
+    // each time and eventually pushing it off-screen. replaceChildren also
+    // makes us robust to rapid Next clicks where two mountPaginatedPage
+    // calls overlap.
+    this.pagesContainer.replaceChildren();
     const slot = document.createElement('div');
     slot.className = 'pdf-reader__page';
     slot.dataset.pageIndex = String(pageIndex1Based - 1);
