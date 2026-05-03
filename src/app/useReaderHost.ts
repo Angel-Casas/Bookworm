@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
+import type { BookmarksRepository } from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
 import type { Wiring } from '@/features/library/wiring';
 import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
@@ -22,6 +23,7 @@ export type ReaderHostHandle = {
   onPersistSort: (key: SortKey) => void;
   onRemoveBook: (book: Book) => void;
   findBook: (bookId: string) => Book | undefined;
+  bookmarksRepo: BookmarksRepository;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -166,5 +168,6 @@ export function useReaderHost({
     onPersistSort,
     onRemoveBook,
     findBook,
+    bookmarksRepo: wiring.bookmarksRepo,
   };
 }

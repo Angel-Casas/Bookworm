@@ -1,14 +1,17 @@
 import { useCallback, useState } from 'react';
-import type { BookFormat, LocationAnchor } from '@/domain';
+import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
+import type { BookmarksRepository } from '@/storage';
 import { ReaderChrome } from '@/features/reader/ReaderChrome';
 import { ReaderView, type ReaderViewExposedState } from '@/features/reader/ReaderView';
 import { TocPanel } from '@/features/reader/TocPanel';
 import { TypographyPanel } from '@/features/reader/TypographyPanel';
-import { DesktopRail } from './DesktopRail';
+import { BookmarksPanel } from '@/features/reader/BookmarksPanel';
+import { DesktopRail, type RailTab } from './DesktopRail';
 import { MobileSheet } from './MobileSheet';
 import { useFocusMode } from './useFocusMode';
 import { useViewport } from './useViewport';
+import { useBookmarks } from './useBookmarks';
 import './workspace.css';
 
 type Props = {
@@ -29,7 +32,46 @@ type Props = {
   readonly hasShownFirstTimeHint: boolean;
   readonly onFocusModeChange: (mode: FocusMode) => Promise<void>;
   readonly onFirstTimeHintShown: () => void;
+  readonly bookmarksRepo: BookmarksRepository;
 };
+
+type SheetTab = { key: string; label: string; badge?: number };
+
+function SheetTabHeader({
+  tabs,
+  activeKey,
+  onTabChange,
+}: {
+  readonly tabs: readonly SheetTab[];
+  readonly activeKey: string;
+  readonly onTabChange: (key: string) => void;
+}) {
+  return (
+    <div className="reader-workspace__sheet-tabs" role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          role="tab"
+          aria-selected={tab.key === activeKey}
+          className={
+            tab.key === activeKey
+              ? 'reader-workspace__sheet-tab reader-workspace__sheet-tab--active'
+              : 'reader-workspace__sheet-tab'
+          }
+          onClick={() => {
+            onTabChange(tab.key);
+          }}
+        >
+          {tab.label}
+          {tab.badge !== undefined && tab.badge > 0 ? (
+            <span className="reader-workspace__sheet-badge">{tab.badge}</span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const FOCUS_HINT_TEXT =
   'Move the cursor to the top to bring the menu back · F or Esc to exit';
@@ -47,14 +89,68 @@ export function ReaderWorkspace(props: Props) {
 
   const [activeSheet, setActiveSheet] = useState<'toc' | 'typography' | null>(null);
   const [readerState, setReaderState] = useState<ReaderViewExposedState | null>(null);
+  const [activeRailTab, setActiveRailTab] = useState<'contents' | 'bookmarks'>('contents');
+
+  const bookmarks = useBookmarks({
+    bookId: BookId(props.bookId),
+    repo: props.bookmarksRepo,
+    readerState,
+  });
 
   const handleStateChange = useCallback((s: ReaderViewExposedState) => {
     setReaderState(s);
   }, []);
 
+  const handleAddBookmark = useCallback((): void => {
+    void bookmarks.add();
+  }, [bookmarks]);
+
   const isDesktop = viewport === 'desktop';
-  const railToc =
-    isDesktop && focus.mode === 'normal' ? (readerState?.toc ?? null) : null;
+
+  const tocPanelContent = readerState?.toc ? (
+    <TocPanel
+      toc={readerState.toc}
+      {...(readerState.currentEntryId !== undefined && {
+        currentEntryId: readerState.currentEntryId,
+      })}
+      onSelect={(entry) => {
+        readerState.goToAnchor(entry.anchor);
+      }}
+    />
+  ) : (
+    <aside className="toc-panel toc-panel--empty">
+      <p>Loading…</p>
+    </aside>
+  );
+
+  const bookmarksPanelContent = (
+    <BookmarksPanel
+      bookmarks={bookmarks.list}
+      onSelect={(b) => {
+        readerState?.goToAnchor(b.anchor);
+      }}
+      onDelete={(b) => {
+        void bookmarks.remove(b);
+      }}
+    />
+  );
+
+  const railTabs: readonly RailTab[] = [
+    { key: 'contents', label: 'Contents', content: tocPanelContent },
+    {
+      key: 'bookmarks',
+      label: 'Bookmarks',
+      badge: bookmarks.list.length,
+      content: bookmarksPanelContent,
+    },
+  ];
+
+  const showRail = isDesktop && focus.mode === 'normal';
+
+  const sheetTabs: readonly SheetTab[] = [
+    { key: 'contents', label: 'Contents' },
+    { key: 'bookmarks', label: 'Bookmarks', badge: bookmarks.list.length },
+  ];
 
   return (
     <div className="reader-workspace" data-mode={focus.mode} data-viewport={viewport}>
@@ -72,22 +168,20 @@ export function ReaderWorkspace(props: Props) {
           onToggleFocus={() => {
             focus.toggle();
           }}
+          onAddBookmark={handleAddBookmark}
           showTocButton={!isDesktop}
           showFocusToggle={isDesktop}
           focusMode={focus.mode}
-          onAddBookmark={() => undefined}
         />
       ) : null}
 
       <div className="reader-workspace__body">
-        {railToc && readerState ? (
+        {showRail ? (
           <DesktopRail
-            toc={railToc}
-            {...(readerState.currentEntryId !== undefined && {
-              currentEntryId: readerState.currentEntryId,
-            })}
-            onSelect={(entry) => {
-              readerState.goToAnchor(entry.anchor);
+            tabs={railTabs}
+            activeKey={activeRailTab}
+            onTabChange={(key) => {
+              setActiveRailTab(key as 'contents' | 'bookmarks');
             }}
           />
         ) : null}
@@ -107,22 +201,43 @@ export function ReaderWorkspace(props: Props) {
         </div>
       </div>
 
-      {!isDesktop && activeSheet === 'toc' && readerState?.toc ? (
+      {!isDesktop && activeSheet === 'toc' ? (
         <MobileSheet
           onDismiss={() => {
             setActiveSheet(null);
           }}
         >
-          <TocPanel
-            toc={readerState.toc}
-            {...(readerState.currentEntryId !== undefined && {
-              currentEntryId: readerState.currentEntryId,
-            })}
-            onSelect={(entry) => {
-              readerState.goToAnchor(entry.anchor);
-              setActiveSheet(null);
+          <SheetTabHeader
+            tabs={sheetTabs}
+            activeKey={activeRailTab}
+            onTabChange={(key) => {
+              setActiveRailTab(key as 'contents' | 'bookmarks');
             }}
           />
+          {activeRailTab === 'contents' && readerState?.toc ? (
+            <TocPanel
+              toc={readerState.toc}
+              {...(readerState.currentEntryId !== undefined && {
+                currentEntryId: readerState.currentEntryId,
+              })}
+              onSelect={(entry) => {
+                readerState.goToAnchor(entry.anchor);
+                setActiveSheet(null);
+              }}
+            />
+          ) : null}
+          {activeRailTab === 'bookmarks' ? (
+            <BookmarksPanel
+              bookmarks={bookmarks.list}
+              onSelect={(b) => {
+                readerState?.goToAnchor(b.anchor);
+                setActiveSheet(null);
+              }}
+              onDelete={(b) => {
+                void bookmarks.remove(b);
+              }}
+            />
+          ) : null}
         </MobileSheet>
       ) : null}
 

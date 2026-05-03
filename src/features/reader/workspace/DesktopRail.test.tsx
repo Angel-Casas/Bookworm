@@ -1,34 +1,50 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { DesktopRail } from './DesktopRail';
-import type { TocEntry } from '@/domain';
-import { SectionId } from '@/domain';
+import { DesktopRail, type RailTab } from './DesktopRail';
 
 afterEach(cleanup);
 
-const TOC: readonly TocEntry[] = [
-  { id: SectionId('c1'), title: 'Chapter 1', depth: 0, anchor: { kind: 'epub-cfi', cfi: 'a' } },
-  { id: SectionId('c2'), title: 'Chapter 2', depth: 0, anchor: { kind: 'epub-cfi', cfi: 'b' } },
-];
+function makeTabs(activeContent: string, otherContent = 'Other'): readonly RailTab[] {
+  return [
+    { key: 'contents', label: 'Contents', content: <div>{activeContent}</div> },
+    { key: 'bookmarks', label: 'Bookmarks', badge: 3, content: <div>{otherContent}</div> },
+  ];
+}
 
 describe('DesktopRail', () => {
-  it('renders TOC entries inside an aside.desktop-rail container', () => {
-    render(<DesktopRail toc={TOC} onSelect={() => undefined} />);
+  it('renders tabs and shows the active tab content', () => {
+    render(
+      <DesktopRail
+        tabs={makeTabs('Active panel')}
+        activeKey="contents"
+        onTabChange={() => undefined}
+      />,
+    );
     expect(document.querySelector('aside.desktop-rail')).not.toBeNull();
-    expect(screen.getByText('Chapter 1')).toBeDefined();
-    expect(screen.getByText('Chapter 2')).toBeDefined();
+    expect(screen.getByRole('tab', { name: /contents/i })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /bookmarks/i })).toBeDefined();
+    expect(screen.getByText('Active panel')).toBeDefined();
   });
 
-  it('forwards click to onSelect with the entry', () => {
-    const onSelect = vi.fn();
-    render(<DesktopRail toc={TOC} onSelect={onSelect} />);
-    fireEvent.click(screen.getByText('Chapter 2'));
-    expect(onSelect).toHaveBeenCalledWith(TOC[1]);
+  it('shows the badge when > 0', () => {
+    render(
+      <DesktopRail
+        tabs={makeTabs('x')}
+        activeKey="contents"
+        onTabChange={() => undefined}
+      />,
+    );
+    expect(screen.getByText('3')).toBeDefined();
   });
 
-  it('marks the current entry', () => {
-    render(<DesktopRail toc={TOC} currentEntryId={String(TOC[0]?.id)} onSelect={() => undefined} />);
-    const btn = screen.getByText('Chapter 1').closest('button');
-    expect(btn?.className).toContain('toc-panel__entry--current');
+  it('marks the active tab and fires onTabChange on click', () => {
+    const onTabChange = vi.fn();
+    render(
+      <DesktopRail tabs={makeTabs('x')} activeKey="contents" onTabChange={onTabChange} />,
+    );
+    const contentsTab = screen.getByRole('tab', { name: /contents/i });
+    expect(contentsTab.className).toContain('--active');
+    fireEvent.click(screen.getByRole('tab', { name: /bookmarks/i }));
+    expect(onTabChange).toHaveBeenCalledWith('bookmarks');
   });
 });
