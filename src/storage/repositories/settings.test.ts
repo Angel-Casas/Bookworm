@@ -50,4 +50,20 @@ describe('SettingsRepository', () => {
     });
     expect(await settings.getView()).toBeUndefined();
   });
+
+  it('round-trips focusModeHintShown', async () => {
+    const settings = createSettingsRepository(db);
+    expect(await settings.getFocusModeHintShown()).toBe(false);
+    await settings.setFocusModeHintShown(true);
+    expect(await settings.getFocusModeHintShown()).toBe(true);
+  });
+
+  it('returns false when focusModeHintShown is malformed', async () => {
+    const settings = createSettingsRepository(db);
+    await db.put('settings', {
+      key: 'focusModeHintShown',
+      value: 'oops' as never,
+    });
+    expect(await settings.getFocusModeHintShown()).toBe(false);
+  });
 });
