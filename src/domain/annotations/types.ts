@@ -7,7 +7,8 @@ export type Bookmark = {
   readonly id: BookmarkId;
   readonly bookId: BookId;
   readonly anchor: LocationAnchor;
-  readonly note?: string;
+  readonly snippet: string | null;
+  readonly sectionTitle: string | null;
   readonly createdAt: IsoTimestamp;
 };
 
