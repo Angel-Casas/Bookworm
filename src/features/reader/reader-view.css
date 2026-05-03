@@ -1,0 +1,90 @@
+.reader-view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  position: relative;
+}
+
+/* Sepia override applies only to the reader area, not the chrome of the rest
+ * of the app. Light/dark already cascade through tokens.css via [data-theme]. */
+.reader-view[data-reader-theme='sepia'] {
+  --color-bg: #f4ecd8;
+  --color-surface: #f7f1e0;
+  --color-panel: #ede2c8;
+  --color-text: #4b3a26;
+  --color-text-muted: #6b5b40;
+  --color-border-subtle: #d8caa8;
+}
+
+.reader-view__body {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.reader-view__mount {
+  position: absolute;
+  inset: 0;
+}
+
+.reader-view__mount foliate-view {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.reader-view__overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  color: var(--color-text);
+  z-index: 2;
+  gap: var(--space-5);
+  padding: var(--space-7);
+  text-align: center;
+}
+
+.reader-view__overlay--error {
+  color: var(--color-danger);
+}
+
+.reader-view__overlay--error button {
+  font: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-6);
+  cursor: pointer;
+}
+
+.reader-view__sheet {
+  position: absolute;
+  inset-block-start: 44px;
+  inset-inline-end: 0;
+  background: var(--color-panel);
+  box-shadow: var(--shadow-md);
+  z-index: 3;
+  block-size: calc(100dvh - 44px);
+  overflow-y: auto;
+}
+
+.reader-view__sheet--toc {
+  inline-size: min(360px, 90vw);
+}
+
+.reader-view__sheet--typography {
+  inline-size: auto;
+}
+
+@media (max-width: 600px) {
+  .reader-view__sheet {
+    inset-inline-end: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+  }
+}

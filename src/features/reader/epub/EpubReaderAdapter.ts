@@ -130,9 +130,13 @@ export class EpubReaderAdapter implements BookReader {
     const renderer = this.view.renderer;
     if (renderer) {
       renderer.setStyles?.(buildReaderCss(prefs));
-      renderer.setAttribute('flow', prefs.modeByFormat.epub === 'paginated' ? 'paginated' : 'scrolled');
+      renderer.setAttribute(
+        'flow',
+        prefs.modeByFormat.epub === 'paginated' ? 'paginated' : 'scrolled',
+      );
     }
-    document.documentElement.dataset.readerTheme = prefs.theme;
+    // App-level data-theme + data-reader-theme are owned by ReaderView; the
+    // adapter only writes inside its own renderer.
   }
 
   onLocationChange(listener: LocationChangeListener): () => void {
