@@ -309,6 +309,39 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-03 — Phase 3.1 bookmarks
+
+- New `bookmarks` IndexedDB store at v3 (additive migration; existing
+  v2 records untouched). `BookmarksRepository` mirrors the
+  `readingProgress` validating-reads pattern: corrupt records are
+  silently dropped, soft-validated by a `normalizeBookmark` helper.
+- `Bookmark` shape: `{ id, bookId, anchor, snippet, sectionTitle, createdAt }`
+  with `snippet` and `sectionTitle` nullable for graceful degradation
+  (image-only PDFs, EPUB cover/whitespace pages). The `note?` field
+  that used to live on `Bookmark` was dropped — Task 3.3 will introduce
+  notes as their own type.
+- `BookReader` contract grows two best-effort extractor methods:
+  `getSnippetAt(anchor): Promise<string | null>` and
+  `getSectionTitleAt(anchor): string | null`. EPUB caches the visible
+  range + foliate-supplied `tocItem.label` from each `relocate` event,
+  with a fallback to `view.renderer.getContents()[0].doc.body.textContent`
+  when the visible range is whitespace. PDF pulls page text on demand
+  via `getTextContent`. `ReaderViewExposedState` also gains a
+  `getCurrentAnchor()` passthrough so workspace hooks never need a
+  direct adapter reference.
+- `DesktopRail` generalised from `{ toc, currentEntryId, onSelect }`
+  to `{ tabs, activeKey, onTabChange }`; the workspace builds two
+  tabs (Contents → `TocPanel`, Bookmarks → `BookmarksPanel`). Mobile
+  reuses the same tab pattern inside the existing `MobileSheet` so
+  the chrome stays uncluttered (one ☰ button reveals both panels).
+- Bookmark add is optimistic: `useBookmarks.add` inserts immediately
+  with `snippet:null`, then patches with the resolved snippet. Repo
+  failures roll back the optimistic insert. Newest-first sort by
+  `createdAt`.
+- Book removal cascades: `useReaderHost.onRemoveBook` calls
+  `bookmarksRepo.deleteByBook` alongside the existing
+  `readingProgressRepo.delete` and OPFS cleanup.
+
 ### 2026-05-03 — Phase 2.3 reader workspace layout
 
 - New `ReaderWorkspace` (`src/features/reader/workspace/`) composes the reader
