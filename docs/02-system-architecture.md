@@ -309,6 +309,32 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-03 — Phase 2.3 reader workspace layout
+
+- New `ReaderWorkspace` (`src/features/reader/workspace/`) composes the reader
+  shell — chrome, desktop rail (left, TocPanel), bottom sheet (mobile, MobileSheet),
+  focus mode, ReaderView. ReaderView slimmed to own only adapter lifecycle and
+  exposes its state to the workspace via a new optional `onStateChange` prop.
+- `App.tsx` extracted into three jobs: shell (App.tsx, ~190 lines including
+  the boot promise), view routing (`useAppView`), reader hosting
+  (`useReaderHost`). Boot eagerly resolves view + reader preferences +
+  first-time-hint flag in parallel so the very first paint reflects persisted
+  focus mode (no chrome flash on reload).
+- Two-pane layout in v2.3: left rail + reader on desktop. Right rail deferred
+  to Phase 3 when annotations have content for it — empty chrome is "dead
+  chrome" and is explicitly prohibited by the design system.
+- Typography lives in a sheet (`MobileSheet`) on **both** viewports. TOC is
+  the rail on desktop, a sheet on mobile. Focus mode hides chrome AND rail
+  for true immersion; top-edge hover (`HOVER_ZONE_PX=40`) reveals chrome,
+  which auto-hides after `HIDE_DELAY_MS=1500` of no top-edge movement
+  (timer fires regardless of where the cursor is, since the foliate-js
+  iframe swallows mousemove inside the reading area).
+- Focus mode + first-time-hint preferences use forward-compatible validator
+  soften (no IDB schema bump).
+- Decoupling: `useReaderHost.onFilesPicked` dispatches a
+  `bookworm:files-picked` window event; App.tsx listens and feeds files to
+  `importStore`. Keeps the hook free of app-level store knowledge.
+
 ### 2026-05-02 — Phase 0 stack lock-in
 - Reader engines: foliate-js (EPUB), pdf.js (PDF)
 - State management: Zustand + XState
