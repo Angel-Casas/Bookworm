@@ -47,11 +47,18 @@ export function HighlightToolbar({
     };
   }, [onDismiss]);
 
+  // Clamp position inside the viewport so off-screen selections (e.g. text
+  // hidden behind a paginated EPUB column transform) still render a tappable
+  // toolbar near the top of the visible area instead of off-screen.
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
   const flipBelow = screenRect.y < TOOLBAR_HEIGHT + GAP;
-  const top = flipBelow
+  const rawTop = flipBelow
     ? screenRect.y + screenRect.height + GAP
     : screenRect.y - TOOLBAR_HEIGHT - GAP;
-  const left = Math.max(8, screenRect.x + screenRect.width / 2);
+  const top = Math.max(8, Math.min(vh - TOOLBAR_HEIGHT - 8, rawTop));
+  const rawLeft = screenRect.x + screenRect.width / 2;
+  const left = Math.max(80, Math.min(vw - 80, rawLeft));
 
   return (
     <div

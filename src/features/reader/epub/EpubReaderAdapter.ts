@@ -324,15 +324,11 @@ export class EpubReaderAdapter implements BookReader {
   }
 
   private onSectionCreated(sectionIndex: number, view: FoliateViewElement): void {
-    // 1. Re-add highlights for this section. addAnnotation no-ops for
-    //    highlights whose section overlayer doesn't exist yet, so calling for
-    //    all known highlights here is safe — only this section's will draw.
     for (const h of this.highlightsById.values()) {
       if (h.anchor.kind !== 'epub-cfi') continue;
       void view.addAnnotation({ value: h.anchor.cfi, color: COLOR_HEX[h.color] });
     }
 
-    // 2. Attach selectionchange listener to this section's document.
     const renderer = view.renderer as
       | (HTMLElement & {
           getContents?: () => readonly { doc?: Document; index?: number }[];
@@ -356,14 +352,20 @@ export class EpubReaderAdapter implements BookReader {
     }
     this.selectionDebounceTimer = window.setTimeout(() => {
       this.selectionDebounceTimer = undefined;
-      const sel = doc.getSelection();
+      const sel = doc.defaultView?.getSelection() ?? doc.getSelection();
       const text = sel?.toString().trim() ?? '';
-      if (!sel || sel.rangeCount === 0 || text.length === 0) {
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      if (!sel || sel.rangeCount === 0 || text.length === 0 || range === null) {
         for (const fn of this.selectionListeners) fn(null);
         return;
       }
-      const range = sel.getRangeAt(0);
-      const cfi = view.getCFI(sectionIndex, range);
+      let cfi: string;
+      try {
+        cfi = view.getCFI(sectionIndex, range);
+      } catch (err) {
+        console.warn('[reader/epub] getCFI failed', err);
+        return;
+      }
       const r = range.getBoundingClientRect();
       // Translate iframe-relative coords to viewport. The iframe is the
       // ancestor of `doc` — use frameElement's bounding rect.
