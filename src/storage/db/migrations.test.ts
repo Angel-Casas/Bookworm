@@ -9,6 +9,7 @@ import {
   READING_PROGRESS_STORE,
   READER_PREFERENCES_STORE,
   BOOKMARKS_STORE,
+  HIGHLIGHTS_STORE,
   CURRENT_DB_VERSION,
 } from './schema';
 
@@ -113,5 +114,59 @@ describe('v2 → v3 migration', () => {
     expect(progress).toHaveLength(1);
 
     v3.close();
+  });
+});
+
+describe('v3 → v4 migration', () => {
+  it('creates the highlights store with by-book index and preserves existing stores', async () => {
+    const dbName = `bookworm-mig4-${crypto.randomUUID()}`;
+
+    const v3 = await openDB(dbName, 3, {
+      upgrade(db) {
+        const books = db.createObjectStore('books', { keyPath: 'id' });
+        books.createIndex('by-checksum', 'source.checksum', { unique: true });
+        books.createIndex('by-created', 'createdAt', { unique: false });
+        books.createIndex('by-last-opened', 'lastOpenedAt', { unique: false });
+        db.createObjectStore('settings', { keyPath: 'key' });
+        db.createObjectStore('reading_progress', { keyPath: 'bookId' });
+        db.createObjectStore('reader_preferences', { keyPath: 'key' });
+        const bookmarks = db.createObjectStore('bookmarks', { keyPath: 'id' });
+        bookmarks.createIndex('by-book', 'bookId', { unique: false });
+      },
+    });
+    await v3.put('books', { id: 'b1', title: 'Survivor' });
+    await v3.put('bookmarks', {
+      id: 'bm1',
+      bookId: 'b1',
+      anchor: { kind: 'pdf', page: 1 },
+      snippet: null,
+      sectionTitle: null,
+      createdAt: '2026-05-03T12:00:00.000Z',
+    });
+    v3.close();
+
+    const v4 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+
+    expect(v4.objectStoreNames.contains(HIGHLIGHTS_STORE)).toBe(true);
+    const tx = v4.transaction(HIGHLIGHTS_STORE, 'readonly');
+    const store = tx.objectStore(HIGHLIGHTS_STORE);
+    expect([...store.indexNames]).toContain('by-book');
+
+    const books = await v4.getAll('books');
+    expect(books).toHaveLength(1);
+    expect(books[0]).toMatchObject({ id: 'b1', title: 'Survivor' });
+
+    const bookmarks = await v4.getAll('bookmarks');
+    expect(bookmarks).toHaveLength(1);
+
+    v4.close();
   });
 });
