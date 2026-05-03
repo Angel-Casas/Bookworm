@@ -413,6 +413,13 @@ docs/04-implementation-roadmap.md                   — mark Phase 2.2 complete
 
 ## 13. Explicit follow-ups (NOT in this PR)
 
+- **Static resource bundling for pdfjs** (`standardFontDataUrl`, `cMapUrl`, `wasmUrl`).
+  Modern PDFs render cleanly without these; older scanned PDFs trigger console warnings
+  ("Cannot load system font", "JBig2 failed to initialize", "Unable to decode image"),
+  and JBig2-compressed images render blank. Implementation outline + verification matrix
+  documented in `src/features/reader/pdf/pdf-notes.md` under "Follow-up: missing static
+  resources for older PDFs". Benefits both the rendering adapter and the Phase 1 metadata
+  parser — natural as its own commit.
 - Text-layer e2e assertion (skipped due to flakiness; revisit when Playwright text-selection helpers settle)
 - Per-PDF "disable dark mode" toggle for image-heavy PDFs
 - PDF inline search (deferred to Phase 5 with retrieval)
