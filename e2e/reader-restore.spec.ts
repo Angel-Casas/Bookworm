@@ -29,9 +29,8 @@ test('reload while in the reader keeps the reader open at saved position', async
     timeout: 15_000,
   });
 
-  // Open TOC and wait for entries to be populated (foliate-js parses async)
-  await page.getByRole('button', { name: /table of contents/i }).click();
-  const tocEntries = page.locator('aside.toc-panel button.toc-panel__entry');
+  // On desktop the TOC lives in the always-visible left rail
+  const tocEntries = page.locator('aside.desktop-rail button.toc-panel__entry');
   await expect(tocEntries.first()).toBeVisible({ timeout: 5000 });
   const count = await tocEntries.count();
   // Pick a non-first entry when possible so the saved position is meaningful

@@ -11,27 +11,29 @@ async function importFixture(page: Page): Promise<void> {
   await expect(page.getByText(/pride and prejudice/i).first()).toBeVisible({ timeout: 15_000 });
 }
 
-test('opens an imported EPUB and navigates the TOC', async ({ page }) => {
+test('focus mode persists across reload — no chrome flash', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await importFixture(page);
 
-  // Click the imported book's card → reader opens
   await page.getByRole('button', { name: /open pride and prejudice/i }).click();
   await expect(page.getByRole('button', { name: /back to library/i })).toBeVisible({
     timeout: 15_000,
   });
 
-  // On desktop the TOC lives in the always-visible left rail
-  const rail = page.locator('aside.desktop-rail');
-  await expect(rail).toBeVisible();
+  // Enter focus mode
+  await page.keyboard.press('f');
+  await expect(page.getByRole('button', { name: /back to library/i })).toBeHidden();
 
-  // The fixture EPUB has chapters; expect at least one entry
-  const tocEntries = rail.locator('button.toc-panel__entry');
-  await expect(tocEntries.first()).toBeVisible();
-  const count = await tocEntries.count();
-  expect(count).toBeGreaterThan(0);
+  // Allow the focus-mode preference write to flush to IDB
+  await page.waitForTimeout(300);
 
-  // Click the first entry — chrome stays visible (no sheet to dismiss)
-  await tocEntries.first().click();
-  await expect(page.getByRole('button', { name: /back to library/i })).toBeVisible();
+  // Reload — workspace must re-mount in focus mode from first paint
+  await page.reload();
+
+  const workspace = page.locator('.reader-workspace');
+  await expect(workspace).toBeVisible({ timeout: 15_000 });
+
+  await expect(workspace).toHaveAttribute('data-mode', 'focus');
+  await expect(page.getByRole('button', { name: /back to library/i })).toBeHidden();
 });
