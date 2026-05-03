@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { ReaderChrome } from './ReaderChrome';
 
 afterEach(cleanup);
@@ -10,6 +10,7 @@ const baseProps = {
   onOpenToc: () => undefined,
   onOpenTypography: () => undefined,
   onToggleFocus: () => undefined,
+  onAddBookmark: () => undefined,
 };
 
 describe('ReaderChrome', () => {
@@ -41,5 +42,31 @@ describe('ReaderChrome', () => {
   it('hides focus toggle when showFocusToggle is false', () => {
     render(<ReaderChrome {...baseProps} showFocusToggle={false} />);
     expect(screen.queryByLabelText('Toggle focus mode')).toBeNull();
+  });
+});
+
+describe('ReaderChrome bookmark button', () => {
+  it('renders ★ on both viewports and calls onAddBookmark', () => {
+    const onAddBookmark = vi.fn();
+    render(<ReaderChrome {...baseProps} onAddBookmark={onAddBookmark} />);
+    fireEvent.click(screen.getByLabelText(/add bookmark/i));
+    expect(onAddBookmark).toHaveBeenCalledOnce();
+  });
+
+  it('applies pulse class for ~250ms after a click', () => {
+    vi.useFakeTimers();
+    try {
+      const onAddBookmark = vi.fn();
+      render(<ReaderChrome {...baseProps} onAddBookmark={onAddBookmark} />);
+      const btn = screen.getByLabelText(/add bookmark/i);
+      fireEvent.click(btn);
+      expect(btn.className).toMatch(/--pulse/);
+      act(() => {
+        vi.advanceTimersByTime(260);
+      });
+      expect(btn.className).not.toMatch(/--pulse/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './reader-chrome.css';
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
   readonly onOpenToc: () => void;
   readonly onOpenTypography: () => void;
   readonly onToggleFocus: () => void;
+  readonly onAddBookmark: () => void;
   readonly showTocButton?: boolean;
   readonly showFocusToggle?: boolean;
   readonly focusMode?: 'normal' | 'focus';
@@ -19,10 +21,19 @@ export function ReaderChrome({
   onOpenToc,
   onOpenTypography,
   onToggleFocus,
+  onAddBookmark,
   showTocButton = true,
   showFocusToggle = false,
   focusMode = 'normal',
 }: Props) {
+  const [pulsing, setPulsing] = useState(false);
+  const handleAddBookmark = (): void => {
+    onAddBookmark();
+    setPulsing(true);
+    window.setTimeout(() => {
+      setPulsing(false);
+    }, 250);
+  };
   return (
     <header className="reader-chrome">
       <button
@@ -51,6 +62,19 @@ export function ReaderChrome({
         ) : null}
         <button type="button" onClick={onOpenTypography} aria-label="Reader preferences">
           ⚙
+        </button>
+        <button
+          type="button"
+          onClick={handleAddBookmark}
+          aria-label="Add bookmark"
+          className={
+            pulsing
+              ? 'reader-chrome__bookmark reader-chrome__bookmark--pulse'
+              : 'reader-chrome__bookmark'
+          }
+          title="Bookmark this spot"
+        >
+          ★
         </button>
         {showTocButton ? (
           <button type="button" onClick={onOpenToc} aria-label="Table of contents">

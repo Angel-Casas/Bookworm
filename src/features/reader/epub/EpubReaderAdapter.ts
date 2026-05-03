@@ -73,6 +73,10 @@ export class EpubReaderAdapter implements BookReader {
   private listeners = new Set<LocationChangeListener>();
   private destroyed = false;
   private currentCfi = '';
+  private currentSnippet: string | null = null;
+  private currentSectionIndex = -1;
+  private currentTocItemLabel: string | null = null;
+  private currentTocEntries: readonly TocEntry[] = [];
   private trackedObservers = new Set<ResizeObserver>();
   private resizeObserverPatched = false;
 
@@ -105,6 +109,26 @@ export class EpubReaderAdapter implements BookReader {
       const cfi = e.detail.cfi;
       if (typeof cfi !== 'string' || cfi.length === 0) return;
       this.currentCfi = cfi;
+      // foliate-js's relocate detail surfaces the visible range and a
+      // `tocItem` for the current chapter. Cache both for the bookmark
+      // extractors. When the visible range is empty (e.g. the cursor is
+      // parked on a whitespace boundary like a cover page), fall back to
+      // the section's body text so bookmarks still get a useful snippet.
+      const d = e.detail as {
+        tocItem?: { label?: string };
+        section?: { current?: number };
+        range?: Range;
+      };
+      this.currentTocItemLabel = d.tocItem?.label ?? null;
+      if (typeof d.section?.current === 'number') {
+        this.currentSectionIndex = d.section.current;
+      }
+      const visibleText = (d.range?.toString() ?? '').replace(/\s+/g, ' ').trim();
+      if (visibleText.length > 0) {
+        this.currentSnippet = visibleText.slice(0, 80);
+      } else {
+        this.currentSnippet = this.extractSectionFallbackSnippet();
+      }
       const anchor: LocationAnchor = { kind: 'epub-cfi', cfi };
       for (const fn of this.listeners) fn(anchor);
     });
@@ -134,7 +158,9 @@ export class EpubReaderAdapter implements BookReader {
     // Apply preferences after init so renderer.setStyles has a renderer to act on.
     this.applyPreferences(options.preferences);
 
-    return { toc: this.extractToc(view.book?.toc ?? []) };
+    const toc = this.extractToc(view.book?.toc ?? []);
+    this.currentTocEntries = toc;
+    return { toc };
   }
 
   goToAnchor(anchor: LocationAnchor): Promise<void> {
@@ -172,10 +198,51 @@ export class EpubReaderAdapter implements BookReader {
     };
   }
 
+  getSnippetAt(anchor: LocationAnchor): Promise<string | null> {
+    if (anchor.kind !== 'epub-cfi') return Promise.resolve(null);
+    if (anchor.cfi === this.currentCfi) return Promise.resolve(this.currentSnippet);
+    // Non-current anchors: best-effort — we don't navigate to extract text.
+    return Promise.resolve(null);
+  }
+
+  getSectionTitleAt(anchor: LocationAnchor): string | null {
+    if (anchor.kind !== 'epub-cfi') return null;
+    // Prefer the foliate-supplied tocItem label (resolved per-href, so it
+    // works even when section-by-index would be wrong for sub-section TOCs).
+    if (this.currentTocItemLabel) return this.currentTocItemLabel;
+    if (this.currentSectionIndex < 0) return null;
+    const topLevel = this.currentTocEntries.filter((e) => e.depth === 0);
+    return topLevel[this.currentSectionIndex]?.title ?? null;
+  }
+
+  // Pull text from the currently rendered section's body when the visible
+  // range is collapsed/whitespace (e.g. cover page, chapter break).
+  private extractSectionFallbackSnippet(): string | null {
+    if (!this.view) return null;
+    try {
+      const renderer = this.view.renderer as
+        | (HTMLElement & { getContents?: () => readonly { doc?: Document }[] })
+        | undefined;
+      const contents = renderer?.getContents?.();
+      const doc = contents?.[0]?.doc;
+      if (!doc) return null;
+      const raw = doc.body.textContent;
+      if (!raw) return null;
+      const text = raw.replace(/\s+/g, ' ').trim();
+      return text.length > 0 ? text.slice(0, 80) : null;
+    } catch {
+      return null;
+    }
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.listeners.clear();
+    this.currentSnippet = null;
+    this.currentSectionIndex = -1;
+    this.currentTocItemLabel = null;
+    this.currentTocEntries = [];
 
     // Disconnect tracked observers BEFORE foliate-js teardown. foliate-js's
     // own destroy chain mutates layout (removing the iframe from the shadow

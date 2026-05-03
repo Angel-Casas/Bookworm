@@ -4,6 +4,14 @@ import { ReaderWorkspace } from './ReaderWorkspace';
 
 afterEach(cleanup);
 
+const fakeBookmarksRepo = {
+  add: () => Promise.resolve(),
+  patch: () => Promise.resolve(),
+  delete: () => Promise.resolve(),
+  listByBook: () => Promise.resolve([]),
+  deleteByBook: () => Promise.resolve(),
+};
+
 const baseProps = {
   bookId: 'b1',
   bookTitle: 'Test',
@@ -20,6 +28,7 @@ const baseProps = {
   hasShownFirstTimeHint: true,
   onFocusModeChange: () => Promise.resolve(),
   onFirstTimeHintShown: () => undefined,
+  bookmarksRepo: fakeBookmarksRepo,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

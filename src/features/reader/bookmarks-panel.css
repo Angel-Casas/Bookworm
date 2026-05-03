@@ -1,0 +1,122 @@
+.bookmarks-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+.bookmarks-panel__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bookmarks-panel__item {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.bookmarks-panel__row {
+  flex: 1 1 auto;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text);
+  font: inherit;
+  min-width: 0;
+}
+
+.bookmarks-panel__row:hover {
+  background: var(--color-surface-hover, var(--color-surface));
+}
+
+.bookmarks-panel__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bookmarks-panel__star {
+  color: var(--color-accent, #b8884c);
+  font-size: var(--text-sm);
+  flex: 0 0 auto;
+}
+
+.bookmarks-panel__section {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmarks-panel__time {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  flex: 0 0 auto;
+}
+
+.bookmarks-panel__snippet {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmarks-panel__delete {
+  flex: 0 0 auto;
+  width: 32px;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.bookmarks-panel__item:hover .bookmarks-panel__delete,
+.bookmarks-panel__delete:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .bookmarks-panel__delete {
+    opacity: 1;
+  }
+}
+
+.bookmarks-panel--empty {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.bookmarks-panel__empty-icon {
+  font-size: 32px;
+  margin: 0 0 var(--space-3);
+  color: var(--color-accent, #b8884c);
+}
+
+.bookmarks-panel__empty-title {
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+  color: var(--color-text);
+}
+
+.bookmarks-panel__empty-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+}

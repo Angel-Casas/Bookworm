@@ -61,6 +61,10 @@ export interface BookReader {
   getCurrentAnchor(): LocationAnchor;
   applyPreferences(prefs: ReaderPreferences): void;
   onLocationChange(listener: LocationChangeListener): () => void;
+  // Best-effort extractors used by Bookmarks (and later Highlights).
+  // Both return null on failure (image-only PDF page, unresolvable CFI, etc.).
+  getSnippetAt(anchor: LocationAnchor): Promise<string | null>;
+  getSectionTitleAt(anchor: LocationAnchor): string | null;
   destroy(): void;
 }
 
