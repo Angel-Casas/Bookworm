@@ -6,8 +6,11 @@ import type {
   BookReader,
   LocationChangeListener,
   ReaderInitOptions,
+  ReaderMode,
   ReaderPreferences,
 } from '@/domain/reader';
+import { PdfPageView } from './PdfPageView';
+import { PdfNavStrip } from './PdfNavStrip';
 
 interface OutlineNode {
   readonly title: string;
@@ -15,14 +18,31 @@ interface OutlineNode {
   readonly items?: readonly OutlineNode[];
 }
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition --
+   `this.destroyed` is mutated asynchronously by destroy() while async work
+   (getPage, render) is in flight; the guards are intentional. */
+
+const SCALE_BY_STEP: Readonly<Record<0 | 1 | 2 | 3 | 4, number>> = {
+  0: 0.75,
+  1: 0.9,
+  2: 1.0,
+  3: 1.25,
+  4: 1.5,
+};
+
 export class PdfReaderAdapter implements BookReader {
   private pdfDoc: PDFDocumentProxy | null = null;
   private host: HTMLElement | null = null;
   private root: HTMLDivElement | null = null;
+  private pagesContainer: HTMLDivElement | null = null;
+  private navStrip: PdfNavStrip | null = null;
+  private mountedPaginatedView: PdfPageView | null = null;
   private listeners = new Set<LocationChangeListener>();
   private destroyed = false;
   private currentPage = 1;
   private pageCount = 0;
+  private currentMode: ReaderMode = 'paginated';
+  private currentScale = 1;
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -56,7 +76,9 @@ export class PdfReaderAdapter implements BookReader {
       this.currentPage = 1;
     }
 
-    return { toc: await this.extractToc() };
+    const toc = await this.extractToc();
+    this.applyPreferences(options.preferences);
+    return { toc };
   }
 
   goToAnchor(anchor: LocationAnchor): Promise<void> {
@@ -64,8 +86,13 @@ export class PdfReaderAdapter implements BookReader {
     if (anchor.kind !== 'pdf') {
       return Promise.reject(new Error(`PdfReaderAdapter: cannot navigate to ${anchor.kind}`));
     }
-    this.currentPage = Math.max(1, Math.min(this.pageCount, anchor.page));
+    const target = Math.max(1, Math.min(this.pageCount, anchor.page));
+    this.currentPage = target;
     this.fireLocationChange();
+    this.refreshNavStrip();
+    if (this.currentMode === 'paginated') {
+      return this.mountPaginatedPage(target);
+    }
     return Promise.resolve();
   }
 
@@ -74,8 +101,21 @@ export class PdfReaderAdapter implements BookReader {
     return { kind: 'pdf', page: this.currentPage };
   }
 
-  applyPreferences(_prefs: ReaderPreferences): void {
-    // Implemented in T7 (paginated mode), T8 (scroll mode), T9 (re-render on scale).
+  applyPreferences(prefs: ReaderPreferences): void {
+    if (!this.pdfDoc || !this.root) return;
+    const mode = prefs.modeByFormat.pdf;
+    const scale = SCALE_BY_STEP[prefs.typography.fontSizeStep];
+    const modeChanged = mode !== this.currentMode;
+    this.currentMode = mode;
+    this.currentScale = scale;
+    this.applyTheme(prefs);
+    if (modeChanged || !this.pagesContainer) {
+      this.buildLayoutForMode();
+    }
+    if (mode === 'paginated') {
+      void this.mountPaginatedPage(this.currentPage);
+    }
+    this.refreshNavStrip();
   }
 
   onLocationChange(listener: LocationChangeListener): () => void {
@@ -89,6 +129,15 @@ export class PdfReaderAdapter implements BookReader {
     if (this.destroyed) return;
     this.destroyed = true;
     this.listeners.clear();
+    if (this.mountedPaginatedView) {
+      this.mountedPaginatedView.destroy();
+      this.mountedPaginatedView = null;
+    }
+    if (this.navStrip) {
+      this.navStrip.destroy();
+      this.navStrip = null;
+    }
+    this.pagesContainer = null;
     if (this.root) {
       this.root.remove();
       this.root = null;
@@ -154,6 +203,83 @@ export class PdfReaderAdapter implements BookReader {
         await this.walkOutline(item.items, depth + 1, out);
       }
     }
+  }
+
+  private buildLayoutForMode(): void {
+    if (!this.root) return;
+    if (this.mountedPaginatedView) {
+      this.mountedPaginatedView.destroy();
+      this.mountedPaginatedView = null;
+    }
+    if (this.pagesContainer) {
+      this.pagesContainer.remove();
+      this.pagesContainer = null;
+    }
+    if (this.navStrip) {
+      this.navStrip.destroy();
+      this.navStrip = null;
+    }
+
+    const pages = document.createElement('div');
+    pages.className = `pdf-reader__pages pdf-reader__pages--${this.currentMode}`;
+    this.root.appendChild(pages);
+    this.pagesContainer = pages;
+
+    this.navStrip = new PdfNavStrip({
+      host: this.root,
+      mode: this.currentMode,
+      pageCount: this.pageCount,
+      currentPage: this.currentPage,
+      onPrev: () => {
+        if (this.currentPage > 1) {
+          void this.goToAnchor({ kind: 'pdf', page: this.currentPage - 1 });
+        }
+      },
+      onNext: () => {
+        if (this.currentPage < this.pageCount) {
+          void this.goToAnchor({ kind: 'pdf', page: this.currentPage + 1 });
+        }
+      },
+    });
+    this.navStrip.render();
+
+    if (this.currentMode === 'scroll') {
+      this.buildScrollPlaceholders();
+    }
+  }
+
+  private async mountPaginatedPage(pageIndex1Based: number): Promise<void> {
+    if (this.destroyed || !this.pdfDoc || !this.pagesContainer) return;
+    if (this.mountedPaginatedView) {
+      this.mountedPaginatedView.destroy();
+      this.mountedPaginatedView = null;
+    }
+    const slot = document.createElement('div');
+    slot.className = 'pdf-reader__page';
+    slot.dataset.pageIndex = String(pageIndex1Based - 1);
+    this.pagesContainer.appendChild(slot);
+    const page = await this.pdfDoc.getPage(pageIndex1Based);
+    if (this.destroyed) return;
+    const view = new PdfPageView({ page, scale: this.currentScale, host: slot });
+    this.mountedPaginatedView = view;
+    await view.render();
+  }
+
+  private refreshNavStrip(): void {
+    this.navStrip?.update({
+      mode: this.currentMode,
+      pageCount: this.pageCount,
+      currentPage: this.currentPage,
+    });
+  }
+
+  private applyTheme(prefs: ReaderPreferences): void {
+    if (!this.root) return;
+    this.root.dataset.theme = prefs.theme;
+  }
+
+  private buildScrollPlaceholders(): void {
+    // Implemented in T8.
   }
 
   private generateFallbackToc(): TocEntry[] {
