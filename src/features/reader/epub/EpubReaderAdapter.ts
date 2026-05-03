@@ -1,4 +1,5 @@
 import 'foliate-js/view.js'; // side-effect: registers <foliate-view>
+import { Overlayer } from './foliate-overlayer';
 
 import type { LocationAnchor, TocEntry } from '@/domain';
 import { SectionId } from '@/domain';
@@ -7,11 +8,15 @@ import type {
   LocationChangeListener,
   ReaderInitOptions,
   ReaderPreferences,
+  SelectionInfo,
   SelectionListener,
   HighlightTapListener,
 } from '@/domain/reader';
 import type { HighlightId } from '@/domain';
 import type { Highlight } from '@/domain/annotations/types';
+import { COLOR_HEX } from '../highlightColors';
+
+const highlightDrawer = Overlayer.highlight;
 
 const FONT_SIZE_PX: Readonly<Record<0 | 1 | 2 | 3 | 4, number>> = {
   0: 14,
@@ -83,6 +88,13 @@ export class EpubReaderAdapter implements BookReader {
   private currentTocEntries: readonly TocEntry[] = [];
   private trackedObservers = new Set<ResizeObserver>();
   private resizeObserverPatched = false;
+  // Highlights (Phase 3.2).
+  private highlightsById = new Map<string, Highlight>();
+  private highlightCfiById = new Map<string, string>();
+  private highlightIdByCfi = new Map<string, string>();
+  private selectionListeners = new Set<SelectionListener>();
+  private highlightTapListeners = new Set<HighlightTapListener>();
+  private selectionDebounceTimer: number | undefined;
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -135,6 +147,40 @@ export class EpubReaderAdapter implements BookReader {
       }
       const anchor: LocationAnchor = { kind: 'epub-cfi', cfi };
       for (const fn of this.listeners) fn(anchor);
+    });
+
+    // Highlight render: foliate emits 'draw-annotation' when an annotation
+    // becomes drawable in a loaded section. Pass the annotation's color to
+    // the Overlayer.highlight static drawer.
+    view.addEventListener('draw-annotation', (e: Event) => {
+      const detail = (
+        e as CustomEvent<{
+          draw: (fn: unknown, opts?: unknown) => void;
+          annotation: { value: string; color?: string };
+        }>
+      ).detail;
+      const color = detail.annotation.color ?? COLOR_HEX.yellow;
+      detail.draw(highlightDrawer, { color });
+    });
+
+    // Highlight tap: foliate emits 'show-annotation' when the user clicks an
+    // existing annotation. Map CFI → id and notify subscribers.
+    view.addEventListener('show-annotation', (e: Event) => {
+      const detail = (e as CustomEvent<{ value: string; range?: Range }>).detail;
+      const id = this.highlightIdByCfi.get(detail.value);
+      if (!id) return;
+      const r = detail.range?.getBoundingClientRect();
+      const screenPos = r
+        ? { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+        : { x: 0, y: 0 };
+      for (const fn of this.highlightTapListeners) fn(id as never, screenPos);
+    });
+
+    // Section overlay creation: per-section ready signal. Re-add highlights
+    // for this section AND attach a selectionchange listener to its document.
+    view.addEventListener('create-overlay', (e: Event) => {
+      const detail = (e as CustomEvent<{ index: number }>).detail;
+      this.onSectionCreated(detail.index, view);
     });
 
     await view.open(file);
@@ -219,24 +265,123 @@ export class EpubReaderAdapter implements BookReader {
     return topLevel[this.currentSectionIndex]?.title ?? null;
   }
 
-  loadHighlights(_highlights: readonly Highlight[]): void {
-    // implemented in Task 8
+  loadHighlights(highlights: readonly Highlight[]): void {
+    if (!this.view) {
+      // Cache for when the view becomes ready; foliate's create-overlay will
+      // re-add per-section. We still want addAnnotation calls so the maps are
+      // populated for tap-id resolution.
+      for (const h of highlights) {
+        if (h.anchor.kind !== 'epub-cfi') continue;
+        this.highlightsById.set(h.id, h);
+        this.highlightCfiById.set(h.id, h.anchor.cfi);
+        this.highlightIdByCfi.set(h.anchor.cfi, h.id);
+      }
+      return;
+    }
+    for (const h of highlights) this.addHighlight(h);
   }
 
-  addHighlight(_highlight: Highlight): void {
-    // implemented in Task 8
+  addHighlight(highlight: Highlight): void {
+    if (highlight.anchor.kind !== 'epub-cfi') return;
+    // Upsert: if already present, remove first so color change re-renders.
+    const existingCfi = this.highlightCfiById.get(highlight.id);
+    if (existingCfi && this.view) {
+      void this.view.deleteAnnotation({ value: existingCfi });
+      this.highlightIdByCfi.delete(existingCfi);
+    }
+    this.highlightsById.set(highlight.id, highlight);
+    this.highlightCfiById.set(highlight.id, highlight.anchor.cfi);
+    this.highlightIdByCfi.set(highlight.anchor.cfi, highlight.id);
+    if (this.view) {
+      void this.view.addAnnotation({
+        value: highlight.anchor.cfi,
+        color: COLOR_HEX[highlight.color],
+      });
+    }
   }
 
-  removeHighlight(_id: HighlightId): void {
-    // implemented in Task 8
+  removeHighlight(id: HighlightId): void {
+    const cfi = this.highlightCfiById.get(id);
+    if (!cfi) return;
+    if (this.view) void this.view.deleteAnnotation({ value: cfi });
+    this.highlightsById.delete(id);
+    this.highlightCfiById.delete(id);
+    this.highlightIdByCfi.delete(cfi);
   }
 
-  onSelectionChange(_listener: SelectionListener): () => void {
-    return () => undefined;
+  onSelectionChange(listener: SelectionListener): () => void {
+    this.selectionListeners.add(listener);
+    return () => {
+      this.selectionListeners.delete(listener);
+    };
   }
 
-  onHighlightTap(_listener: HighlightTapListener): () => void {
-    return () => undefined;
+  onHighlightTap(listener: HighlightTapListener): () => void {
+    this.highlightTapListeners.add(listener);
+    return () => {
+      this.highlightTapListeners.delete(listener);
+    };
+  }
+
+  private onSectionCreated(sectionIndex: number, view: FoliateViewElement): void {
+    // 1. Re-add highlights for this section. addAnnotation no-ops for
+    //    highlights whose section overlayer doesn't exist yet, so calling for
+    //    all known highlights here is safe — only this section's will draw.
+    for (const h of this.highlightsById.values()) {
+      if (h.anchor.kind !== 'epub-cfi') continue;
+      void view.addAnnotation({ value: h.anchor.cfi, color: COLOR_HEX[h.color] });
+    }
+
+    // 2. Attach selectionchange listener to this section's document.
+    const renderer = view.renderer as
+      | (HTMLElement & {
+          getContents?: () => readonly { doc?: Document; index?: number }[];
+        })
+      | undefined;
+    const contents = renderer?.getContents?.();
+    const doc = contents?.find((c) => c.index === sectionIndex)?.doc;
+    if (!doc) return;
+    doc.addEventListener('selectionchange', () => {
+      this.handleSelectionChange(view, sectionIndex, doc);
+    });
+  }
+
+  private handleSelectionChange(
+    view: FoliateViewElement,
+    sectionIndex: number,
+    doc: Document,
+  ): void {
+    if (this.selectionDebounceTimer !== undefined) {
+      window.clearTimeout(this.selectionDebounceTimer);
+    }
+    this.selectionDebounceTimer = window.setTimeout(() => {
+      this.selectionDebounceTimer = undefined;
+      const sel = doc.getSelection();
+      const text = sel?.toString().trim() ?? '';
+      if (!sel || sel.rangeCount === 0 || text.length === 0) {
+        for (const fn of this.selectionListeners) fn(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const cfi = view.getCFI(sectionIndex, range);
+      const r = range.getBoundingClientRect();
+      // Translate iframe-relative coords to viewport. The iframe is the
+      // ancestor of `doc` — use frameElement's bounding rect.
+      const frame = doc.defaultView?.frameElement;
+      const offset = frame?.getBoundingClientRect();
+      const screenRect = {
+        x: r.left + (offset?.left ?? 0),
+        y: r.top + (offset?.top ?? 0),
+        width: r.width,
+        height: r.height,
+      };
+      const info: SelectionInfo = {
+        anchor: { kind: 'epub-cfi', cfi },
+        selectedText: text,
+        screenRect,
+      };
+      for (const fn of this.selectionListeners) fn(info);
+    }, 100);
   }
 
   // Pull text from the currently rendered section's body when the visible
@@ -267,6 +412,15 @@ export class EpubReaderAdapter implements BookReader {
     this.currentSectionIndex = -1;
     this.currentTocItemLabel = null;
     this.currentTocEntries = [];
+    this.highlightsById.clear();
+    this.highlightCfiById.clear();
+    this.highlightIdByCfi.clear();
+    this.selectionListeners.clear();
+    this.highlightTapListeners.clear();
+    if (this.selectionDebounceTimer !== undefined) {
+      window.clearTimeout(this.selectionDebounceTimer);
+      this.selectionDebounceTimer = undefined;
+    }
 
     // Disconnect tracked observers BEFORE foliate-js teardown. foliate-js's
     // own destroy chain mutates layout (removing the iframe from the shadow

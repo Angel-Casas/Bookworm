@@ -56,7 +56,7 @@ function normalizeHighlight(record: unknown): Highlight | null {
   if (typeof r.id !== 'string' || typeof r.bookId !== 'string') return null;
   if (!isValidAnchor(r.anchor)) return null;
   if (typeof r.selectedText !== 'string') return null;
-  if (typeof r.color !== 'string' || !VALID_COLORS.has(r.color as HighlightColor)) return null;
+  if (typeof r.color !== 'string' || !VALID_COLORS.has(r.color)) return null;
   if (typeof r.createdAt !== 'string') return null;
   return {
     id: HighlightId(r.id),

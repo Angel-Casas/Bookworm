@@ -9,6 +9,7 @@ declare module 'foliate-js/view.js' {
   export {};
 }
 
+
 declare global {
   interface FoliateBookTocItem {
     readonly label: string;
@@ -39,6 +40,12 @@ declare global {
     close(): void;
     init(opts: { lastLocation?: string; showTextStart?: boolean }): Promise<void>;
     goTo(target: string | number): Promise<void>;
+    addAnnotation(
+      annotation: { value: string; color?: string; id?: string },
+      remove?: boolean,
+    ): Promise<unknown>;
+    deleteAnnotation(annotation: { value: string }): Promise<unknown>;
+    getCFI(index: number, range: Range): string;
     readonly book?: FoliateBook;
     readonly renderer?: FoliateRenderer;
     lastLocation?: FoliateLastLocation | null;
