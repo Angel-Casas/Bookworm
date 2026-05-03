@@ -5,6 +5,7 @@ import type {
   HighlightColor,
   HighlightRect,
 } from '@/domain/annotations/types';
+import { compareHighlightsInBookOrder } from '@/features/reader/workspace/highlightSort';
 import type { BookwormDB } from '../db/open';
 import { HIGHLIGHTS_STORE } from '../db/schema';
 
@@ -71,22 +72,6 @@ function normalizeHighlight(record: unknown): Highlight | null {
   };
 }
 
-function compareInBookOrder(a: Highlight, b: Highlight): number {
-  if (a.anchor.kind === 'pdf' && b.anchor.kind === 'pdf') {
-    if (a.anchor.page !== b.anchor.page) return a.anchor.page - b.anchor.page;
-    const ar = a.anchor.rects[0];
-    const br = b.anchor.rects[0];
-    if (!ar || !br) return 0;
-    if (ar.y !== br.y) return ar.y - br.y;
-    if (ar.x !== br.x) return ar.x - br.x;
-    return 0;
-  }
-  if (a.anchor.kind === 'epub-cfi' && b.anchor.kind === 'epub-cfi') {
-    return a.anchor.cfi < b.anchor.cfi ? -1 : a.anchor.cfi > b.anchor.cfi ? 1 : 0;
-  }
-  return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0;
-}
-
 export function createHighlightsRepository(db: BookwormDB): HighlightsRepository {
   return {
     async add(highlight) {
@@ -108,7 +93,7 @@ export function createHighlightsRepository(db: BookwormDB): HighlightsRepository
       const valid = records
         .map(normalizeHighlight)
         .filter((h): h is Highlight => h !== null);
-      return valid.sort(compareInBookOrder);
+      return valid.sort(compareHighlightsInBookOrder);
     },
     async deleteByBook(bookId) {
       const tx = db.transaction(HIGHLIGHTS_STORE, 'readwrite');
