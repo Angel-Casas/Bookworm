@@ -177,34 +177,50 @@ export class EpubReaderAdapter implements BookReader {
     this.destroyed = true;
     this.listeners.clear();
 
-    // Disconnect tracked observers FIRST. foliate-js's own destroy() chain
-    // mutates layout (removing the iframe from the shadow root), which fires
-    // the ResizeObserver callbacks synchronously mid-destroy — before
-    // foliate-js gets to set `#view = null` (its own internal guard). Those
-    // callbacks then call render() → scrollToAnchor() → getVisibleRange() on
-    // a now-null iframe document and throw. Disconnecting first prevents the
-    // callbacks from firing at all.
+    const trackedCount = this.trackedObservers.size;
+    console.log('[reader] destroy: start, tracked observers =', trackedCount);
+
     for (const obs of this.trackedObservers) {
       try {
         obs.disconnect();
-      } catch {
-        /* observer may already be GC'd; safe to ignore */
+      } catch (err) {
+        console.warn('[reader] destroy: observer.disconnect threw', err);
       }
     }
     this.trackedObservers.clear();
     this.uninstallResizeObserverPatch();
+    console.log('[reader] destroy: observers disconnected + patch uninstalled');
 
     try {
       this.view?.close();
+      console.log('[reader] destroy: view.close ok');
     } catch (err) {
-      console.warn('[reader] destroy: close threw', err);
+      console.warn('[reader] destroy: view.close threw', err);
     }
     try {
       this.view?.remove();
+      console.log('[reader] destroy: view.remove ok');
     } catch (err) {
-      console.warn('[reader] destroy: remove threw', err);
+      console.warn('[reader] destroy: view.remove threw', err);
     }
     this.view = null;
+
+    // Catch any rejections that happen after destroy returns so we can see
+    // what's still firing. Removed after a window so it doesn't mask future
+    // real bugs.
+    const onRejection = (e: PromiseRejectionEvent) => {
+      console.warn(
+        '[reader] post-destroy unhandledrejection caught — reason:',
+        e.reason,
+        'stack:',
+        e.reason instanceof Error ? e.reason.stack : '(no stack)',
+      );
+    };
+    window.addEventListener('unhandledrejection', onRejection);
+    window.setTimeout(() => {
+      window.removeEventListener('unhandledrejection', onRejection);
+      console.log('[reader] destroy: post-destroy listener removed');
+    }, 5000);
   }
 
   // ----- ResizeObserver tracking patch -----
