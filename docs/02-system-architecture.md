@@ -309,6 +309,51 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-03 — Phase 3.2 highlights
+
+- New `highlights` IndexedDB store at v4 (additive migration). `HighlightsRepository`
+  mirrors the bookmark validating-reads pattern, with a stricter validator
+  (drops records with bad `HighlightAnchor` shape or invalid `HighlightColor`).
+- Refactored the previously-unused `Highlight` domain type: dropped
+  `range: LocationRange` and `normalizedText`; added `HighlightAnchor`
+  (discriminated union: `epub-cfi` with a CFI string that itself encodes a
+  range, or `pdf` with `{page, rects: HighlightRect[]}` in PDF coordinate
+  space) plus `sectionTitle: string | null`. Tags field stays as
+  `readonly string[]` for forward-compat but is always `[]` in v1 (no tag UI).
+- `BookReader` contract grows five methods: `loadHighlights` (bulk render),
+  `addHighlight` (incremental upsert; same-id replaces for color changes),
+  `removeHighlight`, `onSelectionChange`, `onHighlightTap`. New
+  `SelectionInfo` type carries `{anchor, selectedText, screenRect}`. The
+  workspace passes everything through `ReaderViewExposedState`.
+- EPUB rendering uses foliate's `view.addAnnotation` + `Overlayer.highlight`
+  drawer; the adapter listens for `'create-overlay'` (per-section ready) to
+  attach a debounced `selectionchange` listener and re-add highlights for
+  that section, plus `'show-annotation'` for taps. CFI ↔ id maps are
+  maintained internally. Foliate ships untyped JS so the Overlayer import
+  goes through a typed wrapper at `src/features/reader/epub/foliate-overlayer.ts`
+  (declare module doesn't kick in under `moduleResolution: bundler` when the
+  resolved JS exists).
+- PDF rendering adds a new `.pdf-reader__highlight-layer` sibling of the
+  text-layer in `PdfPageView`; the adapter populates it with absolutely-
+  positioned `<div class="pdf-highlight" data-color="…" data-id="…">`
+  elements. Selection events translate text-layer Range rects to PDF coords
+  via `viewport.convertToPdfPoint`. Click handler reads `data-id` for tap.
+- New `HighlightToolbar` component is a single floating pill used in two
+  modes: `'create'` (just colors, on selection) and `'edit'` (colors with
+  current pre-selected + a delete button, on tap). Position clamps to
+  viewport so off-screen selections (e.g. text hidden behind a paginated
+  EPUB column transform) still render a tappable toolbar. Dismisses on
+  Escape, outside-click, or scroll.
+- New `HighlightsPanel` joins `TocPanel` and `BookmarksPanel` as the third
+  tab in the rail (desktop) or sheet (mobile). Each row has a colored bar
+  on the left, section + relative time on top, selected text below, plus a
+  hover-revealed color-pip menu (4 dots) and × button on the right.
+- `useHighlights` hook owns the in-memory list and orchestrates optimistic
+  add/changeColor/remove. List sorted via shared `compareHighlightsInBookOrder`
+  (PDF: page → y → x; EPUB: CFI lex order; mixed kinds fall back to createdAt).
+- Cascade: `useReaderHost.onRemoveBook` adds `highlightsRepo.deleteByBook`
+  next to the bookmarks cascade.
+
 ### 2026-05-03 — Phase 3.1 bookmarks
 
 - New `bookmarks` IndexedDB store at v3 (additive migration; existing
