@@ -12,4 +12,8 @@ export {
   createReaderPreferencesRepository,
   type ReaderPreferencesRepository,
 } from './repositories/readerPreferences';
+export {
+  createBookmarksRepository,
+  type BookmarksRepository,
+} from './repositories/bookmarks';
 export type { AppView } from './db/schema';
