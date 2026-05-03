@@ -326,3 +326,18 @@ No fallback path for older browsers in v1. May be revisited later.
 - `idb` for IndexedDB promise wrapping
 - `fflate` for EPUB zip reading (no `foliate-js` until Phase 2)
 - `pdfjs-dist` for PDF metadata + cover thumbnail (already locked in Phase 0; introduced now)
+
+### 2026-05-03 — Phase 2.1 dependency additions and schema migration
+- `foliate-js` pinned at `1.0.1` for EPUB rendering. Sole consumer:
+  `src/features/reader/epub/EpubReaderAdapter.ts`. Mapping of foliate-js
+  exports to our `BookReader` interface lives at
+  `src/features/reader/epub/foliate-notes.md`.
+- Schema bumped to v2: new `reading_progress` and `reader_preferences`
+  IndexedDB stores. Existing `books` and `settings` stores untouched.
+- Settings store gains a `view` key that persists library-vs-reader
+  navigation across reloads (no router added — `App.tsx` extends its
+  existing view-state pattern with a discriminated union).
+- Reader location anchors and TOC entries reuse the Phase 1 domain
+  types (`LocationAnchor` from `domain/locations.ts` with
+  `kind: 'epub-cfi' | 'pdf'`, and `TocEntry` from `domain/book/types.ts`).
+  No duplicate type definitions in `domain/reader/`.
