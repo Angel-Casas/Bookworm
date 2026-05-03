@@ -172,6 +172,14 @@ export class EpubReaderAdapter implements BookReader {
     };
   }
 
+  getSnippetAt(_anchor: LocationAnchor): Promise<string | null> {
+    return Promise.resolve(null);
+  }
+
+  getSectionTitleAt(_anchor: LocationAnchor): string | null {
+    return null;
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;

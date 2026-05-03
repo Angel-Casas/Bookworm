@@ -15,6 +15,10 @@ export type ReaderViewExposedState = {
   readonly prefs: ReaderPreferences | null;
   readonly goToAnchor: (anchor: LocationAnchor) => void;
   readonly applyPreferences: (prefs: ReaderPreferences) => void;
+  // Returns null when the adapter isn't ready or the anchor can't be resolved.
+  readonly getCurrentAnchor: () => LocationAnchor | null;
+  readonly getSnippetAt: (anchor: LocationAnchor) => Promise<string | null>;
+  readonly getSectionTitleAt: (anchor: LocationAnchor) => string | null;
 };
 
 type ReaderViewProps = {
@@ -160,6 +164,29 @@ export function ReaderView({
     // This is best-effort — the workspace renders highlight visually.
   }, []);
 
+  const getCurrentAnchor = useCallback((): LocationAnchor | null => {
+    if (!adapterRef.current) return null;
+    try {
+      return adapterRef.current.getCurrentAnchor();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getSnippetAt = useCallback((anchor: LocationAnchor): Promise<string | null> => {
+    if (!adapterRef.current) return Promise.resolve(null);
+    return adapterRef.current.getSnippetAt(anchor).catch(() => null);
+  }, []);
+
+  const getSectionTitleAt = useCallback((anchor: LocationAnchor): string | null => {
+    if (!adapterRef.current) return null;
+    try {
+      return adapterRef.current.getSectionTitleAt(anchor);
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Surface state to parent (workspace) — fires whenever any input changes.
   useEffect(() => {
     if (!onStateChange) return;
@@ -169,8 +196,21 @@ export function ReaderView({
       prefs,
       goToAnchor,
       applyPreferences,
+      getCurrentAnchor,
+      getSnippetAt,
+      getSectionTitleAt,
     });
-  }, [onStateChange, state.context.toc, prefs, currentEntryId, goToAnchor, applyPreferences]);
+  }, [
+    onStateChange,
+    state.context.toc,
+    prefs,
+    currentEntryId,
+    goToAnchor,
+    applyPreferences,
+    getCurrentAnchor,
+    getSnippetAt,
+    getSectionTitleAt,
+  ]);
 
   // Track current entry when goToAnchor is called via the workspace's handler.
   // Workspace passes us an entry through onSelect → adapter.goToAnchor; we mark

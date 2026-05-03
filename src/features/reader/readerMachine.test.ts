@@ -29,6 +29,12 @@ function fakeAdapter(): BookReader & { destroyed: boolean } {
     onLocationChange() {
       return () => undefined;
     },
+    getSnippetAt() {
+      return Promise.resolve(null);
+    },
+    getSectionTitleAt() {
+      return null;
+    },
     destroy() {
       out.destroyed = true;
     },
@@ -102,6 +108,8 @@ describe('readerMachine', () => {
       getCurrentAnchor: () => ({ kind: 'epub-cfi', cfi: '' }),
       applyPreferences: () => undefined,
       onLocationChange: () => () => undefined,
+      getSnippetAt: () => Promise.resolve(null),
+      getSectionTitleAt: () => null,
       destroy() {
         this.destroyed = true;
       },
