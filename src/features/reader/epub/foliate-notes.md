@@ -80,3 +80,21 @@ renderer reads from its host context, OR baked into the injected CSS.
   through the adapter test suite + a manual smoke pass.
 - The `foliate-view` custom element attaches a closed shadow root; we cannot
   query into it from outside. All interaction is through the View's public API.
+- **Paginator ResizeObserver leak on destroy.** `Paginator.destroy()` calls
+  `this.#observer.unobserve(this)` but never `disconnect()`s the second
+  observer in its inner View class (which observes `iframe.contentDocument.body`).
+  After we close + remove the view, the observer can still fire one or two
+  callbacks against a now-null document, throwing `TypeError: Cannot read
+  properties of null (reading 'createTreeWalker')`. The adapter's `destroy()`
+  installs a 1-second window-level error swallower for these specific
+  errors. Real errors from elsewhere are not affected.
+- **Iframe `<body onload="...">` handlers throw inside the sandbox.** Older
+  EPUBs (e.g. Project Gutenberg's Pride and Prejudice) have legacy onload
+  handlers calling functions defined in the EPUB's own scripts, which the
+  sandbox blocks. The error is per-chapter noise (`Body_onLoad is not defined`)
+  and doesn't break navigation. Modern EPUBs without onload handlers are clean.
+- **React StrictMode dev-mode double-invocation.** In dev, `useEffect` runs
+  mount → cleanup → mount, which destroys + recreates the adapter. The
+  adapter's `open()` defensively clears any leftover `<foliate-view>` from
+  the host before mounting its own; without that, the host could end up with
+  two stacked views in dev mode.

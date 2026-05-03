@@ -54,6 +54,26 @@ function buildReaderCss(prefs: ReaderPreferences): string {
   `.trim();
 }
 
+// foliate-js's paginator leaks ResizeObservers after destroy: its inner View
+// class observes iframe.contentDocument.body but only `unobserve()`s — never
+// `disconnect()`s — and once the iframe is removed the observer fires render
+// callbacks against a null document. We suppress those known-shape errors for
+// a short window starting at destroy().
+const FOLIATE_TEARDOWN_MARKERS = [
+  "Cannot read properties of null (reading 'createTreeWalker')",
+  'paginator',
+];
+
+function isFoliateTeardownError(reason: unknown): boolean {
+  const message =
+    reason instanceof Error
+      ? `${reason.message} ${reason.stack ?? ''}`
+      : typeof reason === 'string'
+        ? reason
+        : '';
+  return FOLIATE_TEARDOWN_MARKERS.every((m) => message.toLowerCase().includes(m.toLowerCase()));
+}
+
 export class EpubReaderAdapter implements BookReader {
   private view: FoliateViewElement | null = null;
   private host: HTMLElement | null = null;
@@ -68,6 +88,15 @@ export class EpubReaderAdapter implements BookReader {
   async open(file: Blob, options: ReaderInitOptions): Promise<{ toc: readonly TocEntry[] }> {
     if (this.destroyed) throw new Error('EpubReaderAdapter: open() after destroy()');
     if (this.view) throw new Error('EpubReaderAdapter: open() called twice');
+
+    // StrictMode-safety: a previous adapter mounted to the same host (and torn
+    // down by React's effect-cleanup double-invoke) may have left a stale
+    // <foliate-view> behind. Drop any leftovers before mounting our own.
+    if (this.host) {
+      for (const child of Array.from(this.host.children)) {
+        if (child.tagName.toLowerCase() === 'foliate-view') child.remove();
+      }
+    }
 
     const view = document.createElement('foliate-view');
     if (this.host) {
@@ -150,6 +179,19 @@ export class EpubReaderAdapter implements BookReader {
     if (this.destroyed) return;
     this.destroyed = true;
     this.listeners.clear();
+
+    // Install a temporary error swallower for foliate-js's leaked
+    // ResizeObserver callbacks (see FOLIATE_TEARDOWN_MARKERS above). The
+    // observers fire on the next animation frames after we close the view.
+    const onUnhandled = (e: PromiseRejectionEvent): void => {
+      if (isFoliateTeardownError(e.reason)) e.preventDefault();
+    };
+    const onError = (e: ErrorEvent): void => {
+      if (isFoliateTeardownError(e.error ?? e.message)) e.preventDefault();
+    };
+    window.addEventListener('unhandledrejection', onUnhandled);
+    window.addEventListener('error', onError);
+
     try {
       this.view?.close();
     } catch (err) {
@@ -161,6 +203,13 @@ export class EpubReaderAdapter implements BookReader {
       console.warn('[reader] destroy: remove threw', err);
     }
     this.view = null;
+
+    // Two animation frames is enough for any pending ResizeObserver callbacks
+    // to drain. Then we remove the swallowers so real future errors surface.
+    window.setTimeout(() => {
+      window.removeEventListener('unhandledrejection', onUnhandled);
+      window.removeEventListener('error', onError);
+    }, 1000);
   }
 
   // ----- internals -----
