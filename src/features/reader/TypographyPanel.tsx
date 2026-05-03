@@ -4,6 +4,7 @@ import type {
   ReaderPreferences,
   ReaderTheme,
 } from '@/domain/reader';
+import type { BookFormat } from '@/domain';
 import './typography-panel.css';
 
 const FONTS: readonly { value: ReaderFontFamily; label: string }[] = [
@@ -22,35 +23,39 @@ const MARGIN_LABELS: readonly string[] = ['narrow', 'normal', 'wide'];
 
 type Props = {
   readonly preferences: ReaderPreferences;
+  readonly bookFormat: BookFormat;
   readonly onChange: (prefs: ReaderPreferences) => void;
 };
 
-export function TypographyPanel({ preferences, onChange }: Props) {
+export function TypographyPanel({ preferences, bookFormat, onChange }: Props) {
   const t = preferences.typography;
+  const isPdf = bookFormat === 'pdf';
 
   return (
     <section className="typography-panel" aria-label="Reader preferences">
-      <label className="typography-panel__row">
-        <span>Font</span>
-        <select
-          value={t.fontFamily}
-          onChange={(e) => {
-            onChange({
-              ...preferences,
-              typography: { ...t, fontFamily: e.target.value as ReaderFontFamily },
-            });
-          }}
-        >
-          {FONTS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {!isPdf ? (
+        <label className="typography-panel__row">
+          <span>Font</span>
+          <select
+            value={t.fontFamily}
+            onChange={(e) => {
+              onChange({
+                ...preferences,
+                typography: { ...t, fontFamily: e.target.value as ReaderFontFamily },
+              });
+            }}
+          >
+            {FONTS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <div className="typography-panel__row">
-        <span>Size</span>
+        <span>{isPdf ? 'Zoom' : 'Size'}</span>
         <button
           type="button"
           aria-label="Decrease font size"
@@ -86,43 +91,47 @@ export function TypographyPanel({ preferences, onChange }: Props) {
         </button>
       </div>
 
-      <div className="typography-panel__row" role="group" aria-label="Line height">
-        <span>Line height</span>
-        {LINE_HEIGHT_LABELS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            aria-pressed={t.lineHeightStep === i}
-            onClick={() => {
-              onChange({
-                ...preferences,
-                typography: { ...t, lineHeightStep: i as 0 | 1 | 2 },
-              });
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!isPdf ? (
+        <div className="typography-panel__row" role="group" aria-label="Line height">
+          <span>Line height</span>
+          {LINE_HEIGHT_LABELS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={t.lineHeightStep === i}
+              onClick={() => {
+                onChange({
+                  ...preferences,
+                  typography: { ...t, lineHeightStep: i as 0 | 1 | 2 },
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-      <div className="typography-panel__row" role="group" aria-label="Margins">
-        <span>Margins</span>
-        {MARGIN_LABELS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            aria-pressed={t.marginStep === i}
-            onClick={() => {
-              onChange({
-                ...preferences,
-                typography: { ...t, marginStep: i as 0 | 1 | 2 },
-              });
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!isPdf ? (
+        <div className="typography-panel__row" role="group" aria-label="Margins">
+          <span>Margins</span>
+          {MARGIN_LABELS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={t.marginStep === i}
+              onClick={() => {
+                onChange({
+                  ...preferences,
+                  typography: { ...t, marginStep: i as 0 | 1 | 2 },
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <fieldset className="typography-panel__row">
         <legend>Theme</legend>
@@ -148,9 +157,12 @@ export function TypographyPanel({ preferences, onChange }: Props) {
             <input
               type="radio"
               name="reader-mode"
-              checked={preferences.modeByFormat.epub === mode}
+              checked={preferences.modeByFormat[bookFormat] === mode}
               onChange={() => {
-                onChange({ ...preferences, modeByFormat: { epub: mode } });
+                onChange({
+                  ...preferences,
+                  modeByFormat: { ...preferences.modeByFormat, [bookFormat]: mode },
+                });
               }}
             />
             <span style={{ textTransform: 'capitalize' }}>{mode}</span>
