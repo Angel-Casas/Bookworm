@@ -177,6 +177,23 @@ export class EpubReaderAdapter implements BookReader {
     this.destroyed = true;
     this.listeners.clear();
 
+    // Disconnect tracked observers FIRST. foliate-js's own destroy() chain
+    // mutates layout (removing the iframe from the shadow root), which fires
+    // the ResizeObserver callbacks synchronously mid-destroy — before
+    // foliate-js gets to set `#view = null` (its own internal guard). Those
+    // callbacks then call render() → scrollToAnchor() → getVisibleRange() on
+    // a now-null iframe document and throw. Disconnecting first prevents the
+    // callbacks from firing at all.
+    for (const obs of this.trackedObservers) {
+      try {
+        obs.disconnect();
+      } catch {
+        /* observer may already be GC'd; safe to ignore */
+      }
+    }
+    this.trackedObservers.clear();
+    this.uninstallResizeObserverPatch();
+
     try {
       this.view?.close();
     } catch (err) {
@@ -188,19 +205,6 @@ export class EpubReaderAdapter implements BookReader {
       console.warn('[reader] destroy: remove threw', err);
     }
     this.view = null;
-
-    // Force-disconnect every ResizeObserver that foliate-js created during
-    // this adapter's lifetime. This is what stops the infinite-loop callbacks
-    // against the now-detached iframe document.
-    for (const obs of this.trackedObservers) {
-      try {
-        obs.disconnect();
-      } catch {
-        /* observer may already be GC'd; safe to ignore */
-      }
-    }
-    this.trackedObservers.clear();
-    this.uninstallResizeObserverPatch();
   }
 
   // ----- ResizeObserver tracking patch -----
