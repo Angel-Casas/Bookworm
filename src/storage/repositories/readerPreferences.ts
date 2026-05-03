@@ -1,5 +1,6 @@
 import {
   DEFAULT_READER_PREFERENCES,
+  type FocusMode,
   type ReaderFontFamily,
   type ReaderMode,
   type ReaderPreferences,
@@ -23,6 +24,7 @@ const VALID_FONTS: ReadonlySet<string> = new Set([
   'iowan',
   'inter',
 ]);
+const VALID_FOCUS_MODES: ReadonlySet<string> = new Set(['normal', 'focus']);
 
 function isValidTheme(v: unknown): v is ReaderTheme {
   return typeof v === 'string' && VALID_THEMES.has(v);
@@ -39,11 +41,15 @@ function isFontSizeStep(v: unknown): v is 0 | 1 | 2 | 3 | 4 {
 function isLineOrMarginStep(v: unknown): v is 0 | 1 | 2 {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 2;
 }
+function isValidFocusMode(v: unknown): v is FocusMode {
+  return typeof v === 'string' && VALID_FOCUS_MODES.has(v);
+}
 
 type LoosePreferences = {
   typography?: Partial<ReaderTypography>;
   theme?: unknown;
   modeByFormat?: { epub?: unknown; pdf?: unknown };
+  focusMode?: unknown;
 };
 
 function normalize(value: unknown): ReaderPreferences | null {
@@ -64,6 +70,9 @@ function normalize(value: unknown): ReaderPreferences | null {
   const pdf = isValidMode(v.modeByFormat.pdf)
     ? v.modeByFormat.pdf
     : DEFAULT_READER_PREFERENCES.modeByFormat.pdf;
+  const focusMode = isValidFocusMode(v.focusMode)
+    ? v.focusMode
+    : DEFAULT_READER_PREFERENCES.focusMode;
 
   return {
     typography: {
@@ -74,6 +83,7 @@ function normalize(value: unknown): ReaderPreferences | null {
     },
     theme: v.theme,
     modeByFormat: { epub, pdf },
+    focusMode,
   };
 }
 
