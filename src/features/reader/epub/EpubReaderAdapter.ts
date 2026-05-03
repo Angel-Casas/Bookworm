@@ -73,6 +73,9 @@ export class EpubReaderAdapter implements BookReader {
   private listeners = new Set<LocationChangeListener>();
   private destroyed = false;
   private currentCfi = '';
+  private currentSnippet: string | null = null;
+  private currentSectionIndex = -1;
+  private currentTocEntries: readonly TocEntry[] = [];
   private trackedObservers = new Set<ResizeObserver>();
   private resizeObserverPatched = false;
 
@@ -105,6 +108,15 @@ export class EpubReaderAdapter implements BookReader {
       const cfi = e.detail.cfi;
       if (typeof cfi !== 'string' || cfi.length === 0) return;
       this.currentCfi = cfi;
+      // Cache snippet + section index for getSnippetAt / getSectionTitleAt.
+      const detail = e.detail as { range?: Range; index?: number };
+      if (typeof detail.index === 'number') this.currentSectionIndex = detail.index;
+      if (detail.range && typeof detail.range.toString === 'function') {
+        const text = detail.range.toString().replace(/\s+/g, ' ').trim();
+        this.currentSnippet = text.length > 0 ? text.slice(0, 80) : null;
+      } else {
+        this.currentSnippet = null;
+      }
       const anchor: LocationAnchor = { kind: 'epub-cfi', cfi };
       for (const fn of this.listeners) fn(anchor);
     });
@@ -134,7 +146,9 @@ export class EpubReaderAdapter implements BookReader {
     // Apply preferences after init so renderer.setStyles has a renderer to act on.
     this.applyPreferences(options.preferences);
 
-    return { toc: this.extractToc(view.book?.toc ?? []) };
+    const toc = this.extractToc(view.book?.toc ?? []);
+    this.currentTocEntries = toc;
+    return { toc };
   }
 
   goToAnchor(anchor: LocationAnchor): Promise<void> {
@@ -172,18 +186,30 @@ export class EpubReaderAdapter implements BookReader {
     };
   }
 
-  getSnippetAt(_anchor: LocationAnchor): Promise<string | null> {
+  getSnippetAt(anchor: LocationAnchor): Promise<string | null> {
+    if (anchor.kind !== 'epub-cfi') return Promise.resolve(null);
+    if (anchor.cfi === this.currentCfi) return Promise.resolve(this.currentSnippet);
+    // Non-current anchors: best-effort — we don't navigate to extract text.
     return Promise.resolve(null);
   }
 
-  getSectionTitleAt(_anchor: LocationAnchor): string | null {
-    return null;
+  getSectionTitleAt(anchor: LocationAnchor): string | null {
+    if (anchor.kind !== 'epub-cfi') return null;
+    if (this.currentSectionIndex < 0) return null;
+    // Walk top-level TOC entries by index. This matches typical EPUB structure
+    // where each section maps to a chapter; books with sub-section TOCs may be
+    // less precise but still resolve to the chapter the section lives under.
+    const topLevel = this.currentTocEntries.filter((e) => e.depth === 0);
+    return topLevel[this.currentSectionIndex]?.title ?? null;
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.listeners.clear();
+    this.currentSnippet = null;
+    this.currentSectionIndex = -1;
+    this.currentTocEntries = [];
 
     // Disconnect tracked observers BEFORE foliate-js teardown. foliate-js's
     // own destroy chain mutates layout (removing the iframe from the shadow
