@@ -12,6 +12,14 @@ const fakeBookmarksRepo = {
   deleteByBook: () => Promise.resolve(),
 };
 
+const fakeHighlightsRepo = {
+  add: () => Promise.resolve(),
+  patch: () => Promise.resolve(),
+  delete: () => Promise.resolve(),
+  listByBook: () => Promise.resolve([]),
+  deleteByBook: () => Promise.resolve(),
+};
+
 const baseProps = {
   bookId: 'b1',
   bookTitle: 'Test',
@@ -29,6 +37,7 @@ const baseProps = {
   onFocusModeChange: () => Promise.resolve(),
   onFirstTimeHintShown: () => undefined,
   bookmarksRepo: fakeBookmarksRepo,
+  highlightsRepo: fakeHighlightsRepo,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

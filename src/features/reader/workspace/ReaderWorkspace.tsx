@@ -1,17 +1,25 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
-import type { BookmarksRepository } from '@/storage';
+import type { BookmarksRepository, HighlightsRepository } from '@/storage';
+import type {
+  Highlight,
+  HighlightAnchor,
+  HighlightColor,
+} from '@/domain/annotations/types';
 import { ReaderChrome } from '@/features/reader/ReaderChrome';
 import { ReaderView, type ReaderViewExposedState } from '@/features/reader/ReaderView';
 import { TocPanel } from '@/features/reader/TocPanel';
 import { TypographyPanel } from '@/features/reader/TypographyPanel';
 import { BookmarksPanel } from '@/features/reader/BookmarksPanel';
+import { HighlightsPanel } from '@/features/reader/HighlightsPanel';
+import { HighlightToolbar } from '@/features/reader/HighlightToolbar';
 import { DesktopRail, type RailTab } from './DesktopRail';
 import { MobileSheet } from './MobileSheet';
 import { useFocusMode } from './useFocusMode';
 import { useViewport } from './useViewport';
 import { useBookmarks } from './useBookmarks';
+import { useHighlights } from './useHighlights';
 import './workspace.css';
 
 type Props = {
@@ -33,6 +41,7 @@ type Props = {
   readonly onFocusModeChange: (mode: FocusMode) => Promise<void>;
   readonly onFirstTimeHintShown: () => void;
   readonly bookmarksRepo: BookmarksRepository;
+  readonly highlightsRepo: HighlightsRepository;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -76,6 +85,22 @@ function SheetTabHeader({
 const FOCUS_HINT_TEXT =
   'Move the cursor to the top to bring the menu back · F or Esc to exit';
 
+type RailTabKey = 'contents' | 'bookmarks' | 'highlights';
+
+type ActiveToolbar =
+  | {
+      kind: 'create';
+      anchor: HighlightAnchor;
+      selectedText: string;
+      rect: { x: number; y: number; width: number; height: number };
+    }
+  | {
+      kind: 'edit';
+      highlight: Highlight;
+      pos: { x: number; y: number; width: number; height: number };
+    }
+  | null;
+
 export function ReaderWorkspace(props: Props) {
   const viewport = useViewport();
   const focus = useFocusMode({
@@ -89,11 +114,17 @@ export function ReaderWorkspace(props: Props) {
 
   const [activeSheet, setActiveSheet] = useState<'toc' | 'typography' | null>(null);
   const [readerState, setReaderState] = useState<ReaderViewExposedState | null>(null);
-  const [activeRailTab, setActiveRailTab] = useState<'contents' | 'bookmarks'>('contents');
+  const [activeRailTab, setActiveRailTab] = useState<RailTabKey>('contents');
+  const [activeToolbar, setActiveToolbar] = useState<ActiveToolbar>(null);
 
   const bookmarks = useBookmarks({
     bookId: BookId(props.bookId),
     repo: props.bookmarksRepo,
+    readerState,
+  });
+  const highlights = useHighlights({
+    bookId: BookId(props.bookId),
+    repo: props.highlightsRepo,
     readerState,
   });
 
@@ -104,6 +135,72 @@ export function ReaderWorkspace(props: Props) {
   const handleAddBookmark = useCallback((): void => {
     void bookmarks.add();
   }, [bookmarks]);
+
+  // Initial render of persisted highlights into the engine (once both ready).
+  useEffect(() => {
+    if (!readerState) return;
+    readerState.loadHighlights(highlights.list);
+  }, [readerState, highlights.list]);
+
+  // Subscribe to engine selection events → drive create-toolbar.
+  useEffect(() => {
+    if (!readerState) return;
+    return readerState.onSelectionChange((sel) => {
+      if (sel === null) {
+        setActiveToolbar((t) => (t?.kind === 'create' ? null : t));
+      } else {
+        setActiveToolbar({
+          kind: 'create',
+          anchor: sel.anchor,
+          selectedText: sel.selectedText,
+          rect: sel.screenRect,
+        });
+      }
+    });
+  }, [readerState]);
+
+  // Subscribe to engine highlight-tap events → drive edit-toolbar.
+  useEffect(() => {
+    if (!readerState) return;
+    return readerState.onHighlightTap((id, pos) => {
+      const h = highlights.list.find((x) => x.id === id);
+      if (!h) return;
+      setActiveToolbar({
+        kind: 'edit',
+        highlight: h,
+        pos: { x: pos.x, y: pos.y, width: 1, height: 1 },
+      });
+    });
+  }, [readerState, highlights.list]);
+
+  const handleCreatePick = useCallback(
+    (color: HighlightColor): void => {
+      if (activeToolbar?.kind !== 'create') return;
+      void highlights.add(activeToolbar.anchor, activeToolbar.selectedText, color);
+      setActiveToolbar(null);
+      window.getSelection()?.removeAllRanges();
+    },
+    [activeToolbar, highlights],
+  );
+
+  const handleEditPick = useCallback(
+    (color: HighlightColor): void => {
+      if (activeToolbar?.kind !== 'edit') return;
+      void highlights.changeColor(activeToolbar.highlight, color);
+      setActiveToolbar(null);
+    },
+    [activeToolbar, highlights],
+  );
+
+  const handleEditDelete = useCallback((): void => {
+    if (activeToolbar?.kind !== 'edit') return;
+    void highlights.remove(activeToolbar.highlight);
+    setActiveToolbar(null);
+  }, [activeToolbar, highlights]);
+
+  const dismissToolbar = useCallback((): void => {
+    setActiveToolbar(null);
+  }, []);
 
   const isDesktop = viewport === 'desktop';
 
@@ -135,6 +232,25 @@ export function ReaderWorkspace(props: Props) {
     />
   );
 
+  const highlightsPanelContent = (
+    <HighlightsPanel
+      highlights={highlights.list}
+      onSelect={(h) => {
+        const anchor: LocationAnchor =
+          h.anchor.kind === 'epub-cfi'
+            ? { kind: 'epub-cfi', cfi: h.anchor.cfi }
+            : { kind: 'pdf', page: h.anchor.page };
+        readerState?.goToAnchor(anchor);
+      }}
+      onDelete={(h) => {
+        void highlights.remove(h);
+      }}
+      onChangeColor={(h, color) => {
+        void highlights.changeColor(h, color);
+      }}
+    />
+  );
+
   const railTabs: readonly RailTab[] = [
     { key: 'contents', label: 'Contents', content: tocPanelContent },
     {
@@ -143,6 +259,12 @@ export function ReaderWorkspace(props: Props) {
       badge: bookmarks.list.length,
       content: bookmarksPanelContent,
     },
+    {
+      key: 'highlights',
+      label: 'Highlights',
+      badge: highlights.list.length,
+      content: highlightsPanelContent,
+    },
   ];
 
   const showRail = isDesktop && focus.mode === 'normal';
@@ -150,6 +272,7 @@ export function ReaderWorkspace(props: Props) {
   const sheetTabs: readonly SheetTab[] = [
     { key: 'contents', label: 'Contents' },
     { key: 'bookmarks', label: 'Bookmarks', badge: bookmarks.list.length },
+    { key: 'highlights', label: 'Highlights', badge: highlights.list.length },
   ];
 
   return (
@@ -181,7 +304,7 @@ export function ReaderWorkspace(props: Props) {
             tabs={railTabs}
             activeKey={activeRailTab}
             onTabChange={(key) => {
-              setActiveRailTab(key as 'contents' | 'bookmarks');
+              setActiveRailTab(key as RailTabKey);
             }}
           />
         ) : null}
@@ -211,7 +334,7 @@ export function ReaderWorkspace(props: Props) {
             tabs={sheetTabs}
             activeKey={activeRailTab}
             onTabChange={(key) => {
-              setActiveRailTab(key as 'contents' | 'bookmarks');
+              setActiveRailTab(key as RailTabKey);
             }}
           />
           {activeRailTab === 'contents' && readerState?.toc ? (
@@ -238,6 +361,25 @@ export function ReaderWorkspace(props: Props) {
               }}
             />
           ) : null}
+          {activeRailTab === 'highlights' ? (
+            <HighlightsPanel
+              highlights={highlights.list}
+              onSelect={(h) => {
+                const anchor: LocationAnchor =
+                  h.anchor.kind === 'epub-cfi'
+                    ? { kind: 'epub-cfi', cfi: h.anchor.cfi }
+                    : { kind: 'pdf', page: h.anchor.page };
+                readerState?.goToAnchor(anchor);
+                setActiveSheet(null);
+              }}
+              onDelete={(h) => {
+                void highlights.remove(h);
+              }}
+              onChangeColor={(h, color) => {
+                void highlights.changeColor(h, color);
+              }}
+            />
+          ) : null}
         </MobileSheet>
       ) : null}
 
@@ -259,6 +401,25 @@ export function ReaderWorkspace(props: Props) {
         <div className="reader-workspace__hint" role="status">
           {FOCUS_HINT_TEXT}
         </div>
+      ) : null}
+
+      {activeToolbar?.kind === 'create' ? (
+        <HighlightToolbar
+          mode="create"
+          screenRect={activeToolbar.rect}
+          onPickColor={handleCreatePick}
+          onDismiss={dismissToolbar}
+        />
+      ) : null}
+      {activeToolbar?.kind === 'edit' ? (
+        <HighlightToolbar
+          mode="edit"
+          screenRect={activeToolbar.pos}
+          currentColor={activeToolbar.highlight.color}
+          onPickColor={handleEditPick}
+          onDelete={handleEditDelete}
+          onDismiss={dismissToolbar}
+        />
       ) : null}
     </div>
   );

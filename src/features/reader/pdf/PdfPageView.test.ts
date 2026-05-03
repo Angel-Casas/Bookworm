@@ -15,7 +15,7 @@ describe('PdfPageView', () => {
       render: () => ({ promise: Promise.resolve(), cancel: () => undefined }),
       getTextContent: () => Promise.resolve({ items: [] }),
     } as unknown as ConstructorParameters<typeof PdfPageView>[0]['page'];
-    expect(() => new PdfPageView({ page: fakePage, scale: 1, host })).not.toThrow();
+    expect(() => new PdfPageView({ page: fakePage, scale: 1, host, pageNumber: 1 })).not.toThrow();
     expect(host.children.length).toBe(0);
   });
 
@@ -26,7 +26,7 @@ describe('PdfPageView', () => {
       render: () => ({ promise: Promise.resolve(), cancel: () => undefined }),
       getTextContent: () => Promise.resolve({ items: [] }),
     } as unknown as ConstructorParameters<typeof PdfPageView>[0]['page'];
-    const view = new PdfPageView({ page: fakePage, scale: 1, host });
+    const view = new PdfPageView({ page: fakePage, scale: 1, host, pageNumber: 1 });
     expect(() => {
       view.destroy();
       view.destroy();

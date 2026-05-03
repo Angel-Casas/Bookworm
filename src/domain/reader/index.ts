@@ -9,6 +9,9 @@ export type {
   LocationChangeListener,
   BookReader,
   ReaderError,
+  SelectionInfo,
+  SelectionListener,
+  HighlightTapListener,
 } from './types';
 
 export { DEFAULT_READER_PREFERENCES } from './types';

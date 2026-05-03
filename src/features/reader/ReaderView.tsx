@@ -5,7 +5,11 @@ import type {
   BookReader,
   ReaderError,
   ReaderPreferences,
+  SelectionListener,
+  HighlightTapListener,
 } from '@/domain/reader';
+import type { HighlightId } from '@/domain';
+import type { Highlight } from '@/domain/annotations/types';
 import { makeReaderMachine } from './readerMachine';
 import './reader-view.css';
 
@@ -19,6 +23,12 @@ export type ReaderViewExposedState = {
   readonly getCurrentAnchor: () => LocationAnchor | null;
   readonly getSnippetAt: (anchor: LocationAnchor) => Promise<string | null>;
   readonly getSectionTitleAt: (anchor: LocationAnchor) => string | null;
+  // Highlights (Phase 3.2).
+  readonly loadHighlights: (highlights: readonly Highlight[]) => void;
+  readonly addHighlight: (highlight: Highlight) => void;
+  readonly removeHighlight: (id: HighlightId) => void;
+  readonly onSelectionChange: (listener: SelectionListener) => () => void;
+  readonly onHighlightTap: (listener: HighlightTapListener) => () => void;
 };
 
 type ReaderViewProps = {
@@ -187,6 +197,34 @@ export function ReaderView({
     }
   }, []);
 
+  const loadHighlights = useCallback((highlights: readonly Highlight[]): void => {
+    adapterRef.current?.loadHighlights(highlights);
+  }, []);
+
+  const addHighlight = useCallback((highlight: Highlight): void => {
+    adapterRef.current?.addHighlight(highlight);
+  }, []);
+
+  const removeHighlight = useCallback((id: HighlightId): void => {
+    adapterRef.current?.removeHighlight(id);
+  }, []);
+
+  const onSelectionChange = useCallback(
+    (listener: SelectionListener): (() => void) => {
+      if (!adapterRef.current) return () => undefined;
+      return adapterRef.current.onSelectionChange(listener);
+    },
+    [],
+  );
+
+  const onHighlightTap = useCallback(
+    (listener: HighlightTapListener): (() => void) => {
+      if (!adapterRef.current) return () => undefined;
+      return adapterRef.current.onHighlightTap(listener);
+    },
+    [],
+  );
+
   // Surface state to parent (workspace) — fires whenever any input changes.
   useEffect(() => {
     if (!onStateChange) return;
@@ -199,6 +237,11 @@ export function ReaderView({
       getCurrentAnchor,
       getSnippetAt,
       getSectionTitleAt,
+      loadHighlights,
+      addHighlight,
+      removeHighlight,
+      onSelectionChange,
+      onHighlightTap,
     });
   }, [
     onStateChange,
@@ -210,6 +253,11 @@ export function ReaderView({
     getCurrentAnchor,
     getSnippetAt,
     getSectionTitleAt,
+    loadHighlights,
+    addHighlight,
+    removeHighlight,
+    onSelectionChange,
+    onHighlightTap,
   ]);
 
   // Track current entry when goToAnchor is called via the workspace's handler.
