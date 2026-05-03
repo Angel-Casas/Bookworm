@@ -138,6 +138,7 @@ export function useReaderHost({
           await wiring.bookRepo.delete(book.id);
           await wiring.opfs.removeRecursive(`books/${book.id}`);
           await wiring.readingProgressRepo.delete(book.id);
+          await wiring.bookmarksRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
