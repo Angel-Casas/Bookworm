@@ -2,6 +2,7 @@ export type {
   ReaderFontFamily,
   ReaderTheme,
   ReaderMode,
+  FocusMode,
   ReaderTypography,
   ReaderPreferences,
   ReaderInitOptions,

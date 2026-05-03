@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { openBookwormDB } from '@/storage';
 import { createLibraryStore, type LibraryStore } from '@/features/library/store/libraryStore';
 import { createCoverCache, type CoverCache } from '@/features/library/store/coverCache';
@@ -9,12 +9,11 @@ import { sweepOrphans } from '@/features/library/orphan-sweep';
 import { LibraryView } from '@/features/library/LibraryView';
 import { LibraryBootError } from '@/features/library/LibraryBootError';
 import { DropOverlay } from '@/features/library/DropOverlay';
-import { ReaderView } from '@/features/reader/ReaderView';
-import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
-import { PdfReaderAdapter } from '@/features/reader/pdf/PdfReaderAdapter';
-import { LIBRARY_VIEW, readerView, type AppView } from '@/app/view';
-import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
-import type { BookReader, ReaderPreferences } from '@/domain/reader';
+import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
+import { useAppView } from '@/app/useAppView';
+import { useReaderHost } from '@/app/useReaderHost';
+import { LIBRARY_VIEW, type AppView } from '@/app/view';
+import type { FocusMode } from '@/domain/reader';
 import './app.css';
 
 type ReadyBoot = {
@@ -24,22 +23,14 @@ type ReadyBoot = {
   readonly importStore: ImportStore;
   readonly coverCache: CoverCache;
   readonly initialView: AppView;
+  readonly initialFocusMode: FocusMode;
+  readonly initialFocusModeHintShown: boolean;
 };
 
 type BootState =
   | { readonly kind: 'loading' }
   | ReadyBoot
   | { readonly kind: 'error'; readonly reason: string };
-
-function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
-  let timer: number | undefined;
-  return ((...args: Parameters<T>) => {
-    if (timer !== undefined) window.clearTimeout(timer);
-    timer = window.setTimeout(() => {
-      fn(...args);
-    }, ms);
-  }) as T;
-}
 
 function useHasBooks(libraryStore: LibraryStore): boolean {
   return useSyncExternalStore(
@@ -57,32 +48,44 @@ function useHasImportActivity(importStore: ImportStore): boolean {
   );
 }
 
-function findBook(libraryStore: LibraryStore, bookId: string): Book | undefined {
-  return libraryStore.getState().books.find((b) => b.id === bookId);
-}
-
 function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
-  const { wiring, libraryStore, importStore, coverCache, initialView } = boot;
+  const {
+    wiring,
+    libraryStore,
+    importStore,
+    coverCache,
+    initialView,
+    initialFocusMode,
+    initialFocusModeHintShown,
+  } = boot;
+  const view = useAppView({
+    settingsRepo: wiring.settingsRepo,
+    libraryStore,
+    initial: initialView,
+  });
+  const reader = useReaderHost({
+    wiring,
+    libraryStore,
+    view: view.current,
+    initialFocusMode,
+    initialFocusModeHintShown,
+    onBookRemovedWhileInReader: view.goLibrary,
+  });
   const hasBooks = useHasBooks(libraryStore);
   const hasImportActivity = useHasImportActivity(importStore);
   const showWorkspace = hasBooks || hasImportActivity;
 
-  // View state — initialized from settings, persisted on every change.
-  // If the persisted view referenced a now-deleted book, fall back to library.
-  const [view, setViewState] = useState<AppView>(() => {
-    if (initialView.kind === 'reader' && !findBook(libraryStore, initialView.bookId)) {
-      return LIBRARY_VIEW;
-    }
-    return initialView;
-  });
-
-  const setView = useCallback(
-    (next: AppView) => {
-      setViewState(next);
-      void wiring.settingsRepo.setView(next);
-    },
-    [wiring],
-  );
+  // Forward picked files from useReaderHost to importStore.
+  useEffect(() => {
+    const onPicked = (e: Event): void => {
+      const files = (e as CustomEvent<readonly File[]>).detail;
+      for (const file of files) importStore.getState().enqueue(file);
+    };
+    window.addEventListener('bookworm:files-picked', onPicked);
+    return () => {
+      window.removeEventListener('bookworm:files-picked', onPicked);
+    };
+  }, [importStore]);
 
   useEffect(() => {
     const onHide = (): void => {
@@ -94,108 +97,26 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     };
   }, [coverCache]);
 
-  const onFilesPicked = (files: readonly File[]): void => {
-    for (const file of files) importStore.getState().enqueue(file);
-    void wiring.persistFirstQuotaRequest();
-  };
-
-  const onPersistSort = useMemo(
-    () =>
-      debounce((key: SortKey) => {
-        void wiring.settingsRepo.setLibrarySort(key);
-      }, 200),
-    [wiring],
-  );
-
-  const handleRemove = async (book: Book): Promise<void> => {
-    libraryStore.getState().removeBook(book.id);
-    coverCache.forget(book.id);
-    try {
-      await wiring.bookRepo.delete(book.id);
-      await wiring.opfs.removeRecursive(`books/${book.id}`);
-      await wiring.readingProgressRepo.delete(book.id);
-      // If we removed the book that's currently in the reader, fall back.
-      if (view.kind === 'reader' && view.bookId === book.id) {
-        setView(LIBRARY_VIEW);
-      }
-    } catch (err) {
-      console.warn('Remove failed:', err);
-    }
-  };
-
-  const handleOpenBook = useCallback(
-    (book: Book): void => {
-      setView(readerView(book.id));
-    },
-    [setView],
-  );
-
-  const handleBack = useCallback(() => {
-    setView(LIBRARY_VIEW);
-  }, [setView]);
-
-  // Reader callbacks — stable identities so ReaderView's useMemo doesn't churn
-  const loadBookForReader = useCallback(
-    async (
-      bookId: string,
-    ): Promise<{ blob: Blob; preferences: ReaderPreferences; initialAnchor?: LocationAnchor }> => {
-      const book = await wiring.bookRepo.getById(BookId(bookId));
-      if (book?.source.kind !== 'imported-file') {
-        throw new Error(`Book ${bookId} is missing or has no source`);
-      }
-      const blob = await wiring.opfs.readFile(book.source.opfsPath);
-      if (!blob) {
-        throw new Error(`Book ${bookId} blob missing from OPFS`);
-      }
-      const preferences = await wiring.readerPreferencesRepo.get();
-      const initialAnchor = await wiring.readingProgressRepo.get(bookId);
-      return initialAnchor ? { blob, preferences, initialAnchor } : { blob, preferences };
-    },
-    [wiring],
-  );
-
-  const createAdapter = useCallback(
-    (mountInto: HTMLElement, format: BookFormat): BookReader => {
-      if (format === 'pdf') return new PdfReaderAdapter(mountInto);
-      return new EpubReaderAdapter(mountInto);
-    },
-    [],
-  );
-
-  const onAnchorChange = useCallback(
-    (bookId: string, anchor: LocationAnchor) => {
-      void wiring.readingProgressRepo.put(bookId, anchor);
-    },
-    [wiring],
-  );
-
-  const onPreferencesChange = useCallback(
-    (prefs: ReaderPreferences) => {
-      void wiring.readerPreferencesRepo.put(prefs);
-    },
-    [wiring],
-  );
-
-  if (view.kind === 'reader') {
-    const book = findBook(libraryStore, view.bookId);
-    if (!book) {
-      // Book vanished while in reader (e.g. removed in another tab); back out.
-      setView(LIBRARY_VIEW);
-      return null;
-    }
+  if (view.current.kind === 'reader') {
+    const book = reader.findBook(view.current.bookId);
+    if (!book) return null; // useAppView guard falls back to library next render
     return (
       <div className="app">
-        <ReaderView
-          key={view.bookId}
-          bookId={view.bookId}
+        <ReaderWorkspace
+          key={view.current.bookId}
+          bookId={view.current.bookId}
           bookTitle={book.title}
           bookFormat={book.format}
           {...(book.author !== undefined && { bookSubtitle: book.author })}
-          onBack={handleBack}
-          loadBookForReader={loadBookForReader}
-          createAdapter={createAdapter}
-          onAnchorChange={onAnchorChange}
-          onPreferencesChange={onPreferencesChange}
+          onBack={view.goLibrary}
+          loadBookForReader={reader.loadBookForReader}
+          createAdapter={reader.createAdapter}
+          onAnchorChange={reader.onAnchorChange}
+          onPreferencesChange={reader.onPreferencesChange}
+          initialFocusMode={reader.initialFocusMode}
+          hasShownFirstTimeHint={reader.hasShownFirstTimeHint}
+          onFocusModeChange={reader.onFocusModeChange}
+          onFirstTimeHintShown={reader.onFirstTimeHintShown}
         />
       </div>
     );
@@ -208,14 +129,12 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
         importStore={importStore}
         coverCache={coverCache}
         hasBooks={showWorkspace}
-        onFilesPicked={onFilesPicked}
-        onPersistSort={onPersistSort}
-        onRemoveBook={(book) => {
-          void handleRemove(book);
-        }}
-        onOpenBook={handleOpenBook}
+        onFilesPicked={reader.onFilesPicked}
+        onPersistSort={reader.onPersistSort}
+        onRemoveBook={reader.onRemoveBook}
+        onOpenBook={view.goReader}
       />
-      <DropOverlay onFilesDropped={onFilesPicked} />
+      <DropOverlay onFilesDropped={reader.onFilesPicked} />
     </div>
   );
 }
@@ -247,7 +166,11 @@ export function App() {
         void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
-        const persistedView = await wiring.settingsRepo.getView();
+        const [persistedView, prefs, hintShown] = await Promise.all([
+          wiring.settingsRepo.getView(),
+          wiring.readerPreferencesRepo.get(),
+          wiring.settingsRepo.getFocusModeHintShown(),
+        ]);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!activeRef.current) return;
         setBoot({
@@ -257,6 +180,8 @@ export function App() {
           importStore,
           coverCache,
           initialView: persistedView ?? LIBRARY_VIEW,
+          initialFocusMode: prefs.focusMode,
+          initialFocusModeHintShown: hintShown,
         });
       } catch (err) {
         const reason = err instanceof Error ? err.message : 'Unknown error';

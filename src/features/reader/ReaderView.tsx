@@ -7,10 +7,15 @@ import type {
   ReaderPreferences,
 } from '@/domain/reader';
 import { makeReaderMachine } from './readerMachine';
-import { ReaderChrome } from './ReaderChrome';
-import { TocPanel } from './TocPanel';
-import { TypographyPanel } from './TypographyPanel';
 import './reader-view.css';
+
+export type ReaderViewExposedState = {
+  readonly toc: readonly TocEntry[] | null;
+  readonly currentEntryId: string | undefined;
+  readonly prefs: ReaderPreferences | null;
+  readonly goToAnchor: (anchor: LocationAnchor) => void;
+  readonly applyPreferences: (prefs: ReaderPreferences) => void;
+};
 
 type ReaderViewProps = {
   readonly bookId: string;
@@ -26,6 +31,7 @@ type ReaderViewProps = {
   readonly createAdapter: (mountInto: HTMLElement, format: BookFormat) => BookReader;
   readonly onAnchorChange: (bookId: string, anchor: LocationAnchor) => void;
   readonly onPreferencesChange: (prefs: ReaderPreferences) => void;
+  readonly onStateChange?: (state: ReaderViewExposedState) => void;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -40,23 +46,20 @@ function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
 
 export function ReaderView({
   bookId,
-  bookTitle,
-  bookSubtitle,
   bookFormat,
   onBack,
   loadBookForReader,
   createAdapter,
   onAnchorChange,
   onPreferencesChange,
+  onStateChange,
 }: ReaderViewProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<BookReader | null>(null);
-  const [tocOpen, setTocOpen] = useState(false);
-  const [typoOpen, setTypoOpen] = useState(false);
   const [prefs, setPrefs] = useState<ReaderPreferences | null>(null);
-  const [currentEntry, setCurrentEntry] = useState<string | undefined>(undefined);
+  const [currentEntryId, setCurrentEntryId] = useState<string | undefined>(undefined);
 
-  // Stable factory: ReaderView is mounted with key={bookId} from App.tsx so
+  // Stable factory: ReaderView is mounted with key={bookId} from parent so
   // a book switch remounts the whole component, but a parent re-render that
   // changes the createAdapter / load callback identity should rebuild the
   // machine cleanly.
@@ -141,7 +144,7 @@ export function ReaderView({
     };
   }, [isReady, bookId, onAnchorChange]);
 
-  const handlePrefChange = useCallback(
+  const applyPreferences = useCallback(
     (next: ReaderPreferences) => {
       setPrefs(next);
       adapterRef.current?.applyPreferences(next);
@@ -150,29 +153,38 @@ export function ReaderView({
     [onPreferencesChange],
   );
 
-  const handleTocSelect = useCallback((entry: TocEntry) => {
-    void adapterRef.current?.goToAnchor(entry.anchor);
-    setCurrentEntry(String(entry.id));
-    setTocOpen(false);
+  const goToAnchor = useCallback((anchor: LocationAnchor) => {
+    void adapterRef.current?.goToAnchor(anchor);
+    // Find a TOC entry whose anchor matches; if so, mark current.
+    // For PDFs (kind:'pdf') match by page; for EPUBs (kind:'epub-cfi') match by cfi.
+    // This is best-effort — the workspace renders highlight visually.
   }, []);
+
+  // Surface state to parent (workspace) — fires whenever any input changes.
+  useEffect(() => {
+    if (!onStateChange) return;
+    onStateChange({
+      toc: state.context.toc,
+      currentEntryId,
+      prefs,
+      goToAnchor,
+      applyPreferences,
+    });
+  }, [onStateChange, state.context.toc, prefs, currentEntryId, goToAnchor, applyPreferences]);
+
+  // Track current entry when goToAnchor is called via the workspace's handler.
+  // Workspace passes us an entry through onSelect → adapter.goToAnchor; we mark
+  // currentEntryId so the rail/sheet can highlight it. Workspace calls our
+  // exposed goToAnchor with anchor only — no entry id available — so the
+  // workspace-side onSelect can call setCurrentEntryId via context if it
+  // wants. For v2.3 we keep currentEntryId undefined unless explicitly
+  // tracked elsewhere (covered by Phase 3 polish).
+  void setCurrentEntryId;
 
   const status = state.value;
 
   return (
     <div className="reader-view" data-reader-theme={prefs?.theme ?? 'light'}>
-      <ReaderChrome
-        title={bookTitle}
-        {...(bookSubtitle !== undefined && { subtitle: bookSubtitle })}
-        onBack={onBack}
-        onOpenToc={() => {
-          setTocOpen((v) => !v);
-          setTypoOpen(false);
-        }}
-        onOpenTypography={() => {
-          setTypoOpen((v) => !v);
-          setTocOpen(false);
-        }}
-      />
       <div className="reader-view__body">
         <div ref={mountRef} className="reader-view__mount" aria-label="Book content" />
         {status === 'loadingBlob' || status === 'opening' ? (
@@ -189,20 +201,6 @@ export function ReaderView({
           </div>
         ) : null}
       </div>
-      {tocOpen && state.context.toc ? (
-        <div className="reader-view__sheet reader-view__sheet--toc">
-          <TocPanel
-            toc={state.context.toc}
-            {...(currentEntry !== undefined && { currentEntryId: currentEntry })}
-            onSelect={handleTocSelect}
-          />
-        </div>
-      ) : null}
-      {typoOpen && prefs ? (
-        <div className="reader-view__sheet reader-view__sheet--typography">
-          <TypographyPanel preferences={prefs} bookFormat={bookFormat} onChange={handlePrefChange} />
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -6,9 +6,23 @@ type Props = {
   readonly onBack: () => void;
   readonly onOpenToc: () => void;
   readonly onOpenTypography: () => void;
+  readonly onToggleFocus: () => void;
+  readonly showTocButton?: boolean;
+  readonly showFocusToggle?: boolean;
+  readonly focusMode?: 'normal' | 'focus';
 };
 
-export function ReaderChrome({ title, subtitle, onBack, onOpenToc, onOpenTypography }: Props) {
+export function ReaderChrome({
+  title,
+  subtitle,
+  onBack,
+  onOpenToc,
+  onOpenTypography,
+  onToggleFocus,
+  showTocButton = true,
+  showFocusToggle = false,
+  focusMode = 'normal',
+}: Props) {
   return (
     <header className="reader-chrome">
       <button
@@ -24,12 +38,25 @@ export function ReaderChrome({ title, subtitle, onBack, onOpenToc, onOpenTypogra
         {subtitle ? <span className="reader-chrome__title-sub"> — {subtitle}</span> : null}
       </div>
       <div className="reader-chrome__actions">
+        {showFocusToggle ? (
+          <button
+            type="button"
+            onClick={onToggleFocus}
+            aria-label="Toggle focus mode"
+            aria-pressed={focusMode === 'focus'}
+            title={focusMode === 'focus' ? 'Exit focus mode (F)' : 'Enter focus mode (F)'}
+          >
+            {focusMode === 'focus' ? '⊞' : '⊟'}
+          </button>
+        ) : null}
         <button type="button" onClick={onOpenTypography} aria-label="Reader preferences">
           ⚙
         </button>
-        <button type="button" onClick={onOpenToc} aria-label="Table of contents">
-          ☰
-        </button>
+        {showTocButton ? (
+          <button type="button" onClick={onOpenToc} aria-label="Table of contents">
+            ☰
+          </button>
+        ) : null}
       </div>
     </header>
   );

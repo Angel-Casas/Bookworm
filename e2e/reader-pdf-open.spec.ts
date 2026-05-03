@@ -22,10 +22,10 @@ test('opens an imported PDF and navigates the TOC', async ({ page }) => {
 
   await expect(page.locator('.pdf-reader__nav-strip')).toContainText(/Page 1 of 5/);
 
-  await page.getByRole('button', { name: /table of contents/i }).click();
-  const tocPanel = page.locator('aside.toc-panel');
-  await expect(tocPanel).toBeVisible();
-  const tocEntries = tocPanel.locator('button.toc-panel__entry');
+  // On desktop the TOC lives in the always-visible left rail
+  const rail = page.locator('aside.desktop-rail');
+  await expect(rail).toBeVisible();
+  const tocEntries = rail.locator('button.toc-panel__entry');
   await expect(tocEntries.first()).toBeVisible();
   expect(await tocEntries.count()).toBe(5);
   await tocEntries.nth(2).click();

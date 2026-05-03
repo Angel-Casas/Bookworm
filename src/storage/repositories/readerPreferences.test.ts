@@ -27,6 +27,35 @@ describe('readerPreferencesRepository', () => {
     expect(await repo.get()).toEqual(custom);
   });
 
+  it('loads a v2.2 record (missing focusMode) and synthesizes default', async () => {
+    const repo = createReaderPreferencesRepository(db);
+    await db.put('reader_preferences', {
+      key: 'global',
+      value: {
+        typography: DEFAULT_READER_PREFERENCES.typography,
+        theme: 'dark',
+        modeByFormat: { epub: 'scroll', pdf: 'paginated' },
+      } as never,
+    });
+    const loaded = await repo.get();
+    expect(loaded.theme).toBe('dark');
+    expect(loaded.modeByFormat.epub).toBe('scroll');
+    expect(loaded.focusMode).toBe('normal');
+  });
+
+  it('normalizes corrupted focusMode to default', async () => {
+    const repo = createReaderPreferencesRepository(db);
+    await db.put('reader_preferences', {
+      key: 'global',
+      value: {
+        ...DEFAULT_READER_PREFERENCES,
+        focusMode: 'ultra-zen' as never,
+      },
+    });
+    const loaded = await repo.get();
+    expect(loaded.focusMode).toBe('normal');
+  });
+
   it('returns defaults and self-heals when stored record is corrupted', async () => {
     const repo = createReaderPreferencesRepository(db);
     await db.put('reader_preferences', {
