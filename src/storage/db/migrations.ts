@@ -1,9 +1,11 @@
 import type { IDBPDatabase, IDBPTransaction } from 'idb';
 import type { BookwormDBSchema } from './schema';
 
+type StoreName = 'books' | 'settings' | 'reading_progress' | 'reader_preferences';
+
 type UpgradeContext = {
   readonly db: IDBPDatabase<BookwormDBSchema>;
-  readonly tx: IDBPTransaction<BookwormDBSchema, ('books' | 'settings')[], 'versionchange'>;
+  readonly tx: IDBPTransaction<BookwormDBSchema, StoreName[], 'versionchange'>;
 };
 
 type Migration = (ctx: UpgradeContext) => void;
@@ -20,6 +22,15 @@ const migrations: Readonly<Record<number, Migration>> = {
     }
     if (!db.objectStoreNames.contains('settings')) {
       db.createObjectStore('settings', { keyPath: 'key' });
+    }
+  },
+  // 1 → 2: Phase 2.1 reader stores
+  1: ({ db }) => {
+    if (!db.objectStoreNames.contains('reading_progress')) {
+      db.createObjectStore('reading_progress', { keyPath: 'bookId' });
+    }
+    if (!db.objectStoreNames.contains('reader_preferences')) {
+      db.createObjectStore('reader_preferences', { keyPath: 'key' });
     }
   },
 };
