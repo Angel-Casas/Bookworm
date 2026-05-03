@@ -14,6 +14,7 @@ type Props = {
   readonly onPersistSort: (key: SortKey) => void;
   readonly onFilesPicked: (files: readonly File[]) => void;
   readonly onRemoveBook: (book: Book) => void;
+  readonly onOpenBook?: (book: Book) => void;
 };
 
 export function LibraryWorkspace({
@@ -23,6 +24,7 @@ export function LibraryWorkspace({
   onPersistSort,
   onFilesPicked,
   onRemoveBook,
+  onOpenBook,
 }: Props) {
   const [search, setSearch] = useState(libraryStore.getState().search);
   const [sort, setSort] = useState(libraryStore.getState().sort);
@@ -64,6 +66,7 @@ export function LibraryWorkspace({
         coverCache={coverCache}
         searchQuery={search}
         onRemove={onRemoveBook}
+        {...(onOpenBook && { onOpenBook })}
       />
     </div>
   );
