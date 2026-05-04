@@ -152,4 +152,18 @@ describe('useAppView', () => {
       expect(result.current.consumePendingAnchor()).toBeUndefined();
     });
   });
+
+  describe('settings', () => {
+    it('goSettings sets view to {kind:"settings"}', () => {
+      const settingsRepo = fakeSettingsRepo();
+      const libraryStore = fakeLibraryStore([sampleBook('book-1')]);
+      const { result } = renderHook(() =>
+        useAppView({ settingsRepo, libraryStore, initial: LIBRARY_VIEW }),
+      );
+      act(() => {
+        result.current.goSettings();
+      });
+      expect(result.current.current).toEqual({ kind: 'settings' });
+    });
+  });
 });

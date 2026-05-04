@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Book, LocationAnchor } from '@/domain';
 import type { SettingsRepository } from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
-import { LIBRARY_VIEW, readerView, notebookView, type AppView } from '@/app/view';
+import { LIBRARY_VIEW, readerView, notebookView, settingsView, type AppView } from '@/app/view';
 
 export type AppViewHandle = {
   current: AppView;
@@ -10,6 +10,7 @@ export type AppViewHandle = {
   goReader: (book: Book) => void;
   goNotebook: (bookId: string) => void;
   goReaderAt: (bookId: string, anchor: LocationAnchor) => void;
+  goSettings: () => void;
   consumePendingAnchor: () => LocationAnchor | undefined;
 };
 
@@ -89,6 +90,10 @@ export function useAppView({
     [setView],
   );
 
+  const goSettings = useCallback(() => {
+    setView(settingsView());
+  }, [setView]);
+
   const consumePendingAnchor = useCallback((): LocationAnchor | undefined => {
     const anchor = pendingAnchorRef.current;
     pendingAnchorRef.current = undefined;
@@ -101,6 +106,7 @@ export function useAppView({
     goReader,
     goNotebook,
     goReaderAt,
+    goSettings,
     consumePendingAnchor,
   };
 }
