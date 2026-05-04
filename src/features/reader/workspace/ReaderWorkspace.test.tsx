@@ -20,6 +20,15 @@ const fakeHighlightsRepo = {
   deleteByBook: () => Promise.resolve(),
 };
 
+const fakeNotesRepo = {
+  upsert: () => Promise.resolve(),
+  delete: () => Promise.resolve(),
+  listByBook: () => Promise.resolve([]),
+  getByHighlight: () => Promise.resolve(null),
+  deleteByHighlight: () => Promise.resolve(),
+  deleteByBook: () => Promise.resolve(),
+};
+
 const baseProps = {
   bookId: 'b1',
   bookTitle: 'Test',
@@ -38,6 +47,9 @@ const baseProps = {
   onFirstTimeHintShown: () => undefined,
   bookmarksRepo: fakeBookmarksRepo,
   highlightsRepo: fakeHighlightsRepo,
+  notesRepo: fakeNotesRepo,
+  isNoteEditorHintShown: true,
+  markNoteEditorHintShown: () => undefined,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

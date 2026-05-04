@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
+import { BookId, HighlightId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
-import type { BookmarksRepository, HighlightsRepository } from '@/storage';
+import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
 import type {
   Highlight,
   HighlightAnchor,
@@ -14,12 +14,14 @@ import { TypographyPanel } from '@/features/reader/TypographyPanel';
 import { BookmarksPanel } from '@/features/reader/BookmarksPanel';
 import { HighlightsPanel } from '@/features/reader/HighlightsPanel';
 import { HighlightToolbar } from '@/features/reader/HighlightToolbar';
+import { NoteEditor } from '@/features/reader/NoteEditor';
 import { DesktopRail, type RailTab } from './DesktopRail';
 import { MobileSheet } from './MobileSheet';
 import { useFocusMode } from './useFocusMode';
 import { useViewport } from './useViewport';
 import { useBookmarks } from './useBookmarks';
 import { useHighlights } from './useHighlights';
+import { useNotes } from './useNotes';
 import './workspace.css';
 
 type Props = {
@@ -42,6 +44,9 @@ type Props = {
   readonly onFirstTimeHintShown: () => void;
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
+  readonly notesRepo: NotesRepository;
+  readonly isNoteEditorHintShown: boolean;
+  readonly markNoteEditorHintShown: () => void;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -116,16 +121,30 @@ export function ReaderWorkspace(props: Props) {
   const [readerState, setReaderState] = useState<ReaderViewExposedState | null>(null);
   const [activeRailTab, setActiveRailTab] = useState<RailTabKey>('contents');
   const [activeToolbar, setActiveToolbar] = useState<ActiveToolbar>(null);
+  const [activeNoteEditor, setActiveNoteEditor] = useState<
+    | {
+        highlightId: HighlightId;
+        anchorRect: { x: number; y: number; width: number; height: number };
+      }
+    | null
+  >(null);
 
   const bookmarks = useBookmarks({
     bookId: BookId(props.bookId),
     repo: props.bookmarksRepo,
     readerState,
   });
+  const notes = useNotes({
+    bookId: BookId(props.bookId),
+    repo: props.notesRepo,
+  });
   const highlights = useHighlights({
     bookId: BookId(props.bookId),
     repo: props.highlightsRepo,
     readerState,
+    onAfterRemove: (h) => {
+      void notes.clear(h.id);
+    },
   });
 
   const handleStateChange = useCallback((s: ReaderViewExposedState) => {
@@ -183,6 +202,27 @@ export function ReaderWorkspace(props: Props) {
     [activeToolbar, highlights],
   );
 
+  const handleCreateNote = useCallback((): void => {
+    if (activeToolbar?.kind !== 'create') return;
+    const rect = activeToolbar.rect;
+    void highlights
+      .add(activeToolbar.anchor, activeToolbar.selectedText, 'yellow')
+      .then((h) => {
+        setActiveNoteEditor({ highlightId: h.id, anchorRect: rect });
+      });
+    setActiveToolbar(null);
+    window.getSelection()?.removeAllRanges();
+  }, [activeToolbar, highlights]);
+
+  const handleEditNote = useCallback((): void => {
+    if (activeToolbar?.kind !== 'edit') return;
+    setActiveNoteEditor({
+      highlightId: activeToolbar.highlight.id,
+      anchorRect: activeToolbar.pos,
+    });
+    setActiveToolbar(null);
+  }, [activeToolbar]);
+
   const handleEditPick = useCallback(
     (color: HighlightColor): void => {
       if (activeToolbar?.kind !== 'edit') return;
@@ -235,6 +275,7 @@ export function ReaderWorkspace(props: Props) {
   const highlightsPanelContent = (
     <HighlightsPanel
       highlights={highlights.list}
+      notesByHighlightId={notes.byHighlightId}
       onSelect={(h) => {
         const anchor: LocationAnchor =
           h.anchor.kind === 'epub-cfi'
@@ -248,6 +289,11 @@ export function ReaderWorkspace(props: Props) {
       onChangeColor={(h, color) => {
         void highlights.changeColor(h, color);
       }}
+      onSaveNote={(h, content) => {
+        void notes.save(h.id, content);
+      }}
+      hintShown={props.isNoteEditorHintShown}
+      onHintDismissed={props.markNoteEditorHintShown}
     />
   );
 
@@ -364,6 +410,7 @@ export function ReaderWorkspace(props: Props) {
           {activeRailTab === 'highlights' ? (
             <HighlightsPanel
               highlights={highlights.list}
+              notesByHighlightId={notes.byHighlightId}
               onSelect={(h) => {
                 const anchor: LocationAnchor =
                   h.anchor.kind === 'epub-cfi'
@@ -378,6 +425,11 @@ export function ReaderWorkspace(props: Props) {
               onChangeColor={(h, color) => {
                 void highlights.changeColor(h, color);
               }}
+              onSaveNote={(h, content) => {
+                void notes.save(h.id, content);
+              }}
+              hintShown={props.isNoteEditorHintShown}
+              onHintDismissed={props.markNoteEditorHintShown}
             />
           ) : null}
         </MobileSheet>
@@ -408,6 +460,7 @@ export function ReaderWorkspace(props: Props) {
           mode="create"
           screenRect={activeToolbar.rect}
           onPickColor={handleCreatePick}
+          onNote={handleCreateNote}
           onDismiss={dismissToolbar}
         />
       ) : null}
@@ -418,9 +471,79 @@ export function ReaderWorkspace(props: Props) {
           currentColor={activeToolbar.highlight.color}
           onPickColor={handleEditPick}
           onDelete={handleEditDelete}
+          onNote={handleEditNote}
+          hasNote={notes.byHighlightId.has(activeToolbar.highlight.id)}
           onDismiss={dismissToolbar}
         />
       ) : null}
+      {activeNoteEditor !== null ? (
+        <AnchoredNoteEditorOverlay
+          rect={activeNoteEditor.anchorRect}
+          initialContent={
+            notes.byHighlightId.get(activeNoteEditor.highlightId)?.content ?? ''
+          }
+          hintShown={props.isNoteEditorHintShown}
+          onHintDismissed={props.markNoteEditorHintShown}
+          onSave={(content) => {
+            void notes.save(activeNoteEditor.highlightId, content);
+            setActiveNoteEditor(null);
+          }}
+          onCancel={() => {
+            setActiveNoteEditor(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const EDITOR_HEIGHT_GUESS = 96;
+const EDITOR_GAP = 8;
+
+function AnchoredNoteEditorOverlay({
+  rect,
+  initialContent,
+  hintShown,
+  onHintDismissed,
+  onSave,
+  onCancel,
+}: {
+  readonly rect: { x: number; y: number; width: number; height: number };
+  readonly initialContent: string;
+  readonly hintShown: boolean;
+  readonly onHintDismissed: () => void;
+  readonly onSave: (content: string) => void;
+  readonly onCancel: () => void;
+}) {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const flipBelow = rect.y < EDITOR_HEIGHT_GUESS + EDITOR_GAP;
+  const rawTop = flipBelow
+    ? rect.y + rect.height + EDITOR_GAP
+    : rect.y - EDITOR_HEIGHT_GUESS - EDITOR_GAP;
+  const top = Math.max(8, Math.min(vh - EDITOR_HEIGHT_GUESS - 8, rawTop));
+  const rawLeft = rect.x + rect.width / 2;
+  const left = Math.max(140, Math.min(vw - 140, rawLeft));
+
+  return (
+    <div
+      className="reader-workspace__note-editor-overlay"
+      style={{
+        position: 'fixed',
+        top: `${String(top)}px`,
+        left: `${String(left)}px`,
+        transform: 'translateX(-50%)',
+        zIndex: 1100,
+      }}
+    >
+      <NoteEditor
+        initialContent={initialContent}
+        autoFocus
+        hintShown={hintShown}
+        onHintDismissed={onHintDismissed}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
     </div>
   );
 }
