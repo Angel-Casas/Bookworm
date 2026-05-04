@@ -48,6 +48,7 @@ const baseProps = {
   bookmarksRepo: fakeBookmarksRepo,
   highlightsRepo: fakeHighlightsRepo,
   notesRepo: fakeNotesRepo,
+  onOpenNotebook: () => undefined,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

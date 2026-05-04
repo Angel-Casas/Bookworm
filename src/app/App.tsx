@@ -10,6 +10,7 @@ import { LibraryView } from '@/features/library/LibraryView';
 import { LibraryBootError } from '@/features/library/LibraryBootError';
 import { DropOverlay } from '@/features/library/DropOverlay';
 import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
+import { NotebookView } from '@/features/annotations/notebook/NotebookView';
 import { useAppView } from '@/app/useAppView';
 import { useReaderHost } from '@/app/useReaderHost';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
@@ -97,6 +98,29 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     };
   }, [coverCache]);
 
+  if (view.current.kind === 'notebook') {
+    const book = reader.findBook(view.current.bookId);
+    if (!book) return null;
+    return (
+      <div className="app">
+        <NotebookView
+          key={view.current.bookId}
+          bookId={view.current.bookId}
+          bookTitle={book.title}
+          bookmarksRepo={reader.bookmarksRepo}
+          highlightsRepo={reader.highlightsRepo}
+          notesRepo={reader.notesRepo}
+          onBack={() => {
+            view.goReader(book);
+          }}
+          onJumpToAnchor={(anchor) => {
+            view.goReaderAt(book.id, anchor);
+          }}
+        />
+      </div>
+    );
+  }
+
   if (view.current.kind === 'reader') {
     const book = reader.findBook(view.current.bookId);
     if (!book) return null; // useAppView guard falls back to library next render
@@ -109,7 +133,11 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookFormat={book.format}
           {...(book.author !== undefined && { bookSubtitle: book.author })}
           onBack={view.goLibrary}
-          loadBookForReader={reader.loadBookForReader}
+          loadBookForReader={async (bookId) => {
+            const result = await reader.loadBookForReader(bookId);
+            const pending = view.consumePendingAnchor();
+            return pending ? { ...result, initialAnchor: pending } : result;
+          }}
           createAdapter={reader.createAdapter}
           onAnchorChange={reader.onAnchorChange}
           onPreferencesChange={reader.onPreferencesChange}
@@ -120,6 +148,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
           notesRepo={reader.notesRepo}
+          onOpenNotebook={() => {
+            view.goNotebook(book.id);
+          }}
         />
       </div>
     );
