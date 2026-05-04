@@ -46,6 +46,7 @@ type Props = {
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
   readonly notesRepo: NotesRepository;
+  readonly onOpenNotebook: () => void;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -335,6 +336,7 @@ export function ReaderWorkspace(props: Props) {
             focus.toggle();
           }}
           onAddBookmark={handleAddBookmark}
+          onOpenNotebook={props.onOpenNotebook}
           showTocButton={!isDesktop}
           showFocusToggle={isDesktop}
           focusMode={focus.mode}

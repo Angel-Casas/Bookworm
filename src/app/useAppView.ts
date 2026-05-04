@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { Book } from '@/domain';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Book, LocationAnchor } from '@/domain';
 import type { SettingsRepository } from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
-import { LIBRARY_VIEW, readerView, type AppView } from '@/app/view';
+import { LIBRARY_VIEW, readerView, notebookView, type AppView } from '@/app/view';
 
 export type AppViewHandle = {
   current: AppView;
   goLibrary: () => void;
   goReader: (book: Book) => void;
+  goNotebook: (bookId: string) => void;
+  goReaderAt: (bookId: string, anchor: LocationAnchor) => void;
+  consumePendingAnchor: () => LocationAnchor | undefined;
 };
 
 function findBook(libraryStore: LibraryStore, bookId: string): Book | undefined {
@@ -26,23 +29,36 @@ export function useAppView({
   initial,
 }: UseAppViewOptions): AppViewHandle {
   const [view, setViewState] = useState<AppView>(() => {
-    if (initial.kind === 'reader' && !findBook(libraryStore, initial.bookId)) {
+    if (
+      (initial.kind === 'reader' || initial.kind === 'notebook') &&
+      !findBook(libraryStore, initial.bookId)
+    ) {
       return LIBRARY_VIEW;
     }
     return initial;
   });
 
+  const pendingAnchorRef = useRef<LocationAnchor | undefined>(undefined);
+
   const setView = useCallback(
     (next: AppView) => {
+      // pendingAnchor is a one-shot intent for the *next* reader mount.
+      // Any non-reader transition invalidates it.
+      if (next.kind !== 'reader') {
+        pendingAnchorRef.current = undefined;
+      }
       setViewState(next);
       void settingsRepo.setView(next);
     },
     [settingsRepo],
   );
 
-  // Guard: book deleted while in reader → fall back to library.
+  // Guard: book deleted while in reader/notebook → fall back to library.
   useEffect(() => {
-    if (view.kind === 'reader' && !findBook(libraryStore, view.bookId)) {
+    if (
+      (view.kind === 'reader' || view.kind === 'notebook') &&
+      !findBook(libraryStore, view.bookId)
+    ) {
       setView(LIBRARY_VIEW);
     }
   }, [view, libraryStore, setView]);
@@ -58,5 +74,33 @@ export function useAppView({
     [setView],
   );
 
-  return { current: view, goLibrary, goReader };
+  const goNotebook = useCallback(
+    (bookId: string) => {
+      setView(notebookView(bookId));
+    },
+    [setView],
+  );
+
+  const goReaderAt = useCallback(
+    (bookId: string, anchor: LocationAnchor) => {
+      pendingAnchorRef.current = anchor;
+      setView(readerView(bookId));
+    },
+    [setView],
+  );
+
+  const consumePendingAnchor = useCallback((): LocationAnchor | undefined => {
+    const anchor = pendingAnchorRef.current;
+    pendingAnchorRef.current = undefined;
+    return anchor;
+  }, []);
+
+  return {
+    current: view,
+    goLibrary,
+    goReader,
+    goNotebook,
+    goReaderAt,
+    consumePendingAnchor,
+  };
 }

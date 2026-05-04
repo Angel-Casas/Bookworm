@@ -86,3 +86,25 @@
     animation: none;
   }
 }
+
+.reader-chrome__notebook {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.reader-chrome__notebook:hover {
+  background: var(--color-surface-hover, var(--color-surface));
+}
+@media (max-width: 480px) {
+  .reader-chrome__notebook-label {
+    display: none;
+  }
+}

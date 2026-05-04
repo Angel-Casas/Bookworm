@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Highlight, HighlightColor, Note } from '@/domain/annotations/types';
 import type { HighlightId } from '@/domain';
+import { NoteIcon } from '@/shared/icons';
 import { relativeTime } from '@/shared/text/relativeTime';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from './highlightColors';
 import { NoteEditor } from './NoteEditor';
@@ -139,7 +140,7 @@ export function HighlightsPanel({
                     setEditingNoteFor((cur) => (cur === h.id ? null : h.id));
                   }}
                 >
-                  <span aria-hidden="true">📝</span>
+                  <NoteIcon />
                 </button>
                 {!isEditing ? (
                   <button

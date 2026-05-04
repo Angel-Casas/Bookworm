@@ -309,6 +309,39 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-04 — Phase 3.4 annotation notebook
+
+- New `AppView` kind `'notebook'` (additive union expansion; no DB
+  migration). `isValidView` accepts the same shape as `'reader'`. Old
+  persisted records still narrow correctly.
+- New per-book full-screen view at `src/features/annotations/notebook/`.
+  Composes the three existing repos (`bookmarks`, `highlights`, `notes`)
+  directly; does not reuse `useBookmarks`/`useHighlights`/`useNotes`
+  because those bind to the reader engine. Optimistic CRUD with rollback
+  mirrors the per-type hook pattern.
+- Pure helpers (`compareNotebookEntries`, `matchesFilter`,
+  `matchesQuery`) are independently tested and live next to the hook.
+- `NotebookEntry` is a UI-layer discriminated union (`'bookmark'` |
+  `'highlight'`-with-optional-note). Notes never appear as standalone
+  entries; they're attached to their parent highlight per the v1 data
+  model from 3.3.
+- Sort: book order across types. EPUB CFIs lex-compared; PDF anchors
+  ordered by `(page, y, x)`. Mixed-kind comparisons fall back to
+  `createdAt`.
+- `useAppView` gains `goNotebook(bookId)`, `goReaderAt(bookId, anchor)`,
+  and `consumePendingAnchor()`. `pendingAnchor` is a one-shot ref read on
+  the next reader mount via a wrapped `loadBookForReader`. Auto-clears
+  whenever `setView` targets a non-reader view.
+- `useReaderHost.onBookRemovedWhileInReader` renamed to
+  `onBookRemovedFromActiveView` and now fires when the active view is
+  reader OR notebook for the removed book.
+- New `src/shared/icons/` module: hand-authored monochrome SVG line
+  icons (`NotebookIcon`, `NoteIcon`, `ArrowLeftIcon`), 16px default,
+  1.5px stroke, `currentColor`. Replaces the 📝 emoji in
+  `HighlightToolbar` and `HighlightsPanel` — first step of standardizing
+  on SVG icons across the chrome/toolbar surfaces. No external icon
+  library; ~30 LoC per icon.
+
 ### 2026-05-04 — Phase 3.3 notes
 
 - New `notes` IndexedDB store at v5 (additive migration). `NotesRepository`

@@ -44,7 +44,7 @@ type UseReaderHostOptions = {
   readonly view: AppView;
   readonly initialFocusMode: FocusMode;
   readonly initialFocusModeHintShown: boolean;
-  readonly onBookRemovedWhileInReader?: () => void;
+  readonly onBookRemovedFromActiveView?: () => void;
 };
 
 export function useReaderHost({
@@ -53,7 +53,7 @@ export function useReaderHost({
   view,
   initialFocusMode,
   initialFocusModeHintShown,
-  onBookRemovedWhileInReader,
+  onBookRemovedFromActiveView,
 }: UseReaderHostOptions): ReaderHostHandle {
   const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(initialFocusModeHintShown);
 
@@ -146,12 +146,15 @@ export function useReaderHost({
         } catch (err) {
           console.warn('Remove failed:', err);
         }
-        if (view.kind === 'reader' && view.bookId === book.id) {
-          onBookRemovedWhileInReader?.();
+        if (
+          (view.kind === 'reader' || view.kind === 'notebook') &&
+          view.bookId === book.id
+        ) {
+          onBookRemovedFromActiveView?.();
         }
       })();
     },
-    [wiring, libraryStore, view, onBookRemovedWhileInReader],
+    [wiring, libraryStore, view, onBookRemovedFromActiveView],
   );
 
   const findBook = useCallback(

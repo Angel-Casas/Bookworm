@@ -105,4 +105,48 @@ describe('useAppView', () => {
     await Promise.resolve();
     expect(settingsRepo.setView).toHaveBeenCalledWith(LIBRARY_VIEW);
   });
+
+  describe('notebook + pendingAnchor', () => {
+    it('goNotebook sets view to notebook(bookId)', () => {
+      const settingsRepo = fakeSettingsRepo();
+      const libraryStore = fakeLibraryStore([sampleBook('book-1')]);
+      const { result } = renderHook(() =>
+        useAppView({ settingsRepo, libraryStore, initial: LIBRARY_VIEW }),
+      );
+      act(() => {
+        result.current.goNotebook('book-1');
+      });
+      expect(result.current.current).toEqual({ kind: 'notebook', bookId: 'book-1' });
+    });
+
+    it('goReaderAt sets view to reader + queues pendingAnchor (one-shot)', () => {
+      const settingsRepo = fakeSettingsRepo();
+      const libraryStore = fakeLibraryStore([sampleBook('book-1')]);
+      const { result } = renderHook(() =>
+        useAppView({ settingsRepo, libraryStore, initial: LIBRARY_VIEW }),
+      );
+      const anchor = { kind: 'pdf' as const, page: 3 };
+      act(() => {
+        result.current.goReaderAt('book-1', anchor);
+      });
+      expect(result.current.current).toEqual({ kind: 'reader', bookId: 'book-1' });
+      expect(result.current.consumePendingAnchor()).toEqual(anchor);
+      expect(result.current.consumePendingAnchor()).toBeUndefined();
+    });
+
+    it('non-reader setView clears pendingAnchor', () => {
+      const settingsRepo = fakeSettingsRepo();
+      const libraryStore = fakeLibraryStore([sampleBook('book-1')]);
+      const { result } = renderHook(() =>
+        useAppView({ settingsRepo, libraryStore, initial: LIBRARY_VIEW }),
+      );
+      act(() => {
+        result.current.goReaderAt('book-1', { kind: 'pdf', page: 3 });
+      });
+      act(() => {
+        result.current.goLibrary();
+      });
+      expect(result.current.consumePendingAnchor()).toBeUndefined();
+    });
+  });
 });

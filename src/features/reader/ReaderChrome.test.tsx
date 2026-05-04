@@ -11,6 +11,7 @@ const baseProps = {
   onOpenTypography: () => undefined,
   onToggleFocus: () => undefined,
   onAddBookmark: () => undefined,
+  onOpenNotebook: () => undefined,
 };
 
 describe('ReaderChrome', () => {
@@ -68,5 +69,19 @@ describe('ReaderChrome bookmark button', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('notebook button', () => {
+    it('renders the Notebook button', () => {
+      render(<ReaderChrome {...baseProps} />);
+      expect(screen.getByRole('button', { name: /open notebook/i })).toBeInTheDocument();
+    });
+
+    it('clicking notebook button calls onOpenNotebook', () => {
+      const onOpenNotebook = vi.fn();
+      render(<ReaderChrome {...baseProps} onOpenNotebook={onOpenNotebook} />);
+      fireEvent.click(screen.getByRole('button', { name: /open notebook/i }));
+      expect(onOpenNotebook).toHaveBeenCalled();
+    });
   });
 });
