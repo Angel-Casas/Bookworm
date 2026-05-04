@@ -15,25 +15,26 @@ const BOOKMARK: NotebookEntry = {
   },
 };
 
+const SHARED_HIGHLIGHT = {
+  id: HighlightId('h-1'),
+  bookId: BookId('book-1'),
+  anchor: { kind: 'epub-cfi' as const, cfi: 'x' },
+  selectedText: 'x',
+  sectionTitle: null,
+  color: 'yellow' as const,
+  tags: [] as readonly string[],
+  createdAt: IsoTimestamp('2026-05-04T12:00:00.000Z'),
+};
+
 const HIGHLIGHT_NO_NOTE: NotebookEntry = {
   kind: 'highlight',
-  highlight: {
-    id: HighlightId('h-1'),
-    bookId: BookId('book-1'),
-    anchor: { kind: 'epub-cfi', cfi: 'x' },
-    selectedText: 'x',
-    sectionTitle: null,
-    color: 'yellow',
-    tags: [],
-    createdAt: IsoTimestamp('2026-05-04T12:00:00.000Z'),
-  },
+  highlight: SHARED_HIGHLIGHT,
   note: null,
 };
 
 const HIGHLIGHT_WITH_NOTE: NotebookEntry = {
   kind: 'highlight',
-  highlight:
-    HIGHLIGHT_NO_NOTE.kind === 'highlight' ? HIGHLIGHT_NO_NOTE.highlight : ({} as never),
+  highlight: SHARED_HIGHLIGHT,
   note: {
     id: NoteId('n-1'),
     bookId: BookId('book-1'),
