@@ -25,7 +25,7 @@ describe('apiKeyCrypto', () => {
   it('decryptKey with corrupted ciphertext throws', async () => {
     const blob = await encryptKey('sk-test', 'pp');
     const ct = new Uint8Array(blob.ciphertext);
-    ct[0] = ct[0] ^ 0xff;
+    ct[0] = (ct[0] ?? 0) ^ 0xff;
     const corrupted = { ...blob, ciphertext: ct.buffer };
     await expect(decryptKey(corrupted, 'pp')).rejects.toThrow();
   });
