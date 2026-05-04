@@ -48,12 +48,14 @@ export function ModelsSection({ settingsRepo, fetchCatalog, getApiKey }: Props) 
     });
   };
 
-  const onSelect = (model: Model): void => {
+  const onSelect = async (model: Model): Promise<void> => {
     useModelCatalogStore.getState().setSelectedId(model.id);
     useModelCatalogStore.getState().setStaleNotice(null);
-    void settingsRepo.putSelectedModelId(model.id).catch((err: unknown) => {
+    try {
+      await settingsRepo.putSelectedModelId(model.id);
+    } catch (err) {
       console.error('[models] putSelectedModelId failed', err);
-    });
+    }
   };
 
   const refreshDisabled = state.kind === 'loading';

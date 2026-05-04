@@ -3,7 +3,7 @@ import type { Model } from '@/domain';
 type Props = {
   readonly model: Model;
   readonly isSelected: boolean;
-  readonly onClick: (model: Model) => void;
+  readonly onClick: (model: Model) => void | Promise<void>;
 };
 
 export function ModelRow({ model, isSelected, onClick }: Props) {
@@ -13,7 +13,7 @@ export function ModelRow({ model, isSelected, onClick }: Props) {
       className={isSelected ? 'model-row model-row--selected' : 'model-row'}
       aria-pressed={isSelected}
       onClick={() => {
-        onClick(model);
+        void Promise.resolve(onClick(model));
       }}
     >
       <span
