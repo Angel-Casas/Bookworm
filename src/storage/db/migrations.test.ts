@@ -10,6 +10,7 @@ import {
   READER_PREFERENCES_STORE,
   BOOKMARKS_STORE,
   HIGHLIGHTS_STORE,
+  NOTES_STORE,
   CURRENT_DB_VERSION,
 } from './schema';
 
@@ -168,5 +169,88 @@ describe('v3 → v4 migration', () => {
     expect(bookmarks).toHaveLength(1);
 
     v4.close();
+  });
+});
+
+describe('v4 → v5 migration', () => {
+  it('creates the notes store with by-book + by-highlight indexes and preserves existing stores', async () => {
+    const dbName = `bookworm-mig5-${crypto.randomUUID()}`;
+
+    const v4 = await openDB(dbName, 4, {
+      upgrade(db) {
+        const books = db.createObjectStore('books', { keyPath: 'id' });
+        books.createIndex('by-checksum', 'source.checksum', { unique: true });
+        books.createIndex('by-created', 'createdAt', { unique: false });
+        books.createIndex('by-last-opened', 'lastOpenedAt', { unique: false });
+        db.createObjectStore('settings', { keyPath: 'key' });
+        db.createObjectStore('reading_progress', { keyPath: 'bookId' });
+        db.createObjectStore('reader_preferences', { keyPath: 'key' });
+        const bookmarks = db.createObjectStore('bookmarks', { keyPath: 'id' });
+        bookmarks.createIndex('by-book', 'bookId', { unique: false });
+        const highlights = db.createObjectStore('highlights', { keyPath: 'id' });
+        highlights.createIndex('by-book', 'bookId', { unique: false });
+      },
+    });
+    await v4.put('books', { id: 'b1', title: 'Survivor' });
+    await v4.put('highlights', {
+      id: 'h1',
+      bookId: 'b1',
+      anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/2/16)' },
+      selectedText: 'x',
+      sectionTitle: null,
+      color: 'yellow',
+      tags: [],
+      createdAt: '2026-05-04T12:00:00.000Z',
+    });
+    v4.close();
+
+    const v5 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+
+    expect(v5.objectStoreNames.contains(NOTES_STORE)).toBe(true);
+    const tx = v5.transaction(NOTES_STORE, 'readonly');
+    const store = tx.objectStore(NOTES_STORE);
+    expect([...store.indexNames]).toContain('by-book');
+    expect([...store.indexNames]).toContain('by-highlight');
+    expect(store.index('by-highlight').unique).toBe(true);
+
+    const books = await v5.getAll('books');
+    expect(books).toHaveLength(1);
+    expect(books[0]).toMatchObject({ id: 'b1', title: 'Survivor' });
+    const highlights = await v5.getAll('highlights');
+    expect(highlights).toHaveLength(1);
+
+    v5.close();
+  });
+
+  it('by-highlight index reads anchorRef.highlightId via dotted keyPath', async () => {
+    const dbName = `bookworm-mig5-idx-${crypto.randomUUID()}`;
+    const v5 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+    await v5.put('notes', {
+      id: 'n1',
+      bookId: 'b1',
+      anchorRef: { kind: 'highlight', highlightId: 'h-target' },
+      content: 'a note',
+      createdAt: '2026-05-04T12:00:00.000Z',
+      updatedAt: '2026-05-04T12:00:00.000Z',
+    });
+    const found = await v5.getFromIndex('notes', 'by-highlight', 'h-target');
+    expect(found?.id).toBe('n1');
+    v5.close();
   });
 });

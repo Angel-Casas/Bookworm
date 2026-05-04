@@ -4,7 +4,7 @@ import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
 export const DB_NAME = 'bookworm';
-export const CURRENT_DB_VERSION = 4;
+export const CURRENT_DB_VERSION = 5;
 
 export type AppView =
   | { readonly kind: 'library' }
@@ -59,6 +59,14 @@ export interface BookwormDBSchema extends DBSchema {
     value: Highlight;
     indexes: { 'by-book': string };
   };
+  notes: {
+    key: string;
+    value: import('@/domain').Note;
+    indexes: {
+      'by-book': string;
+      'by-highlight': string;
+    };
+  };
 }
 
 export const BOOK_STORE = 'books' as const;
@@ -67,3 +75,4 @@ export const READING_PROGRESS_STORE = 'reading_progress' as const;
 export const READER_PREFERENCES_STORE = 'reader_preferences' as const;
 export const BOOKMARKS_STORE = 'bookmarks' as const;
 export const HIGHLIGHTS_STORE = 'highlights' as const;
+export const NOTES_STORE = 'notes' as const;
