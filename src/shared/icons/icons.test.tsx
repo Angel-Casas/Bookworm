@@ -1,6 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
-import { NotebookIcon, NoteIcon, ArrowLeftIcon } from './index';
+import {
+  NotebookIcon,
+  NoteIcon,
+  ArrowLeftIcon,
+  SettingsIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from './index';
 
 afterEach(cleanup);
 
@@ -38,5 +45,22 @@ describe('icons', () => {
     const svg = container.querySelector('svg');
     expect(svg?.classList.contains('icon')).toBe(true);
     expect(svg?.classList.contains('extra')).toBe(true);
+  });
+
+  it('SettingsIcon renders an svg', () => {
+    const { container } = render(<SettingsIcon />);
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg?.classList.contains('icon')).toBe(true);
+  });
+
+  it('EyeIcon renders an svg', () => {
+    const { container } = render(<EyeIcon />);
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('EyeOffIcon renders an svg', () => {
+    const { container } = render(<EyeOffIcon />);
+    expect(container.querySelector('svg')).not.toBeNull();
   });
 });
