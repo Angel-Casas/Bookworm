@@ -11,3 +11,7 @@ export const LIBRARY_VIEW: AppView = { kind: 'library' };
 export function readerView(bookId: string): AppView {
   return { kind: 'reader', bookId };
 }
+
+export function notebookView(bookId: string): AppView {
+  return { kind: 'notebook', bookId };
+}
