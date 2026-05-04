@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NotebookIcon } from '@/shared/icons';
 import './reader-chrome.css';
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
   readonly onOpenTypography: () => void;
   readonly onToggleFocus: () => void;
   readonly onAddBookmark: () => void;
+  readonly onOpenNotebook: () => void;
   readonly showTocButton?: boolean;
   readonly showFocusToggle?: boolean;
   readonly focusMode?: 'normal' | 'focus';
@@ -22,6 +24,7 @@ export function ReaderChrome({
   onOpenTypography,
   onToggleFocus,
   onAddBookmark,
+  onOpenNotebook,
   showTocButton = true,
   showFocusToggle = false,
   focusMode = 'normal',
@@ -75,6 +78,16 @@ export function ReaderChrome({
           title="Bookmark this spot"
         >
           ★
+        </button>
+        <button
+          type="button"
+          className="reader-chrome__notebook"
+          onClick={onOpenNotebook}
+          aria-label="Open notebook"
+          title="Open notebook"
+        >
+          <NotebookIcon />
+          <span className="reader-chrome__notebook-label">Notebook</span>
         </button>
         {showTocButton ? (
           <button type="button" onClick={onOpenToc} aria-label="Table of contents">
