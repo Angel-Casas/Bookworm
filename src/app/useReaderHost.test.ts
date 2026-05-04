@@ -45,6 +45,8 @@ function fakeWiring(): Wiring {
       setStoragePersistResult: () => Promise.resolve(),
       getFocusModeHintShown: vi.fn(() => Promise.resolve(false)),
       setFocusModeHintShown: vi.fn(() => Promise.resolve()),
+      getNoteEditorHintShown: vi.fn(() => Promise.resolve(false)),
+      setNoteEditorHintShown: vi.fn(() => Promise.resolve()),
     },
     opfs: {
       readFile: vi.fn(() => Promise.resolve(undefined)),

@@ -66,4 +66,15 @@ describe('SettingsRepository', () => {
     });
     expect(await settings.getFocusModeHintShown()).toBe(false);
   });
+
+  it('noteEditorHintShown defaults to false when not yet set', async () => {
+    const settings = createSettingsRepository(db);
+    expect(await settings.getNoteEditorHintShown()).toBe(false);
+  });
+
+  it('noteEditorHintShown round-trips true', async () => {
+    const settings = createSettingsRepository(db);
+    await settings.setNoteEditorHintShown(true);
+    expect(await settings.getNoteEditorHintShown()).toBe(true);
+  });
 });
