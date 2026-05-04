@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { HighlightColor } from '@/domain/annotations/types';
+import { NoteIcon } from '@/shared/icons';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from './highlightColors';
 import './highlight-toolbar.css';
 
@@ -102,7 +103,7 @@ export function HighlightToolbar({
             aria-label={mode === 'edit' && hasNote ? 'Edit note' : 'Add note'}
             onClick={onNote}
           >
-            <span aria-hidden="true">📝</span>
+            <NoteIcon />
           </button>
         </>
       ) : null}
