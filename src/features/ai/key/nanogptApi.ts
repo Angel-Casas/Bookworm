@@ -8,12 +8,11 @@ export type ValidateKeyResult =
       readonly status?: number;
     };
 
+export type ModelsFetchResult = ValidateKeyResult;
+
 type ModelsResponseBody = { readonly data?: readonly unknown[] };
 
-export async function validateKey(
-  apiKey: string,
-  signal?: AbortSignal,
-): Promise<ValidateKeyResult> {
+async function getModels(apiKey: string, signal?: AbortSignal): Promise<ValidateKeyResult> {
   let res: Response;
   try {
     res = await fetch(`${NANOGPT_BASE_URL}/models`, {
@@ -42,4 +41,18 @@ export async function validateKey(
     )
     .map((m) => ({ id: m.id }));
   return { ok: true, models };
+}
+
+export async function validateKey(
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<ValidateKeyResult> {
+  return getModels(apiKey, signal);
+}
+
+export async function fetchCatalog(
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<ModelsFetchResult> {
+  return getModels(apiKey, signal);
 }
