@@ -76,6 +76,14 @@ function fakeWiring(): Wiring {
       listByBook: vi.fn(() => Promise.resolve([])),
       deleteByBook: vi.fn(() => Promise.resolve()),
     },
+    notesRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      delete: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      getByHighlight: vi.fn(() => Promise.resolve(null)),
+      deleteByHighlight: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
   };
