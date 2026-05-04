@@ -45,8 +45,6 @@ describe('HighlightsPanel', () => {
         onDelete={() => undefined}
         onChangeColor={() => undefined}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
         nowMs={NOW}
       />,
     );
@@ -65,8 +63,6 @@ describe('HighlightsPanel', () => {
         onDelete={() => undefined}
         onChangeColor={() => undefined}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
       />,
     );
     expect(screen.getByText(/No highlights yet/i)).toBeDefined();
@@ -83,8 +79,6 @@ describe('HighlightsPanel', () => {
         onDelete={() => undefined}
         onChangeColor={() => undefined}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
         nowMs={NOW}
       />,
     );
@@ -103,8 +97,6 @@ describe('HighlightsPanel', () => {
         onDelete={onDelete}
         onChangeColor={() => undefined}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
         nowMs={NOW}
       />,
     );
@@ -123,8 +115,6 @@ describe('HighlightsPanel', () => {
         onDelete={() => undefined}
         onChangeColor={onChangeColor}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
         nowMs={NOW}
       />,
     );
@@ -144,8 +134,6 @@ describe('HighlightsPanel', () => {
         onDelete={() => undefined}
         onChangeColor={() => undefined}
         onSaveNote={() => undefined}
-        hintShown
-        onHintDismissed={() => undefined}
         nowMs={NOW}
       />,
     );
@@ -167,8 +155,6 @@ describe('HighlightsPanel — notes', () => {
         onDelete={props.onDelete ?? (() => undefined)}
         onChangeColor={props.onChangeColor ?? (() => undefined)}
         onSaveNote={props.onSaveNote ?? (() => undefined)}
-        hintShown={props.hintShown ?? true}
-        onHintDismissed={props.onHintDismissed ?? (() => undefined)}
         nowMs={NOW}
       />,
     );

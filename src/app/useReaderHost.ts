@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
 import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
@@ -26,8 +26,6 @@ export type ReaderHostHandle = {
   bookmarksRepo: BookmarksRepository;
   highlightsRepo: HighlightsRepository;
   notesRepo: NotesRepository;
-  isNoteEditorHintShown: boolean;
-  markNoteEditorHintShown: () => void;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -115,21 +113,6 @@ export function useReaderHost({
     void wiring.settingsRepo.setFocusModeHintShown(true);
   }, [wiring]);
 
-  const [noteEditorHintShown, setNoteEditorHintShown] = useState(false);
-  const noteHintLoadedRef = useRef(false);
-  useEffect(() => {
-    if (noteHintLoadedRef.current) return;
-    noteHintLoadedRef.current = true;
-    void wiring.settingsRepo.getNoteEditorHintShown().then((v) => {
-      setNoteEditorHintShown(v);
-    });
-  }, [wiring]);
-
-  const markNoteEditorHintShown = useCallback(() => {
-    setNoteEditorHintShown(true);
-    void wiring.settingsRepo.setNoteEditorHintShown(true);
-  }, [wiring]);
-
   const onFilesPicked = useCallback(
     (files: readonly File[]): void => {
       void wiring.persistFirstQuotaRequest();
@@ -193,7 +176,5 @@ export function useReaderHost({
     bookmarksRepo: wiring.bookmarksRepo,
     highlightsRepo: wiring.highlightsRepo,
     notesRepo: wiring.notesRepo,
-    isNoteEditorHintShown: noteEditorHintShown,
-    markNoteEditorHintShown,
   };
 }

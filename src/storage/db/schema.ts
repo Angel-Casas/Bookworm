@@ -14,8 +14,7 @@ export type SettingsRecord =
   | { readonly key: 'librarySort'; readonly value: string }
   | { readonly key: 'storagePersistResult'; readonly value: 'granted' | 'denied' }
   | { readonly key: 'view'; readonly value: AppView }
-  | { readonly key: 'focusModeHintShown'; readonly value: boolean }
-  | { readonly key: 'noteEditorHintShown'; readonly value: boolean };
+  | { readonly key: 'focusModeHintShown'; readonly value: boolean };
 
 export type ReadingProgressRecord = {
   readonly bookId: string;

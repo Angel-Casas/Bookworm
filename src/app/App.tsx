@@ -120,8 +120,6 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
           notesRepo={reader.notesRepo}
-          isNoteEditorHintShown={reader.isNoteEditorHintShown}
-          markNoteEditorHintShown={reader.markNoteEditorHintShown}
         />
       </div>
     );

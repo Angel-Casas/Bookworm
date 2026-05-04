@@ -46,8 +46,6 @@ type Props = {
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
   readonly notesRepo: NotesRepository;
-  readonly isNoteEditorHintShown: boolean;
-  readonly markNoteEditorHintShown: () => void;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -293,8 +291,6 @@ export function ReaderWorkspace(props: Props) {
       onSaveNote={(h, content) => {
         void notes.save(h.id, content);
       }}
-      hintShown={props.isNoteEditorHintShown}
-      onHintDismissed={props.markNoteEditorHintShown}
     />
   );
 
@@ -429,8 +425,6 @@ export function ReaderWorkspace(props: Props) {
               onSaveNote={(h, content) => {
                 void notes.save(h.id, content);
               }}
-              hintShown={props.isNoteEditorHintShown}
-              onHintDismissed={props.markNoteEditorHintShown}
             />
           ) : null}
         </MobileSheet>
@@ -484,8 +478,6 @@ export function ReaderWorkspace(props: Props) {
           initialContent={
             notes.byHighlightId.get(activeNoteEditor.highlightId)?.content ?? ''
           }
-          hintShown={props.isNoteEditorHintShown}
-          onHintDismissed={props.markNoteEditorHintShown}
           onSave={(content) => {
             void notes.save(activeNoteEditor.highlightId, content);
             setActiveNoteEditor(null);
@@ -505,15 +497,11 @@ const EDITOR_GAP = 8;
 function AnchoredNoteEditorOverlay({
   rect,
   initialContent,
-  hintShown,
-  onHintDismissed,
   onSave,
   onCancel,
 }: {
   readonly rect: { x: number; y: number; width: number; height: number };
   readonly initialContent: string;
-  readonly hintShown: boolean;
-  readonly onHintDismissed: () => void;
   readonly onSave: (content: string) => void;
   readonly onCancel: () => void;
 }) {
@@ -542,8 +530,6 @@ function AnchoredNoteEditorOverlay({
         initialContent={initialContent}
         // eslint-disable-next-line jsx-a11y/no-autofocus -- the overlay opens in response to a user action (toolbar 📝); focusing the textarea is the desired outcome
         autoFocus
-        hintShown={hintShown}
-        onHintDismissed={onHintDismissed}
         onSave={onSave}
         onCancel={onCancel}
       />

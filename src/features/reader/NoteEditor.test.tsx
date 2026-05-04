@@ -7,19 +7,16 @@ afterEach(cleanup);
 function setup(props: Partial<React.ComponentProps<typeof NoteEditor>> = {}) {
   const onSave = vi.fn();
   const onCancel = vi.fn();
-  const onHintDismissed = vi.fn();
   render(
     <NoteEditor
       initialContent={props.initialContent ?? ''}
       onSave={props.onSave ?? onSave}
       onCancel={props.onCancel ?? onCancel}
-      hintShown={props.hintShown ?? false}
-      onHintDismissed={props.onHintDismissed ?? onHintDismissed}
       {...(props.autoFocus !== undefined ? { autoFocus: props.autoFocus } : {})}
       {...(props.placeholder !== undefined ? { placeholder: props.placeholder } : {})}
     />,
   );
-  return { onSave, onCancel, onHintDismissed };
+  return { onSave, onCancel };
 }
 
 function getTextarea(): HTMLTextAreaElement {
@@ -127,23 +124,10 @@ describe('NoteEditor', () => {
     expect(counter.className).toContain('note-editor__counter--over');
   });
 
-  it('hint shown when hintShown=false explains save and discard paths', () => {
-    setup({ hintShown: false });
+  it('hint always renders and explains save + discard paths', () => {
+    setup();
     expect(screen.getByText(/Shift\+Enter or click outside to save/i)).toBeInTheDocument();
     expect(screen.getByText(/Esc to discard/i)).toBeInTheDocument();
-  });
-
-  it('hint hidden when hintShown=true', () => {
-    setup({ hintShown: true });
-    expect(screen.queryByText(/Esc to discard/i)).toBeNull();
-  });
-
-  it('hint dismisses on first keystroke', () => {
-    const onHintDismissed = vi.fn();
-    setup({ hintShown: false, onHintDismissed, autoFocus: true });
-    expect(screen.getByText(/Esc to discard/i)).toBeInTheDocument();
-    fireEvent.keyDown(getTextarea(), { key: 'a' });
-    expect(onHintDismissed).toHaveBeenCalled();
   });
 
   it('outside mousedown calls onSave with trimmed value when content changed', () => {

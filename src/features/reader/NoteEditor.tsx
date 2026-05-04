@@ -10,8 +10,6 @@ type Props = {
   readonly onCancel: () => void;
   readonly autoFocus?: boolean;
   readonly placeholder?: string;
-  readonly hintShown: boolean;
-  readonly onHintDismissed: () => void;
 };
 
 export function NoteEditor({
@@ -20,8 +18,6 @@ export function NoteEditor({
   onCancel,
   autoFocus,
   placeholder = 'Add a note…',
-  hintShown,
-  onHintDismissed,
 }: Props) {
   const [value, setValue] = useState(initialContent);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -60,7 +56,6 @@ export function NoteEditor({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (!hintShown) onHintDismissed();
     if (e.key === 'Escape') {
       e.preventDefault();
       onCancel();
@@ -109,11 +104,9 @@ export function NoteEditor({
           {value.length} / {SOFT_LIMIT}
         </span>
       ) : null}
-      {!hintShown ? (
-        <span className="note-editor__hint">
-          Shift+Enter or click outside to save · Esc to discard
-        </span>
-      ) : null}
+      <span className="note-editor__hint">
+        Shift+Enter or click outside to save · Esc to discard
+      </span>
     </div>
   );
 }

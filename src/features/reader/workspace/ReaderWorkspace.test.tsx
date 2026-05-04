@@ -48,8 +48,6 @@ const baseProps = {
   bookmarksRepo: fakeBookmarksRepo,
   highlightsRepo: fakeHighlightsRepo,
   notesRepo: fakeNotesRepo,
-  isNoteEditorHintShown: true,
-  markNoteEditorHintShown: () => undefined,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

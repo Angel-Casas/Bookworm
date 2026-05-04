@@ -35,8 +35,6 @@ function fakeSettingsRepo(): SettingsRepository & { setView: ReturnType<typeof v
     setView,
     getFocusModeHintShown: () => Promise.resolve(false),
     setFocusModeHintShown: () => Promise.resolve(),
-    getNoteEditorHintShown: () => Promise.resolve(false),
-    setNoteEditorHintShown: () => Promise.resolve(),
   };
 }
 

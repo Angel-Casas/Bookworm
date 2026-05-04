@@ -12,8 +12,6 @@ export type SettingsRepository = {
   setView(view: AppView): Promise<void>;
   getFocusModeHintShown(): Promise<boolean>;
   setFocusModeHintShown(shown: boolean): Promise<void>;
-  getNoteEditorHintShown(): Promise<boolean>;
-  setNoteEditorHintShown(shown: boolean): Promise<void>;
 };
 
 function isValidView(v: unknown): v is AppView {
@@ -73,15 +71,6 @@ export function createSettingsRepository(db: BookwormDB): SettingsRepository {
     },
     async setFocusModeHintShown(shown) {
       await put({ key: 'focusModeHintShown', value: shown });
-    },
-    async getNoteEditorHintShown() {
-      const rec = await get<Extract<SettingsRecord, { key: 'noteEditorHintShown' }>>(
-        'noteEditorHintShown',
-      );
-      return typeof rec?.value === 'boolean' ? rec.value : false;
-    },
-    async setNoteEditorHintShown(shown) {
-      await put({ key: 'noteEditorHintShown', value: shown });
     },
   };
 }

@@ -13,8 +13,6 @@ type Props = {
   readonly onDelete: (h: Highlight) => void;
   readonly onChangeColor: (h: Highlight, color: HighlightColor) => void;
   readonly onSaveNote: (h: Highlight, content: string) => void;
-  readonly hintShown: boolean;
-  readonly onHintDismissed: () => void;
   readonly nowMs?: number;
 };
 
@@ -25,8 +23,6 @@ export function HighlightsPanel({
   onDelete,
   onChangeColor,
   onSaveNote,
-  hintShown,
-  onHintDismissed,
   nowMs,
 }: Props) {
   const [editingNoteFor, setEditingNoteFor] = useState<HighlightId | null>(null);
@@ -102,8 +98,6 @@ export function HighlightsPanel({
                       initialContent={note?.content ?? ''}
                       // eslint-disable-next-line jsx-a11y/no-autofocus -- entering edit mode is an explicit user action; focus is the desired outcome
                       autoFocus
-                      hintShown={hintShown}
-                      onHintDismissed={onHintDismissed}
                       onSave={(content) => {
                         onSaveNote(h, content);
                         setEditingNoteFor(null);
