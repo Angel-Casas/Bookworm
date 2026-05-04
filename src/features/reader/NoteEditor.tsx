@@ -66,9 +66,17 @@ export function NoteEditor({
       onCancel();
       return;
     }
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    // Save shortcuts: Shift+Enter, Cmd+Enter, Ctrl+Enter. Plain Enter still
+    // inserts a newline. (In textareas Shift+Enter is normally a newline too,
+    // but plain Enter already serves that purpose, so we repurpose Shift.)
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || e.shiftKey)) {
       e.preventDefault();
-      taRef.current?.blur();
+      const trimmed = value.trim();
+      if (trimmed !== initialContent.trim()) {
+        onSave(trimmed);
+      } else {
+        onCancel();
+      }
     }
   };
 
@@ -101,7 +109,11 @@ export function NoteEditor({
           {value.length} / {SOFT_LIMIT}
         </span>
       ) : null}
-      {!hintShown ? <span className="note-editor__hint">Esc to discard</span> : null}
+      {!hintShown ? (
+        <span className="note-editor__hint">
+          Shift+Enter or click outside to save · Esc to discard
+        </span>
+      ) : null}
     </div>
   );
 }

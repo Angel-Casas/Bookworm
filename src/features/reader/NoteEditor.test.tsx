@@ -75,15 +75,31 @@ describe('NoteEditor', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('Cmd/Ctrl+Enter triggers save', () => {
+  it('Cmd/Ctrl+Enter triggers save with trimmed content', () => {
     const onSave = vi.fn();
     setup({ initialContent: '', onSave, autoFocus: true });
     const ta = getTextarea();
-    fireEvent.change(ta, { target: { value: 'a thought' } });
+    fireEvent.change(ta, { target: { value: '  a thought  ' } });
     fireEvent.keyDown(ta, { key: 'Enter', ctrlKey: true });
-    // keyDown handler triggers blur(); blur fires onSave
-    fireEvent.blur(ta);
     expect(onSave).toHaveBeenCalledWith('a thought');
+  });
+
+  it('Shift+Enter triggers save with trimmed content', () => {
+    const onSave = vi.fn();
+    setup({ initialContent: '', onSave, autoFocus: true });
+    const ta = getTextarea();
+    fireEvent.change(ta, { target: { value: '  a thought  ' } });
+    fireEvent.keyDown(ta, { key: 'Enter', shiftKey: true });
+    expect(onSave).toHaveBeenCalledWith('a thought');
+  });
+
+  it('Shift+Enter cancels when content unchanged', () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    setup({ initialContent: 'unchanged', onSave, onCancel, autoFocus: true });
+    fireEvent.keyDown(getTextarea(), { key: 'Enter', shiftKey: true });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
   });
 
   it('plain Enter does NOT submit (newline behavior is up to the textarea)', () => {
@@ -111,8 +127,9 @@ describe('NoteEditor', () => {
     expect(counter.className).toContain('note-editor__counter--over');
   });
 
-  it('hint shown when hintShown=false', () => {
+  it('hint shown when hintShown=false explains save and discard paths', () => {
     setup({ hintShown: false });
+    expect(screen.getByText(/Shift\+Enter or click outside to save/i)).toBeInTheDocument();
     expect(screen.getByText(/Esc to discard/i)).toBeInTheDocument();
   });
 
