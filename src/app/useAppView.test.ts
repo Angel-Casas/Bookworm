@@ -35,6 +35,9 @@ function fakeSettingsRepo(): SettingsRepository & { setView: ReturnType<typeof v
     setView,
     getFocusModeHintShown: () => Promise.resolve(false),
     setFocusModeHintShown: () => Promise.resolve(),
+    getApiKeyBlob: () => Promise.resolve(undefined),
+    putApiKeyBlob: () => Promise.resolve(),
+    deleteApiKeyBlob: () => Promise.resolve(),
   };
 }
 
@@ -147,6 +150,20 @@ describe('useAppView', () => {
         result.current.goLibrary();
       });
       expect(result.current.consumePendingAnchor()).toBeUndefined();
+    });
+  });
+
+  describe('settings', () => {
+    it('goSettings sets view to {kind:"settings"}', () => {
+      const settingsRepo = fakeSettingsRepo();
+      const libraryStore = fakeLibraryStore([sampleBook('book-1')]);
+      const { result } = renderHook(() =>
+        useAppView({ settingsRepo, libraryStore, initial: LIBRARY_VIEW }),
+      );
+      act(() => {
+        result.current.goSettings();
+      });
+      expect(result.current.current).toEqual({ kind: 'settings' });
     });
   });
 });

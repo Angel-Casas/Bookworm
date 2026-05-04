@@ -3,6 +3,13 @@ import type { AppView } from '@/app/view';
 import type { BookwormDB } from '../db/open';
 import { SETTINGS_STORE, type SettingsRecord } from '../db/schema';
 
+export type ApiKeyBlob = {
+  readonly salt: ArrayBuffer;
+  readonly iv: ArrayBuffer;
+  readonly ciphertext: ArrayBuffer;
+  readonly iterations: number;
+};
+
 export type SettingsRepository = {
   getLibrarySort(): Promise<SortKey | undefined>;
   setLibrarySort(key: SortKey): Promise<void>;
@@ -12,12 +19,15 @@ export type SettingsRepository = {
   setView(view: AppView): Promise<void>;
   getFocusModeHintShown(): Promise<boolean>;
   setFocusModeHintShown(shown: boolean): Promise<void>;
+  getApiKeyBlob(): Promise<ApiKeyBlob | undefined>;
+  putApiKeyBlob(blob: ApiKeyBlob): Promise<void>;
+  deleteApiKeyBlob(): Promise<void>;
 };
 
 function isValidView(v: unknown): v is AppView {
   if (typeof v !== 'object' || v === null) return false;
   const x = v as { kind?: unknown; bookId?: unknown };
-  if (x.kind === 'library') return true;
+  if (x.kind === 'library' || x.kind === 'settings') return true;
   if (
     (x.kind === 'reader' || x.kind === 'notebook') &&
     typeof x.bookId === 'string' &&
@@ -26,6 +36,18 @@ function isValidView(v: unknown): v is AppView {
     return true;
   }
   return false;
+}
+
+function isValidApiKeyValue(v: unknown): v is ApiKeyBlob {
+  if (typeof v !== 'object' || v === null) return false;
+  const x = v as Record<string, unknown>;
+  return (
+    x.salt instanceof ArrayBuffer &&
+    x.iv instanceof ArrayBuffer &&
+    x.ciphertext instanceof ArrayBuffer &&
+    typeof x.iterations === 'number' &&
+    x.iterations > 0
+  );
 }
 
 const VALID_SORT_KEYS: ReadonlySet<SortKey> = new Set([
@@ -77,6 +99,17 @@ export function createSettingsRepository(db: BookwormDB): SettingsRepository {
     },
     async setFocusModeHintShown(shown) {
       await put({ key: 'focusModeHintShown', value: shown });
+    },
+    async getApiKeyBlob() {
+      const rec = await get<Extract<SettingsRecord, { key: 'apiKey' }>>('apiKey');
+      if (!rec) return undefined;
+      return isValidApiKeyValue(rec.value) ? rec.value : undefined;
+    },
+    async putApiKeyBlob(blob) {
+      await put({ key: 'apiKey', value: blob });
+    },
+    async deleteApiKeyBlob() {
+      await db.delete(SETTINGS_STORE, 'apiKey');
     },
   };
 }

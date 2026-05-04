@@ -11,6 +11,8 @@ import { LibraryBootError } from '@/features/library/LibraryBootError';
 import { DropOverlay } from '@/features/library/DropOverlay';
 import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
 import { NotebookView } from '@/features/annotations/notebook/NotebookView';
+import { SettingsView } from '@/features/ai/settings/SettingsView';
+import { useApiKeyStore } from '@/features/ai/key/apiKeyStore';
 import { useAppView } from '@/app/useAppView';
 import { useReaderHost } from '@/app/useReaderHost';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
@@ -137,6 +139,14 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     );
   }
 
+  if (view.current.kind === 'settings') {
+    return (
+      <div className="app">
+        <SettingsView settingsRepo={wiring.settingsRepo} onClose={view.goLibrary} />
+      </div>
+    );
+  }
+
   if (view.current.kind === 'reader') {
     const book = reader.findBook(view.current.bookId);
     if (!book) return null; // useAppView guard falls back to library next render
@@ -179,6 +189,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
         onPersistSort={reader.onPersistSort}
         onRemoveBook={reader.onRemoveBook}
         onOpenBook={view.goReader}
+        onOpenSettings={view.goSettings}
       />
       <DropOverlay onFilesDropped={reader.onFilesPicked} />
     </div>
@@ -212,11 +223,15 @@ export function App() {
         void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
-        const [persistedView, prefs, hintShown] = await Promise.all([
+        const [persistedView, prefs, hintShown, apiKeyBlob] = await Promise.all([
           wiring.settingsRepo.getView(),
           wiring.readerPreferencesRepo.get(),
           wiring.settingsRepo.getFocusModeHintShown(),
+          wiring.settingsRepo.getApiKeyBlob(),
         ]);
+        if (apiKeyBlob) {
+          useApiKeyStore.getState().markLocked();
+        }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!activeRef.current) return;
         setBoot({

@@ -309,6 +309,34 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-04 — Phase 4.1 API key settings
+
+- **Surface:** New `AppView` kind `'settings'`. Persists across reload via
+  the existing `view` settings record. Accessible from a gear icon in the
+  library chrome (and the empty state, so first-time users can enter a
+  key before importing).
+- **State model:** Single Zustand `apiKeyStore` with discriminated-union
+  state (`'none' | 'session' | 'unlocked' | 'locked'`). No XState
+  machine — transitions are linear and well-defined.
+- **Persistence:** New `apiKey` `SettingsRecord` variant. `ArrayBuffer`s
+  stored natively (no base64). `iterations` persisted alongside the blob
+  for forward-compat.
+- **Crypto:** WebCrypto PBKDF2-SHA256 (600k iterations, OWASP 2023) →
+  256-bit AES-GCM. Random salt + IV per encryption. Passphrase never
+  persisted.
+- **Validation:** On submit, `GET /v1/models` against the NanoGPT base
+  URL. 200 → save. 401/403 → "rejected" message. Other → generic error.
+  Same call 4.2 will use for the model catalog.
+- **Cold-start unlock:** Boot reads `apiKeyBlob`, calls `markLocked()`
+  synchronously before `setBoot('ready')` if present. Settings UI never
+  sees a transient flash.
+- **Remove flow:** `window.confirm` dialog; on accept, wipes IDB blob
+  and clears the in-memory store. Stays in Settings.
+- **Out of scope (deferred):** Model catalog UI (4.2), chat panel (4.3),
+  passage mode (4.4), provider switcher, biometric unlock, multi-tab
+  sync, "forgot passphrase" recovery (recovery path is "Remove + start
+  fresh").
+
 ### 2026-05-04 — Phase 3.4 annotation notebook
 
 - New `AppView` kind `'notebook'` (additive union expansion; no DB

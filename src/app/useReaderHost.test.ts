@@ -45,6 +45,9 @@ function fakeWiring(): Wiring {
       setStoragePersistResult: () => Promise.resolve(),
       getFocusModeHintShown: vi.fn(() => Promise.resolve(false)),
       setFocusModeHintShown: vi.fn(() => Promise.resolve()),
+      getApiKeyBlob: vi.fn(() => Promise.resolve(undefined)),
+      putApiKeyBlob: vi.fn(() => Promise.resolve()),
+      deleteApiKeyBlob: vi.fn(() => Promise.resolve()),
     },
     opfs: {
       readFile: vi.fn(() => Promise.resolve(undefined)),

@@ -9,13 +9,23 @@ export const CURRENT_DB_VERSION = 5;
 export type AppView =
   | { readonly kind: 'library' }
   | { readonly kind: 'reader'; readonly bookId: string }
-  | { readonly kind: 'notebook'; readonly bookId: string };
+  | { readonly kind: 'notebook'; readonly bookId: string }
+  | { readonly kind: 'settings' };
 
 export type SettingsRecord =
   | { readonly key: 'librarySort'; readonly value: string }
   | { readonly key: 'storagePersistResult'; readonly value: 'granted' | 'denied' }
   | { readonly key: 'view'; readonly value: AppView }
-  | { readonly key: 'focusModeHintShown'; readonly value: boolean };
+  | { readonly key: 'focusModeHintShown'; readonly value: boolean }
+  | {
+      readonly key: 'apiKey';
+      readonly value: {
+        readonly salt: ArrayBuffer;
+        readonly iv: ArrayBuffer;
+        readonly ciphertext: ArrayBuffer;
+        readonly iterations: number;
+      };
+    };
 
 export type ReadingProgressRecord = {
   readonly bookId: string;

@@ -15,6 +15,7 @@ type Props = {
   readonly onFilesPicked: (files: readonly File[]) => void;
   readonly onRemoveBook: (book: Book) => void;
   readonly onOpenBook?: (book: Book) => void;
+  readonly onOpenSettings: () => void;
 };
 
 export function LibraryWorkspace({
@@ -25,6 +26,7 @@ export function LibraryWorkspace({
   onFilesPicked,
   onRemoveBook,
   onOpenBook,
+  onOpenSettings,
 }: Props) {
   const [search, setSearch] = useState(libraryStore.getState().search);
   const [sort, setSort] = useState(libraryStore.getState().sort);
@@ -59,6 +61,7 @@ export function LibraryWorkspace({
         sort={sort}
         onSortChange={onSortChange}
         onFilesPicked={onFilesPicked}
+        onOpenSettings={onOpenSettings}
       />
       <ImportTray store={importStore} onViewExisting={onViewExisting} />
       <Bookshelf

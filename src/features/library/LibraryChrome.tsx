@@ -1,4 +1,5 @@
 import type { SortKey } from '@/domain';
+import { SettingsIcon } from '@/shared/icons';
 import { LibrarySearchField } from './LibrarySearchField';
 import { LibrarySortDropdown } from './LibrarySortDropdown';
 import { ImportButton } from './ImportButton';
@@ -10,6 +11,7 @@ type Props = {
   readonly sort: SortKey;
   readonly onSortChange: (next: SortKey) => void;
   readonly onFilesPicked: (files: readonly File[]) => void;
+  readonly onOpenSettings: () => void;
 };
 
 export function LibraryChrome(props: Props) {
@@ -22,6 +24,15 @@ export function LibraryChrome(props: Props) {
       <div className="library-chrome__actions">
         <LibrarySortDropdown value={props.sort} onChange={props.onSortChange} />
         <ImportButton onFilesPicked={props.onFilesPicked} />
+        <button
+          type="button"
+          className="library-chrome__settings"
+          aria-label="Open settings"
+          title="Settings"
+          onClick={props.onOpenSettings}
+        >
+          <SettingsIcon />
+        </button>
       </div>
     </header>
   );

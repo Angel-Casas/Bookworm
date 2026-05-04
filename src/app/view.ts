@@ -15,3 +15,9 @@ export function readerView(bookId: string): AppView {
 export function notebookView(bookId: string): AppView {
   return { kind: 'notebook', bookId };
 }
+
+export const SETTINGS_VIEW: AppView = { kind: 'settings' };
+
+export function settingsView(): AppView {
+  return SETTINGS_VIEW;
+}
