@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { openBookwormDB } from '@/storage';
 import { createLibraryStore, type LibraryStore } from '@/features/library/store/libraryStore';
 import { createCoverCache, type CoverCache } from '@/features/library/store/coverCache';
@@ -76,6 +76,22 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
   const hasImportActivity = useHasImportActivity(importStore);
   const showWorkspace = hasBooks || hasImportActivity;
 
+  // Wrap loadBookForReader so it consumes any pending anchor queued by
+  // view.goReaderAt (notebook → reader at anchor). Memoized on the
+  // specific stable function refs (not the parent objects, which are new
+  // each render) so ReaderView's effect — which has loadBookForReader as
+  // a dep — doesn't re-run every render and re-mount the iframe.
+  const innerLoadBookForReader = reader.loadBookForReader;
+  const consumePendingAnchor = view.consumePendingAnchor;
+  const loadBookForReader = useCallback(
+    async (bookId: string) => {
+      const result = await innerLoadBookForReader(bookId);
+      const pending = consumePendingAnchor();
+      return pending ? { ...result, initialAnchor: pending } : result;
+    },
+    [innerLoadBookForReader, consumePendingAnchor],
+  );
+
   // Forward picked files from useReaderHost to importStore.
   useEffect(() => {
     const onPicked = (e: Event): void => {
@@ -133,11 +149,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookFormat={book.format}
           {...(book.author !== undefined && { bookSubtitle: book.author })}
           onBack={view.goLibrary}
-          loadBookForReader={async (bookId) => {
-            const result = await reader.loadBookForReader(bookId);
-            const pending = view.consumePendingAnchor();
-            return pending ? { ...result, initialAnchor: pending } : result;
-          }}
+          loadBookForReader={loadBookForReader}
           createAdapter={reader.createAdapter}
           onAnchorChange={reader.onAnchorChange}
           onPreferencesChange={reader.onPreferencesChange}
