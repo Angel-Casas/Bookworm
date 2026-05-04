@@ -119,6 +119,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           onFirstTimeHintShown={reader.onFirstTimeHintShown}
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
+          notesRepo={reader.notesRepo}
+          isNoteEditorHintShown={reader.isNoteEditorHintShown}
+          markNoteEditorHintShown={reader.markNoteEditorHintShown}
         />
       </div>
     );
