@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateKey } from './nanogptApi';
+import { validateKey, fetchCatalog } from './nanogptApi';
 
 const originalFetch = global.fetch;
 
@@ -104,5 +104,29 @@ describe('validateKey', () => {
     await validateKey('sk-test', ac.signal);
     const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]! as [string, RequestInit];
     expect(call[1].signal).toBe(ac.signal);
+  });
+});
+
+describe('fetchCatalog', () => {
+  it('returns identical results to validateKey for the same response (parity)', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(mockFetchResponse({ data: [{ id: 'a' }, { id: 'b' }] }))
+      .mockResolvedValueOnce(mockFetchResponse({ data: [{ id: 'a' }, { id: 'b' }] }));
+    const r1 = await fetchCatalog('sk-test');
+    const r2 = await validateKey('sk-test');
+    expect(r1).toEqual(r2);
+  });
+
+  it('calls /v1/models with Authorization Bearer', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockFetchResponse({ data: [{ id: 'm-1' }] }),
+    );
+    await fetchCatalog('sk-test');
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]! as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
+    expect(call[0]).toMatch(/\/v1\/models$/);
+    expect(call[1].headers.Authorization).toBe('Bearer sk-test');
   });
 });

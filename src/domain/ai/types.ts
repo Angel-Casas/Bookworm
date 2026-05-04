@@ -10,6 +10,10 @@ import type {
   SectionId,
 } from '../ids';
 
+export type Model = {
+  readonly id: string;
+};
+
 export type ChatRole = 'system' | 'user' | 'assistant';
 
 export type ChatMode = 'passage' | 'chapter' | 'multi-excerpt' | 'retrieval' | 'full-book';

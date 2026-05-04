@@ -3,8 +3,11 @@ import type { SettingsRepository } from '@/storage';
 import { ApiKeyForm, type SubmitInput, type SubmitResult } from '../key/ApiKeyForm';
 import { UnlockForm } from '../key/UnlockForm';
 import { encryptKey, decryptKey } from '../key/apiKeyCrypto';
-import { validateKey, type ValidateKeyResult } from '../key/nanogptApi';
+import { validateKey, fetchCatalog, type ValidateKeyResult } from '../key/nanogptApi';
 import { useApiKeyStore, useApiKeyState } from '../key/apiKeyStore';
+import { ModelsSection } from '../models/ModelsSection';
+import { useModelCatalogStore } from '../models/modelCatalogStore';
+import { refreshCatalog } from '../models/refreshCatalog';
 import { SettingsChrome } from './SettingsChrome';
 import './settings-view.css';
 
@@ -34,6 +37,17 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
   const { setSession, setUnlocked, clear } = useApiKeyStore.getState();
   const [showUpgradeForm, setShowUpgradeForm] = useState(false);
 
+  const scheduleCatalogRefresh = (apiKey: string): void => {
+    void refreshCatalog({
+      apiKey,
+      fetchCatalog,
+      putModelCatalog: (snap) => settingsRepo.putModelCatalog(snap),
+      deleteSelectedModelId: () => settingsRepo.deleteSelectedModelId(),
+    }).catch((err: unknown) => {
+      console.error('[settings] refreshCatalog failed', err);
+    });
+  };
+
   const handleEntrySubmit = async (input: SubmitInput): Promise<SubmitResult> => {
     if (input.mode === 'save' && state.kind === 'session' && input.key === state.key) {
       try {
@@ -41,6 +55,7 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
         await settingsRepo.putApiKeyBlob(blob);
         setUnlocked(state.key);
         setShowUpgradeForm(false);
+        scheduleCatalogRefresh(state.key);
         return { ok: true };
       } catch (err) {
         console.error('[settings] save upgrade failed', err);
@@ -53,6 +68,7 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
 
     if (input.mode === 'session') {
       setSession(input.key);
+      scheduleCatalogRefresh(input.key);
       return { ok: true };
     }
 
@@ -60,6 +76,7 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
       const blob = await encryptKey(input.key, input.passphrase);
       await settingsRepo.putApiKeyBlob(blob);
       setUnlocked(input.key);
+      scheduleCatalogRefresh(input.key);
       return { ok: true };
     } catch (err) {
       console.error('[settings] save failed', err);
@@ -78,6 +95,7 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
     try {
       const key = await decryptKey(blob, passphrase);
       setUnlocked(key);
+      scheduleCatalogRefresh(key);
       return { ok: true };
     } catch {
       return { ok: false, message: 'Wrong passphrase.' };
@@ -91,6 +109,11 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
     if (state.kind === 'unlocked' || state.kind === 'locked') {
       await settingsRepo.deleteApiKeyBlob();
     }
+    await Promise.all([
+      settingsRepo.deleteModelCatalog(),
+      settingsRepo.deleteSelectedModelId(),
+    ]);
+    useModelCatalogStore.getState().reset();
     clear();
     setShowUpgradeForm(false);
   };
@@ -144,6 +167,17 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
             />
           ) : null}
         </section>
+        {state.kind === 'session' || state.kind === 'unlocked' ? (
+          <ModelsSection
+            settingsRepo={settingsRepo}
+            fetchCatalog={fetchCatalog}
+            getApiKey={() => {
+              const s = useApiKeyStore.getState().state;
+              if (s.kind === 'session' || s.kind === 'unlocked') return s.key;
+              return null;
+            }}
+          />
+        ) : null}
       </main>
     </div>
   );

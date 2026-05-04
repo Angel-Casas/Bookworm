@@ -13,6 +13,7 @@ import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
 import { NotebookView } from '@/features/annotations/notebook/NotebookView';
 import { SettingsView } from '@/features/ai/settings/SettingsView';
 import { useApiKeyStore } from '@/features/ai/key/apiKeyStore';
+import { useModelCatalogStore } from '@/features/ai/models/modelCatalogStore';
 import { useAppView } from '@/app/useAppView';
 import { useReaderHost } from '@/app/useReaderHost';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
@@ -223,14 +224,25 @@ export function App() {
         void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
-        const [persistedView, prefs, hintShown, apiKeyBlob] = await Promise.all([
-          wiring.settingsRepo.getView(),
-          wiring.readerPreferencesRepo.get(),
-          wiring.settingsRepo.getFocusModeHintShown(),
-          wiring.settingsRepo.getApiKeyBlob(),
-        ]);
+        const [persistedView, prefs, hintShown, apiKeyBlob, catalogSnapshot, selectedId] =
+          await Promise.all([
+            wiring.settingsRepo.getView(),
+            wiring.readerPreferencesRepo.get(),
+            wiring.settingsRepo.getFocusModeHintShown(),
+            wiring.settingsRepo.getApiKeyBlob(),
+            wiring.settingsRepo.getModelCatalog(),
+            wiring.settingsRepo.getSelectedModelId(),
+          ]);
         if (apiKeyBlob) {
           useApiKeyStore.getState().markLocked();
+        }
+        if (catalogSnapshot) {
+          useModelCatalogStore
+            .getState()
+            .setReady(catalogSnapshot.models, catalogSnapshot.fetchedAt);
+        }
+        if (selectedId !== undefined) {
+          useModelCatalogStore.getState().setSelectedId(selectedId);
         }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!activeRef.current) return;

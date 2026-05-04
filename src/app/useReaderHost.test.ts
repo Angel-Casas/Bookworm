@@ -48,6 +48,12 @@ function fakeWiring(): Wiring {
       getApiKeyBlob: vi.fn(() => Promise.resolve(undefined)),
       putApiKeyBlob: vi.fn(() => Promise.resolve()),
       deleteApiKeyBlob: vi.fn(() => Promise.resolve()),
+      getModelCatalog: vi.fn(() => Promise.resolve(undefined)),
+      putModelCatalog: vi.fn(() => Promise.resolve()),
+      deleteModelCatalog: vi.fn(() => Promise.resolve()),
+      getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
+      putSelectedModelId: vi.fn(() => Promise.resolve()),
+      deleteSelectedModelId: vi.fn(() => Promise.resolve()),
     },
     opfs: {
       readFile: vi.fn(() => Promise.resolve(undefined)),

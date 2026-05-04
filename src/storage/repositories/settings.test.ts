@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openBookwormDB, type BookwormDB } from '../db/open';
 import { createSettingsRepository } from './settings';
-import type { ApiKeyBlob } from '@/storage';
+import type { ApiKeyBlob, ModelCatalogSnapshot } from '@/storage';
 import { LIBRARY_VIEW, readerView } from '@/app/view';
 
 describe('SettingsRepository', () => {
@@ -169,6 +169,105 @@ describe('SettingsRepository', () => {
         },
       } as never);
       expect(await settings.getApiKeyBlob()).toBeUndefined();
+    });
+  });
+
+  describe('modelCatalog', () => {
+    function makeSnapshot(): ModelCatalogSnapshot {
+      return {
+        models: [{ id: 'gpt-x' }, { id: 'claude-y' }],
+        fetchedAt: 1_700_000_000_000,
+      };
+    }
+
+    it('returns undefined when no snapshot is stored', async () => {
+      const settings = createSettingsRepository(db);
+      expect(await settings.getModelCatalog()).toBeUndefined();
+    });
+
+    it('round-trips a snapshot', async () => {
+      const settings = createSettingsRepository(db);
+      const snap = makeSnapshot();
+      await settings.putModelCatalog(snap);
+      const round = await settings.getModelCatalog();
+      expect(round).toEqual(snap);
+    });
+
+    it('putModelCatalog overwrites the existing record', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.putModelCatalog(makeSnapshot());
+      const next: ModelCatalogSnapshot = {
+        models: [{ id: 'only-one' }],
+        fetchedAt: 1_700_000_000_001,
+      };
+      await settings.putModelCatalog(next);
+      expect(await settings.getModelCatalog()).toEqual(next);
+    });
+
+    it('deleteModelCatalog removes the record', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.putModelCatalog(makeSnapshot());
+      await settings.deleteModelCatalog();
+      expect(await settings.getModelCatalog()).toBeUndefined();
+    });
+
+    it('returns undefined for corrupt records (missing models array)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', {
+        key: 'modelCatalog',
+        value: { fetchedAt: 1 },
+      } as never);
+      expect(await settings.getModelCatalog()).toBeUndefined();
+    });
+
+    it('returns undefined for corrupt records (model with non-string id)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', {
+        key: 'modelCatalog',
+        value: { models: [{ id: 42 }], fetchedAt: 1 },
+      } as never);
+      expect(await settings.getModelCatalog()).toBeUndefined();
+    });
+
+    it('returns undefined for corrupt records (non-finite fetchedAt)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', {
+        key: 'modelCatalog',
+        value: { models: [], fetchedAt: Number.NaN },
+      } as never);
+      expect(await settings.getModelCatalog()).toBeUndefined();
+    });
+  });
+
+  describe('selectedModelId', () => {
+    it('returns undefined when nothing is stored', async () => {
+      const settings = createSettingsRepository(db);
+      expect(await settings.getSelectedModelId()).toBeUndefined();
+    });
+
+    it('round-trips a non-empty id', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.putSelectedModelId('gpt-4o');
+      expect(await settings.getSelectedModelId()).toBe('gpt-4o');
+    });
+
+    it('deleteSelectedModelId removes the record', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.putSelectedModelId('gpt-4o');
+      await settings.deleteSelectedModelId();
+      expect(await settings.getSelectedModelId()).toBeUndefined();
+    });
+
+    it('returns undefined for corrupt records (empty string)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', { key: 'selectedModelId', value: '' } as never);
+      expect(await settings.getSelectedModelId()).toBeUndefined();
+    });
+
+    it('returns undefined for corrupt records (non-string value)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', { key: 'selectedModelId', value: 42 } as never);
+      expect(await settings.getSelectedModelId()).toBeUndefined();
     });
   });
 });

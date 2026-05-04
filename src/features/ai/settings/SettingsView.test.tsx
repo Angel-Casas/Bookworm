@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsView } from './SettingsView';
 import { useApiKeyStore } from '../key/apiKeyStore';
+import { useModelCatalogStore } from '../models/modelCatalogStore';
 import type { SettingsRepository, ApiKeyBlob } from '@/storage';
 
 afterEach(cleanup);
@@ -11,6 +12,7 @@ const originalFetch = global.fetch;
 
 beforeEach(() => {
   useApiKeyStore.setState({ state: { kind: 'none' } });
+  useModelCatalogStore.getState().reset();
   global.fetch = vi.fn();
 });
 
@@ -38,6 +40,12 @@ function fakeRepo(overrides: Partial<SettingsRepository> = {}): SettingsReposito
       blob = undefined;
       return Promise.resolve();
     }),
+    getModelCatalog: vi.fn(() => Promise.resolve(undefined)),
+    putModelCatalog: vi.fn(() => Promise.resolve()),
+    deleteModelCatalog: vi.fn(() => Promise.resolve()),
+    getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
+    putSelectedModelId: vi.fn(() => Promise.resolve()),
+    deleteSelectedModelId: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
@@ -83,7 +91,8 @@ describe('SettingsView', () => {
     await waitFor(() => {
       expect(useApiKeyStore.getState().state).toEqual({ kind: 'session', key: 'sk-test' });
     });
-    expect(global.fetch).toHaveBeenCalledOnce();
+    // validateKey + auto-refresh catalog both hit /v1/models.
+    expect(global.fetch).toHaveBeenCalled();
   });
 
   it('save submit → encrypts + persists + store transitions to unlocked', async () => {
@@ -192,7 +201,51 @@ describe('SettingsView', () => {
       },
       { timeout: 8_000 },
     );
-    expect(global.fetch).not.toHaveBeenCalled();
+    // Upgrade path skips re-validation; the only fetch is the post-upgrade
+    // catalog refresh (the regular save path would have validated first → 2 calls).
+    expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(repo.putApiKeyBlob).toHaveBeenCalled();
   }, 10_000);
+
+  it('renders ModelsSection when key state is session', () => {
+    useApiKeyStore.setState({ state: { kind: 'session', key: 'sk-x' } });
+    render(<SettingsView settingsRepo={fakeRepo()} onClose={() => undefined} />);
+    expect(screen.getByRole('heading', { name: /^models$/i, level: 2 })).toBeInTheDocument();
+  });
+
+  it('renders ModelsSection when key state is unlocked', () => {
+    useApiKeyStore.setState({ state: { kind: 'unlocked', key: 'sk-x' } });
+    render(<SettingsView settingsRepo={fakeRepo()} onClose={() => undefined} />);
+    expect(screen.getByRole('heading', { name: /^models$/i, level: 2 })).toBeInTheDocument();
+  });
+
+  it('does NOT render ModelsSection when key state is none', () => {
+    useApiKeyStore.setState({ state: { kind: 'none' } });
+    render(<SettingsView settingsRepo={fakeRepo()} onClose={() => undefined} />);
+    expect(screen.queryByRole('heading', { name: /^models$/i, level: 2 })).toBeNull();
+  });
+
+  it('does NOT render ModelsSection when key state is locked', () => {
+    useApiKeyStore.setState({ state: { kind: 'locked' } });
+    render(<SettingsView settingsRepo={fakeRepo()} onClose={() => undefined} />);
+    expect(screen.queryByRole('heading', { name: /^models$/i, level: 2 })).toBeNull();
+  });
+
+  it('removing the key cascades to model catalog + selection', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    useApiKeyStore.setState({ state: { kind: 'unlocked', key: 'sk-x' } });
+    useModelCatalogStore.getState().setReady([{ id: 'a' }], 1);
+    useModelCatalogStore.getState().setSelectedId('a');
+    const repo = fakeRepo();
+    render(<SettingsView settingsRepo={repo} onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: /Remove/i }));
+    await waitFor(() => {
+      expect(useApiKeyStore.getState().state).toEqual({ kind: 'none' });
+    });
+    expect(repo.deleteModelCatalog).toHaveBeenCalled();
+    expect(repo.deleteSelectedModelId).toHaveBeenCalled();
+    expect(useModelCatalogStore.getState().state).toEqual({ kind: 'idle' });
+    expect(useModelCatalogStore.getState().selectedId).toBeNull();
+    confirmSpy.mockRestore();
+  });
 });

@@ -25,7 +25,15 @@ export type SettingsRecord =
         readonly ciphertext: ArrayBuffer;
         readonly iterations: number;
       };
-    };
+    }
+  | {
+      readonly key: 'modelCatalog';
+      readonly value: {
+        readonly models: readonly { readonly id: string }[];
+        readonly fetchedAt: number;
+      };
+    }
+  | { readonly key: 'selectedModelId'; readonly value: string };
 
 export type ReadingProgressRecord = {
   readonly bookId: string;
