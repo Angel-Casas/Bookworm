@@ -69,7 +69,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     view: view.current,
     initialFocusMode,
     initialFocusModeHintShown,
-    onBookRemovedWhileInReader: view.goLibrary,
+    onBookRemovedFromActiveView: view.goLibrary,
   });
   const hasBooks = useHasBooks(libraryStore);
   const hasImportActivity = useHasImportActivity(importStore);
