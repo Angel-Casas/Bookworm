@@ -7,7 +7,7 @@ afterEach(cleanup);
 describe('UnlockForm', () => {
   it('renders passphrase input + unlock + remove buttons', () => {
     render(
-      <UnlockForm onSubmit={async () => ({ ok: true as const })} onRemove={() => undefined} />,
+      <UnlockForm onSubmit={() => Promise.resolve({ ok: true as const })} onRemove={() => undefined} />,
     );
     expect(screen.getByLabelText(/passphrase/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^unlock$/i })).toBeInTheDocument();
@@ -15,7 +15,7 @@ describe('UnlockForm', () => {
   });
 
   it('submit calls onSubmit with the passphrase', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: true as const }));
+    const onSubmit = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<UnlockForm onSubmit={onSubmit} onRemove={() => undefined} />);
     fireEvent.change(screen.getByLabelText(/passphrase/i), { target: { value: 'pp' } });
     fireEvent.click(screen.getByRole('button', { name: /^unlock$/i }));
@@ -25,7 +25,9 @@ describe('UnlockForm', () => {
   });
 
   it('error renders on ok:false', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: false as const, message: 'Wrong passphrase' }));
+    const onSubmit = vi.fn(() =>
+      Promise.resolve({ ok: false as const, message: 'Wrong passphrase' }),
+    );
     render(<UnlockForm onSubmit={onSubmit} onRemove={() => undefined} />);
     fireEvent.change(screen.getByLabelText(/passphrase/i), { target: { value: 'bad' } });
     fireEvent.click(screen.getByRole('button', { name: /^unlock$/i }));
@@ -36,14 +38,14 @@ describe('UnlockForm', () => {
 
   it('Remove triggers onRemove', () => {
     const onRemove = vi.fn();
-    render(<UnlockForm onSubmit={async () => ({ ok: true as const })} onRemove={onRemove} />);
+    render(<UnlockForm onSubmit={() => Promise.resolve({ ok: true as const })} onRemove={onRemove} />);
     fireEvent.click(screen.getByRole('button', { name: /remove saved key/i }));
     expect(onRemove).toHaveBeenCalled();
   });
 
   it('submit disabled when passphrase is empty', () => {
     render(
-      <UnlockForm onSubmit={async () => ({ ok: true as const })} onRemove={() => undefined} />,
+      <UnlockForm onSubmit={() => Promise.resolve({ ok: true as const })} onRemove={() => undefined} />,
     );
     expect(screen.getByRole('button', { name: /^unlock$/i })).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/passphrase/i), { target: { value: 'p' } });

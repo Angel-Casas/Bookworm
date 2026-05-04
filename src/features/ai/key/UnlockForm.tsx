@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import './unlock-form.css';
 
 type Props = {
@@ -14,7 +14,7 @@ export function UnlockForm({ onSubmit, onRemove }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: FormEvent): Promise<void> => {
+  const handleSubmit = async (e: SyntheticEvent): Promise<void> => {
     e.preventDefault();
     if (passphrase === '' || isSubmitting) return;
     setIsSubmitting(true);

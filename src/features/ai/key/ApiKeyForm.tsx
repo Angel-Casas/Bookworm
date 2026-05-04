@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import { EyeIcon, EyeOffIcon } from '@/shared/icons';
 import './api-key-form.css';
 
@@ -40,7 +40,7 @@ export function ApiKeyForm({
 
   const submitLabel = mode === 'session' ? 'Use this session' : 'Save key';
 
-  const handleSubmit = async (e: FormEvent): Promise<void> => {
+  const handleSubmit = async (e: SyntheticEvent): Promise<void> => {
     e.preventDefault();
     if (submitDisabled) return;
     setIsSubmitting(true);

@@ -6,7 +6,7 @@ import { ApiKeyForm } from './ApiKeyForm';
 afterEach(cleanup);
 
 function setup(overrides: Partial<ComponentProps<typeof ApiKeyForm>> = {}) {
-  const onSubmit = vi.fn(async () => ({ ok: true as const }));
+  const onSubmit = vi.fn(() => Promise.resolve({ ok: true as const }));
   const onCancel = vi.fn();
   const props = {
     onSubmit: overrides.onSubmit ?? onSubmit,
@@ -68,7 +68,7 @@ describe('ApiKeyForm', () => {
   });
 
   it('submit calls onSubmit with the right shape (session, trimmed)', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: true as const }));
+    const onSubmit = vi.fn(() => Promise.resolve({ ok: true as const }));
     setup({ onSubmit });
     fireEvent.change(screen.getByLabelText(/NanoGPT API key/i), {
       target: { value: '  sk-test  ' },
@@ -80,7 +80,7 @@ describe('ApiKeyForm', () => {
   });
 
   it('submit calls onSubmit with the right shape (save mode)', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: true as const }));
+    const onSubmit = vi.fn(() => Promise.resolve({ ok: true as const }));
     setup({ onSubmit });
     fireEvent.click(screen.getByRole('button', { name: /Save on this device/i }));
     fireEvent.change(screen.getByLabelText(/NanoGPT API key/i), { target: { value: 'sk-test' } });
@@ -96,7 +96,7 @@ describe('ApiKeyForm', () => {
   });
 
   it('error message renders when onSubmit returns ok:false', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: false as const, message: 'bad key' }));
+    const onSubmit = vi.fn(() => Promise.resolve({ ok: false as const, message: 'bad key' }));
     setup({ onSubmit });
     fireEvent.change(screen.getByLabelText(/NanoGPT API key/i), { target: { value: 'sk-bad' } });
     fireEvent.click(submitButton());

@@ -25,9 +25,12 @@ describe('validateKey', () => {
       mockFetchResponse({ data: [{ id: 'model-a' }] }),
     );
     await validateKey('sk-test');
-    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]! as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
     expect(call[0]).toMatch(/\/v1\/models$/);
-    expect(call[1]?.headers.Authorization).toBe('Bearer sk-test');
+    expect(call[1].headers.Authorization).toBe('Bearer sk-test');
   });
 
   it('200 with data array → ok:true with parsed models', async () => {
@@ -88,7 +91,7 @@ describe('validateKey', () => {
       ok: true,
       status: 200,
       json: () => Promise.reject(new Error('bad json')),
-    } as unknown as Response);
+    });
     const r = await validateKey('sk-test');
     expect(r).toEqual({ ok: false, reason: 'other' });
   });
@@ -99,7 +102,7 @@ describe('validateKey', () => {
       mockFetchResponse({ data: [] }),
     );
     await validateKey('sk-test', ac.signal);
-    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(call[1]?.signal).toBe(ac.signal);
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]! as [string, RequestInit];
+    expect(call[1].signal).toBe(ac.signal);
   });
 });

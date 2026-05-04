@@ -38,10 +38,7 @@ export async function validateKey(
   const models = (body.data ?? [])
     .filter(
       (m): m is { id: string } =>
-        typeof m === 'object' &&
-        m !== null &&
-        'id' in m &&
-        typeof (m as { id: unknown }).id === 'string',
+        typeof m === 'object' && m !== null && 'id' in m && typeof m.id === 'string',
     )
     .map((m) => ({ id: m.id }));
   return { ok: true, models };
