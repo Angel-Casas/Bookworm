@@ -1,0 +1,41 @@
+.notebook-chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg);
+}
+.notebook-chrome__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+}
+.notebook-chrome__back:hover {
+  background: var(--color-surface-hover, var(--color-surface));
+}
+.notebook-chrome__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notebook-chrome__title-label {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.notebook-chrome__title-sep {
+  color: var(--color-text-subtle);
+}
+.notebook-chrome__title-book {
+  color: var(--color-text);
+}
