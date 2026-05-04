@@ -99,6 +99,7 @@ export function HighlightsPanel({
                 <div className="highlights-panel__editor">
                   <NoteEditor
                     initialContent={note?.content ?? ''}
+                    // eslint-disable-next-line jsx-a11y/no-autofocus -- entering edit mode is an explicit user action; focus is the desired outcome
                     autoFocus
                     hintShown={hintShown}
                     onHintDismissed={onHintDismissed}

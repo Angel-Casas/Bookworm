@@ -1,5 +1,5 @@
 import type { DBSchema } from 'idb';
-import type { Book, Bookmark, Highlight } from '@/domain';
+import type { Book, Bookmark, Highlight, Note } from '@/domain';
 import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
@@ -62,7 +62,7 @@ export interface BookwormDBSchema extends DBSchema {
   };
   notes: {
     key: string;
-    value: import('@/domain').Note;
+    value: Note;
     indexes: {
       'by-book': string;
       'by-highlight': string;

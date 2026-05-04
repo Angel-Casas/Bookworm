@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookId, HighlightId, type BookFormat, type LocationAnchor } from '@/domain';
+import type { HighlightId} from '@/domain';
+import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
 import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
 import type {
@@ -538,6 +539,7 @@ function AnchoredNoteEditorOverlay({
     >
       <NoteEditor
         initialContent={initialContent}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- the overlay opens in response to a user action (toolbar 📝); focusing the textarea is the desired outcome
         autoFocus
         hintShown={hintShown}
         onHintDismissed={onHintDismissed}

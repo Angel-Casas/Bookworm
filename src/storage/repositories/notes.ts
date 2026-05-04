@@ -1,5 +1,5 @@
-import { BookId, HighlightId, IsoTimestamp, NoteId } from '@/domain';
-import type { LocationAnchor } from '@/domain';
+import { BookId, IsoTimestamp, NoteId } from '@/domain';
+import type { LocationAnchor , HighlightId} from '@/domain';
 import type { Note, NoteAnchorRef } from '@/domain/annotations/types';
 import type { BookwormDB } from '../db/open';
 import { NOTES_STORE } from '../db/schema';
@@ -73,7 +73,7 @@ export function createNotesRepository(db: BookwormDB): NotesRepository {
     async deleteByHighlight(highlightId) {
       const found = await db.getFromIndex(NOTES_STORE, 'by-highlight', highlightId);
       if (!found) return;
-      await db.delete(NOTES_STORE, (found as Note).id);
+      await db.delete(NOTES_STORE, (found).id);
     },
     async deleteByBook(bookId) {
       const tx = db.transaction(NOTES_STORE, 'readwrite');

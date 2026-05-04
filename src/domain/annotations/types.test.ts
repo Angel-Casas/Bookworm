@@ -88,20 +88,18 @@ describe('Note', () => {
   });
 
   it('narrows NoteAnchorRef on kind', () => {
-    const onHighlight: NoteAnchorRef = {
-      kind: 'highlight',
-      highlightId: HighlightId('h-1'),
-    };
-    const onLocation: NoteAnchorRef = {
-      kind: 'location',
-      anchor: { kind: 'pdf', page: 3 },
-    };
-    if (onHighlight.kind === 'highlight') {
-      expect(onHighlight.highlightId).toBe('h-1');
-    }
-    if (onLocation.kind === 'location') {
-      expect(onLocation.anchor.kind).toBe('pdf');
-    }
+    const refs: readonly NoteAnchorRef[] = [
+      { kind: 'highlight', highlightId: HighlightId('h-1') },
+      { kind: 'location', anchor: { kind: 'pdf', page: 3 } },
+    ];
+    const highlightIds = refs
+      .filter((r) => r.kind === 'highlight')
+      .map((r) => r.highlightId);
+    const locationKinds = refs
+      .filter((r) => r.kind === 'location')
+      .map((r) => r.anchor.kind);
+    expect(highlightIds).toEqual(['h-1']);
+    expect(locationKinds).toEqual(['pdf']);
   });
 
   it('Note has v1 shape with createdAt + updatedAt', () => {

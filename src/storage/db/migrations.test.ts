@@ -249,7 +249,9 @@ describe('v4 → v5 migration', () => {
       createdAt: '2026-05-04T12:00:00.000Z',
       updatedAt: '2026-05-04T12:00:00.000Z',
     });
-    const found = await v5.getFromIndex('notes', 'by-highlight', 'h-target');
+    const found = (await v5.getFromIndex('notes', 'by-highlight', 'h-target')) as
+      | { id?: string }
+      | undefined;
     expect(found?.id).toBe('n1');
     v5.close();
   });

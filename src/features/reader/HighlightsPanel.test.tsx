@@ -197,7 +197,8 @@ describe('HighlightsPanel — notes', () => {
     const notes = new Map([[target.id, makeNote(target.id, 'an old note')]]);
     renderPanel({ highlights: [target], notesByHighlightId: notes });
     fireEvent.click(screen.getByText('an old note'));
-    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('an old note');
+    const ta = screen.getByRole('textbox');
+    expect(ta).toHaveValue('an old note');
   });
 
   it('color pips and × are hidden during edit mode', () => {
@@ -212,7 +213,7 @@ describe('HighlightsPanel — notes', () => {
     const target = h({ id: HighlightId('h-1') });
     renderPanel({ highlights: [target], onSaveNote });
     fireEvent.click(screen.getByRole('button', { name: /add note/i }));
-    const ta = screen.getByRole('textbox') as HTMLTextAreaElement;
+    const ta = screen.getByRole('textbox');
     fireEvent.change(ta, { target: { value: 'new thought' } });
     fireEvent.blur(ta);
     expect(onSaveNote).toHaveBeenCalledWith(target, 'new thought');
@@ -224,7 +225,7 @@ describe('HighlightsPanel — notes', () => {
     const notes = new Map([[target.id, makeNote(target.id, 'old text')]]);
     renderPanel({ highlights: [target], notesByHighlightId: notes, onSaveNote });
     fireEvent.click(screen.getByText('old text'));
-    const ta = screen.getByRole('textbox') as HTMLTextAreaElement;
+    const ta = screen.getByRole('textbox');
     fireEvent.change(ta, { target: { value: '' } });
     fireEvent.blur(ta);
     expect(onSaveNote).toHaveBeenCalledWith(target, '');

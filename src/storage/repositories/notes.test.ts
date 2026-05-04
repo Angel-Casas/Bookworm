@@ -139,7 +139,7 @@ describe('NotesRepository', () => {
       content: 'x',
       createdAt: '2026-05-04T12:00:00.000Z' as never,
       updatedAt: '2026-05-04T12:00:00.000Z' as never,
-    } as never);
+    });
     const list = await repo.listByBook(BookId('book-1'));
     expect(list).toHaveLength(0);
   });

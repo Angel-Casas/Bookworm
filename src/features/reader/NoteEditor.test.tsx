@@ -23,7 +23,7 @@ function setup(props: Partial<React.ComponentProps<typeof NoteEditor>> = {}) {
 }
 
 function getTextarea(): HTMLTextAreaElement {
-  return screen.getByRole('textbox') as HTMLTextAreaElement;
+  return screen.getByRole('textbox');
 }
 
 describe('NoteEditor', () => {
