@@ -35,6 +35,9 @@ function fakeSettingsRepo(): SettingsRepository & { setView: ReturnType<typeof v
     setView,
     getFocusModeHintShown: () => Promise.resolve(false),
     setFocusModeHintShown: () => Promise.resolve(),
+    getApiKeyBlob: () => Promise.resolve(undefined),
+    putApiKeyBlob: () => Promise.resolve(),
+    deleteApiKeyBlob: () => Promise.resolve(),
   };
 }
 

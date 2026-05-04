@@ -23,6 +23,8 @@ describe('view helpers', () => {
           return `reader:${view.bookId}`;
         case 'notebook':
           return `notebook:${view.bookId}`;
+        case 'settings':
+          return 'settings';
       }
     }
     expect(describeView(LIBRARY_VIEW)).toBe('library');
