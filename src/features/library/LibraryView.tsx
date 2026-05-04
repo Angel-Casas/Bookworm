@@ -14,10 +14,17 @@ type Props = {
   readonly onFilesPicked: (files: readonly File[]) => void;
   readonly onRemoveBook: (book: Book) => void;
   readonly onOpenBook?: (book: Book) => void;
+  readonly onOpenSettings: () => void;
 };
 
 export function LibraryView(props: Props) {
-  if (!props.hasBooks) return <LibraryEmptyState onFilesPicked={props.onFilesPicked} />;
+  if (!props.hasBooks)
+    return (
+      <LibraryEmptyState
+        onFilesPicked={props.onFilesPicked}
+        onOpenSettings={props.onOpenSettings}
+      />
+    );
   return (
     <LibraryWorkspace
       libraryStore={props.libraryStore}
@@ -26,6 +33,7 @@ export function LibraryView(props: Props) {
       onPersistSort={props.onPersistSort}
       onFilesPicked={props.onFilesPicked}
       onRemoveBook={props.onRemoveBook}
+      onOpenSettings={props.onOpenSettings}
       {...(props.onOpenBook && { onOpenBook: props.onOpenBook })}
     />
   );

@@ -8,6 +8,28 @@
   isolation: isolate;
 }
 
+.library-empty__settings {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  z-index: 1;
+}
+.library-empty__settings:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover, var(--color-surface));
+}
+
 .library-empty__atmosphere {
   position: absolute;
   inset: 0;

@@ -1,15 +1,26 @@
 import { useRef } from 'react';
+import { SettingsIcon } from '@/shared/icons';
 import './library-empty-state.css';
 
 type Props = {
   readonly onFilesPicked: (files: readonly File[]) => void;
+  readonly onOpenSettings: () => void;
 };
 
-export function LibraryEmptyState({ onFilesPicked }: Props) {
+export function LibraryEmptyState({ onFilesPicked, onOpenSettings }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <section className="library-empty" aria-labelledby="library-empty-title">
       <div className="library-empty__atmosphere" aria-hidden="true" />
+      <button
+        type="button"
+        className="library-empty__settings"
+        aria-label="Open settings"
+        title="Settings"
+        onClick={onOpenSettings}
+      >
+        <SettingsIcon />
+      </button>
       <div className="library-empty__column">
         <svg
           className="library-empty__mark"
