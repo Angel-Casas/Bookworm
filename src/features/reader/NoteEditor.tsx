@@ -25,10 +25,32 @@ export function NoteEditor({
 }: Props) {
   const [value, setValue] = useState(initialContent);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocus) taRef.current?.focus();
   }, [autoFocus]);
+
+  // Close the editor when the user clicks outside it. Save if the content
+  // changed; otherwise just dismiss. The textarea's own onBlur covers
+  // focus-stealing clicks (e.g., another button), but a click on a non-
+  // focusable element (a plain div, the page body) doesn't move focus and
+  // therefore doesn't fire blur — so we listen for mousedown here too.
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent): void => {
+      if (rootRef.current?.contains(e.target as Node)) return;
+      const trimmed = value.trim();
+      if (trimmed !== initialContent.trim()) {
+        onSave(trimmed);
+      } else {
+        onCancel();
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+    };
+  }, [value, initialContent, onSave, onCancel]);
 
   const handleBlur = (): void => {
     const trimmed = value.trim();
@@ -54,7 +76,7 @@ export function NoteEditor({
   const counterOver = value.length > SOFT_LIMIT;
 
   return (
-    <div className="note-editor" role="group" aria-label="Edit note">
+    <div ref={rootRef} className="note-editor" role="group" aria-label="Edit note">
       <textarea
         ref={taRef}
         className="note-editor__textarea"

@@ -479,6 +479,7 @@ export function ReaderWorkspace(props: Props) {
       ) : null}
       {activeNoteEditor !== null ? (
         <AnchoredNoteEditorOverlay
+          key={activeNoteEditor.highlightId}
           rect={activeNoteEditor.anchorRect}
           initialContent={
             notes.byHighlightId.get(activeNoteEditor.highlightId)?.content ?? ''

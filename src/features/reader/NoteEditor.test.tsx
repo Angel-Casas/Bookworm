@@ -128,4 +128,32 @@ describe('NoteEditor', () => {
     fireEvent.keyDown(getTextarea(), { key: 'a' });
     expect(onHintDismissed).toHaveBeenCalled();
   });
+
+  it('outside mousedown calls onSave with trimmed value when content changed', () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    setup({ initialContent: '', onSave, onCancel, autoFocus: true });
+    fireEvent.change(getTextarea(), { target: { value: '  changed  ' } });
+    fireEvent.mouseDown(document.body);
+    expect(onSave).toHaveBeenCalledWith('changed');
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('outside mousedown calls onCancel when content unchanged', () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    setup({ initialContent: 'same', onSave, onCancel, autoFocus: true });
+    fireEvent.mouseDown(document.body);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('mousedown inside the editor does NOT close', () => {
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    setup({ initialContent: '', onSave, onCancel, autoFocus: true });
+    fireEvent.mouseDown(getTextarea());
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });
