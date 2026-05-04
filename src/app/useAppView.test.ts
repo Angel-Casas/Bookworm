@@ -38,6 +38,12 @@ function fakeSettingsRepo(): SettingsRepository & { setView: ReturnType<typeof v
     getApiKeyBlob: () => Promise.resolve(undefined),
     putApiKeyBlob: () => Promise.resolve(),
     deleteApiKeyBlob: () => Promise.resolve(),
+    getModelCatalog: () => Promise.resolve(undefined),
+    putModelCatalog: () => Promise.resolve(),
+    deleteModelCatalog: () => Promise.resolve(),
+    getSelectedModelId: () => Promise.resolve(undefined),
+    putSelectedModelId: () => Promise.resolve(),
+    deleteSelectedModelId: () => Promise.resolve(),
   };
 }
 

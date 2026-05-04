@@ -5,6 +5,7 @@ export {
   createSettingsRepository,
   type SettingsRepository,
   type ApiKeyBlob,
+  type ModelCatalogSnapshot,
 } from './repositories/settings';
 export { createOpfsAdapter, OpfsError, type OpfsAdapter } from './adapters/opfs';
 export { createInMemoryOpfsAdapter } from './adapters/opfs-in-memory';

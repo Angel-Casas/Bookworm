@@ -38,6 +38,12 @@ function fakeRepo(overrides: Partial<SettingsRepository> = {}): SettingsReposito
       blob = undefined;
       return Promise.resolve();
     }),
+    getModelCatalog: vi.fn(() => Promise.resolve(undefined)),
+    putModelCatalog: vi.fn(() => Promise.resolve()),
+    deleteModelCatalog: vi.fn(() => Promise.resolve()),
+    getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
+    putSelectedModelId: vi.fn(() => Promise.resolve()),
+    deleteSelectedModelId: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
