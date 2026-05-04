@@ -5,8 +5,8 @@
   width: 100%;
   min-width: 240px;
   max-width: 420px;
-  background: var(--surface-1);
-  border: 1px solid var(--line);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
@@ -19,22 +19,25 @@
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-1);
+  color: var(--color-text);
   font: inherit;
   line-height: 1.45;
   white-space: pre-wrap;
 }
+.note-editor__textarea::placeholder {
+  color: var(--color-text-subtle);
+}
 .note-editor__counter {
   align-self: flex-end;
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 .note-editor__counter--over {
-  color: var(--accent-error, #c0392b);
+  color: #c0392b;
 }
 .note-editor__hint {
   align-self: flex-end;
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--color-text-muted);
 }

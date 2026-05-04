@@ -64,55 +64,57 @@ export function HighlightsPanel({
                 style={{ background: COLOR_HEX[h.color] }}
                 aria-hidden="true"
               />
-              <button
-                type="button"
-                className="highlights-panel__row"
-                aria-label={h.sectionTitle ?? '—'}
-                onClick={() => {
-                  if (isEditing) return;
-                  onSelect(h);
-                }}
-              >
-                <span className="highlights-panel__top">
-                  <span className="highlights-panel__section">
-                    {h.sectionTitle ?? '—'}
-                  </span>
-                  <span className="highlights-panel__time">
-                    {relativeTime(h.createdAt, nowMs)}
-                  </span>
-                </span>
-                <span className="highlights-panel__text">{h.selectedText}</span>
-              </button>
-              {!isEditing && note ? (
+              <div className="highlights-panel__main">
                 <button
                   type="button"
-                  className="highlights-panel__note-line"
-                  data-testid="note-line"
+                  className="highlights-panel__row"
+                  aria-label={h.sectionTitle ?? '—'}
                   onClick={() => {
-                    setEditingNoteFor(h.id);
+                    if (isEditing) return;
+                    onSelect(h);
                   }}
                 >
-                  {note.content}
+                  <span className="highlights-panel__top">
+                    <span className="highlights-panel__section">
+                      {h.sectionTitle ?? '—'}
+                    </span>
+                    <span className="highlights-panel__time">
+                      {relativeTime(h.createdAt, nowMs)}
+                    </span>
+                  </span>
+                  <span className="highlights-panel__text">{h.selectedText}</span>
                 </button>
-              ) : null}
-              {isEditing ? (
-                <div className="highlights-panel__editor">
-                  <NoteEditor
-                    initialContent={note?.content ?? ''}
-                    // eslint-disable-next-line jsx-a11y/no-autofocus -- entering edit mode is an explicit user action; focus is the desired outcome
-                    autoFocus
-                    hintShown={hintShown}
-                    onHintDismissed={onHintDismissed}
-                    onSave={(content) => {
-                      onSaveNote(h, content);
-                      setEditingNoteFor(null);
+                {!isEditing && note ? (
+                  <button
+                    type="button"
+                    className="highlights-panel__note-line"
+                    data-testid="note-line"
+                    onClick={() => {
+                      setEditingNoteFor(h.id);
                     }}
-                    onCancel={() => {
-                      setEditingNoteFor(null);
-                    }}
-                  />
-                </div>
-              ) : null}
+                  >
+                    {note.content}
+                  </button>
+                ) : null}
+                {isEditing ? (
+                  <div className="highlights-panel__editor">
+                    <NoteEditor
+                      initialContent={note?.content ?? ''}
+                      // eslint-disable-next-line jsx-a11y/no-autofocus -- entering edit mode is an explicit user action; focus is the desired outcome
+                      autoFocus
+                      hintShown={hintShown}
+                      onHintDismissed={onHintDismissed}
+                      onSave={(content) => {
+                        onSaveNote(h, content);
+                        setEditingNoteFor(null);
+                      }}
+                      onCancel={() => {
+                        setEditingNoteFor(null);
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
               <span className="highlights-panel__actions">
                 {!isEditing
                   ? HIGHLIGHT_COLORS.map((color) => (
