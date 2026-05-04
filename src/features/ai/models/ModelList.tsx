@@ -5,7 +5,7 @@ import { ModelRow } from './ModelRow';
 type Props = {
   readonly models: readonly Model[];
   readonly selectedId: string | null;
-  readonly onSelect: (model: Model) => void;
+  readonly onSelect: (model: Model) => void | Promise<void>;
 };
 
 export function ModelList({ models, selectedId, onSelect }: Props) {
