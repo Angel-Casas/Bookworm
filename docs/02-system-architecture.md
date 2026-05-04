@@ -309,6 +309,37 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-04 — Phase 4.2: Model catalog
+
+- **Surface:** New "Models" section in the existing Settings page, below
+  "API key". Visible only when `apiKeyStore.state.kind ∈ {'session','unlocked'}`.
+  Hidden in `'none'` and `'locked'`.
+- **State model:** New Zustand `modelCatalogStore` with discriminated-union
+  `state` (`'idle' | 'loading' | 'ready' | 'error'`) plus standalone
+  `selectedId`, `staleNotice`, and `lastRefreshError`. Mirrors `apiKeyStore`'s
+  pattern.
+- **Persistence:** Two new `SettingsRecord` variants: `'modelCatalog'`
+  (snapshot of `{models, fetchedAt}`) and `'selectedModelId'` (the chosen
+  id). Independent update cadences; no DB migration.
+- **Fetch trigger:** Piggybacks on existing 4.1 key flows (after
+  `validateKey` success and `decryptKey` success). Manual Refresh button
+  in the section header. Boot does NOT auto-fetch — explicit user action
+  only (no hidden uploads).
+- **Stale-selection:** A successful refresh that returns a catalog *not*
+  containing the persisted selection drops the selection and shows a
+  one-line notice "Your previous selection `<id>` is no longer available."
+- **Refresh failure with cache:** Keeps the cached list visible and adds
+  an inline banner. Failure with no cache → full error state. Recovery on
+  next successful refresh.
+- **Cascade:** Removing the API key wipes the catalog snapshot + selection
+  from IDB and resets the in-memory store.
+- **`nanogptApi`:** Promoted the `validateKey` body to a private
+  `getModels`; `validateKey` and `fetchCatalog` are semantic aliases over
+  the same call.
+- **Out of scope (deferred):** Fast/Balanced/Deep presets, per-book
+  overrides, provider/context-length/pricing metadata, search filter,
+  auto-selection.
+
 ### 2026-05-04 — Phase 4.1 API key settings
 
 - **Surface:** New `AppView` kind `'settings'`. Persists across reload via
