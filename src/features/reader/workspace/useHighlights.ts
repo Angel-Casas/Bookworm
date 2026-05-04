@@ -20,7 +20,7 @@ export type UseHighlightsHandle = {
     anchor: HighlightAnchor,
     selectedText: string,
     color: HighlightColor,
-  ) => Promise<void>;
+  ) => Promise<Highlight>;
   readonly changeColor: (h: Highlight, color: HighlightColor) => Promise<void>;
   readonly remove: (h: Highlight) => Promise<void>;
 };
@@ -29,6 +29,7 @@ type Options = {
   readonly bookId: BookId;
   readonly repo: HighlightsRepository;
   readonly readerState: ReaderViewExposedState | null;
+  readonly onAfterRemove?: (h: Highlight) => void;
 };
 
 function sortInBookOrder(list: readonly Highlight[]): Highlight[] {
@@ -40,7 +41,12 @@ function projectAnchorForLookup(anchor: HighlightAnchor): LocationAnchor {
   return { kind: 'pdf', page: anchor.page };
 }
 
-export function useHighlights({ bookId, repo, readerState }: Options): UseHighlightsHandle {
+export function useHighlights({
+  bookId,
+  repo,
+  readerState,
+  onAfterRemove,
+}: Options): UseHighlightsHandle {
   const [list, setList] = useState<readonly Highlight[]>([]);
 
   useEffect(() => {
@@ -58,9 +64,10 @@ export function useHighlights({ bookId, repo, readerState }: Options): UseHighli
       anchor: HighlightAnchor,
       selectedText: string,
       color: HighlightColor,
-    ): Promise<void> => {
-      if (!readerState) return;
-      const sectionTitle = readerState.getSectionTitleAt(projectAnchorForLookup(anchor));
+    ): Promise<Highlight> => {
+      const sectionTitle = readerState
+        ? readerState.getSectionTitleAt(projectAnchorForLookup(anchor))
+        : null;
       const optimistic: Highlight = {
         id: HighlightId(crypto.randomUUID()),
         bookId,
@@ -72,14 +79,15 @@ export function useHighlights({ bookId, repo, readerState }: Options): UseHighli
         createdAt: IsoTimestamp(new Date().toISOString()),
       };
       setList((prev) => sortInBookOrder([optimistic, ...prev]));
-      readerState.addHighlight(optimistic);
+      readerState?.addHighlight(optimistic);
       try {
         await repo.add(optimistic);
       } catch (err) {
         console.warn('[highlights] add failed; rolling back', err);
         setList((prev) => prev.filter((h) => h.id !== optimistic.id));
-        readerState.removeHighlight(optimistic.id);
+        readerState?.removeHighlight(optimistic.id);
       }
+      return optimistic;
     },
     [bookId, repo, readerState],
   );
@@ -106,13 +114,14 @@ export function useHighlights({ bookId, repo, readerState }: Options): UseHighli
       readerState?.removeHighlight(h.id);
       try {
         await repo.delete(h.id);
+        onAfterRemove?.(h);
       } catch (err) {
         console.warn('[highlights] delete failed; restoring', err);
         setList((prev) => sortInBookOrder([...prev, h]));
         readerState?.addHighlight(h);
       }
     },
-    [repo, readerState],
+    [repo, readerState, onAfterRemove],
   );
 
   return { list, add, changeColor, remove };

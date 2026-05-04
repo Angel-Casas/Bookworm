@@ -43,3 +43,26 @@
 .highlight-toolbar__delete:hover {
   color: #ff8b8b;
 }
+
+.highlight-toolbar__note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.highlight-toolbar__note:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.highlight-toolbar__note--active {
+  background: rgba(255, 255, 255, 0.18);
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: -2px;
+}

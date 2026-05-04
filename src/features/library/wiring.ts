@@ -7,6 +7,7 @@ import {
   createReaderPreferencesRepository,
   createBookmarksRepository,
   createHighlightsRepository,
+  createNotesRepository,
   type OpfsAdapter,
   type BookRepository,
   type SettingsRepository,
@@ -14,6 +15,7 @@ import {
   type ReaderPreferencesRepository,
   type BookmarksRepository,
   type HighlightsRepository,
+  type NotesRepository,
 } from '@/storage';
 import { BookId, IsoTimestamp, type Book, type ParsedMetadata } from '@/domain';
 import type { ImportInput } from './import/importMachine';
@@ -40,6 +42,7 @@ export type Wiring = {
   readonly readerPreferencesRepo: ReaderPreferencesRepository;
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
+  readonly notesRepo: NotesRepository;
   readonly importDeps: Omit<ImportInput, 'file'>;
   persistFirstQuotaRequest(): Promise<void>;
 };
@@ -52,6 +55,7 @@ export function createWiring(db: BookwormDB): Wiring {
   const readerPreferencesRepo = createReaderPreferencesRepository(db);
   const bookmarksRepo = createBookmarksRepository(db);
   const highlightsRepo = createHighlightsRepository(db);
+  const notesRepo = createNotesRepository(db);
 
   let workerSingleton: Worker | null = null;
   const ensureWorker = (): Worker => {
@@ -159,6 +163,7 @@ export function createWiring(db: BookwormDB): Wiring {
     readerPreferencesRepo,
     bookmarksRepo,
     highlightsRepo,
+    notesRepo,
     importDeps,
     persistFirstQuotaRequest,
   };

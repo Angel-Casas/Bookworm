@@ -7,7 +7,8 @@ type StoreName =
   | 'reading_progress'
   | 'reader_preferences'
   | 'bookmarks'
-  | 'highlights';
+  | 'highlights'
+  | 'notes';
 
 type UpgradeContext = {
   readonly db: IDBPDatabase<BookwormDBSchema>;
@@ -51,6 +52,14 @@ const migrations: Readonly<Record<number, Migration>> = {
     if (!db.objectStoreNames.contains('highlights')) {
       const store = db.createObjectStore('highlights', { keyPath: 'id' });
       store.createIndex('by-book', 'bookId', { unique: false });
+    }
+  },
+  // 4 → 5: Phase 3.3 notes store
+  4: ({ db }) => {
+    if (!db.objectStoreNames.contains('notes')) {
+      const store = db.createObjectStore('notes', { keyPath: 'id' });
+      store.createIndex('by-book', 'bookId', { unique: false });
+      store.createIndex('by-highlight', 'anchorRef.highlightId', { unique: true });
     }
   },
 };

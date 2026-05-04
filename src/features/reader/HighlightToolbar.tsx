@@ -11,6 +11,8 @@ type Props = {
   readonly currentColor?: HighlightColor;
   readonly onPickColor: (color: HighlightColor) => void;
   readonly onDelete?: () => void;
+  readonly onNote?: () => void;
+  readonly hasNote?: boolean;
   readonly onDismiss: () => void;
 };
 
@@ -23,6 +25,8 @@ export function HighlightToolbar({
   currentColor,
   onPickColor,
   onDelete,
+  onNote,
+  hasNote,
   onDismiss,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -85,6 +89,23 @@ export function HighlightToolbar({
           }}
         />
       ))}
+      {onNote ? (
+        <>
+          <span className="highlight-toolbar__divider" aria-hidden="true" />
+          <button
+            type="button"
+            className={
+              mode === 'edit' && hasNote
+                ? 'highlight-toolbar__note highlight-toolbar__note--active'
+                : 'highlight-toolbar__note'
+            }
+            aria-label={mode === 'edit' && hasNote ? 'Edit note' : 'Add note'}
+            onClick={onNote}
+          >
+            <span aria-hidden="true">📝</span>
+          </button>
+        </>
+      ) : null}
       {mode === 'edit' && onDelete ? (
         <>
           <span className="highlight-toolbar__divider" aria-hidden="true" />

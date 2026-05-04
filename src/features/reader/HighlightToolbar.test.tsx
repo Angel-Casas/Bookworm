@@ -98,3 +98,77 @@ describe('HighlightToolbar', () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 });
+
+describe('HighlightToolbar — note button', () => {
+  it('renders 📝 button in create mode when onNote provided', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onNote={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /add note/i })).toBeInTheDocument();
+  });
+
+  it('renders 📝 button in edit mode when onNote provided', () => {
+    render(
+      <HighlightToolbar
+        mode="edit"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onDelete={() => undefined}
+        onNote={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /add note/i })).toBeInTheDocument();
+  });
+
+  it('omits 📝 button when onNote is undefined', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /note/i })).toBeNull();
+  });
+
+  it('hasNote=true in edit mode labels the button "Edit note" and applies active class', () => {
+    render(
+      <HighlightToolbar
+        mode="edit"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onDelete={() => undefined}
+        onNote={() => undefined}
+        hasNote
+      />,
+    );
+    const btn = screen.getByRole('button', { name: /edit note/i });
+    expect(btn.className).toContain('highlight-toolbar__note--active');
+  });
+
+  it('clicking 📝 calls onNote (does not call onDismiss)', () => {
+    const onNote = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={onDismiss}
+        onNote={onNote}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+    expect(onNote).toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+});

@@ -24,6 +24,13 @@
   align-self: stretch;
 }
 
+.highlights-panel__main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .highlights-panel__row {
   flex: 1 1 auto;
   text-align: start;
@@ -140,4 +147,51 @@
 .highlights-panel__empty-hint {
   margin: 0;
   font-size: var(--text-sm);
+}
+
+.highlights-panel__note-line {
+  display: block;
+  width: 100%;
+  margin: 0 var(--space-4) var(--space-2);
+  padding: 4px 6px 4px 10px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid var(--color-border);
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.highlights-panel__note-line:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover, var(--color-surface));
+}
+.highlights-panel__editor {
+  margin: 0 var(--space-4) var(--space-2);
+}
+.highlights-panel__note-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.highlights-panel__note-btn:hover {
+  background: var(--color-surface-hover, var(--color-surface));
+}
+.highlights-panel__note-btn--has-note,
+.highlights-panel__note-btn--active {
+  background: var(--color-surface-hover, var(--color-surface));
+  outline: 1px solid var(--color-border);
 }

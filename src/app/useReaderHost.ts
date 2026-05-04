@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
-import type { BookmarksRepository, HighlightsRepository } from '@/storage';
+import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
 import type { Wiring } from '@/features/library/wiring';
 import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
@@ -25,6 +25,7 @@ export type ReaderHostHandle = {
   findBook: (bookId: string) => Book | undefined;
   bookmarksRepo: BookmarksRepository;
   highlightsRepo: HighlightsRepository;
+  notesRepo: NotesRepository;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -141,6 +142,7 @@ export function useReaderHost({
           await wiring.readingProgressRepo.delete(book.id);
           await wiring.bookmarksRepo.deleteByBook(BookId(book.id));
           await wiring.highlightsRepo.deleteByBook(BookId(book.id));
+          await wiring.notesRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
@@ -173,5 +175,6 @@ export function useReaderHost({
     findBook,
     bookmarksRepo: wiring.bookmarksRepo,
     highlightsRepo: wiring.highlightsRepo,
+    notesRepo: wiring.notesRepo,
   };
 }

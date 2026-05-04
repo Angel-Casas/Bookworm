@@ -20,4 +20,5 @@ export {
   createHighlightsRepository,
   type HighlightsRepository,
 } from './repositories/highlights';
+export { createNotesRepository, type NotesRepository } from './repositories/notes';
 export type { AppView } from './db/schema';

@@ -104,7 +104,7 @@ describe('useHighlights', () => {
     expect(repo.add).toHaveBeenCalled();
   });
 
-  it('add no-ops when readerState is null', async () => {
+  it('add still persists when readerState is null (engine overlay is null-safe)', async () => {
     const repo = fakeRepo();
     const { result } = renderHook(() =>
       useHighlights({ bookId: BookId('b1'), repo, readerState: null }),
@@ -115,8 +115,10 @@ describe('useHighlights', () => {
     await act(async () => {
       await result.current.add(ANCHOR, 'x', 'yellow');
     });
-    expect(result.current.list).toHaveLength(0);
-    expect(repo.add).not.toHaveBeenCalled();
+    expect(result.current.list).toHaveLength(1);
+    expect(repo.add).toHaveBeenCalled();
+    // sectionTitle defaults to null when readerState can't supply one
+    expect(result.current.list[0]?.sectionTitle).toBeNull();
   });
 
   it('add rolls back optimistic + clears overlay when repo.add throws', async () => {
@@ -206,5 +208,80 @@ describe('useHighlights', () => {
     await waitFor(() => {
       expect(repo.listByBook).toHaveBeenCalledWith('b2');
     });
+  });
+
+  it('add resolves to the constructed highlight', async () => {
+    const repo = fakeRepo();
+    const readerState = fakeReaderState();
+    const { result } = renderHook(() =>
+      useHighlights({ bookId: BookId('b1'), repo, readerState }),
+    );
+    await waitFor(() => {
+      expect(repo.listByBook).toHaveBeenCalled();
+    });
+
+    let returned: Highlight | undefined;
+    await act(async () => {
+      returned = await result.current.add(ANCHOR, 'hello', 'yellow');
+    });
+    expect(returned?.color).toBe('yellow');
+    expect(returned?.selectedText).toBe('hello');
+    expect(returned?.bookId).toBe('b1');
+  });
+
+  it('onAfterRemove fires after successful remove', async () => {
+    const repo = fakeRepo();
+    const readerState = fakeReaderState();
+    const onAfterRemove = vi.fn();
+    const initial: Highlight = {
+      id: HighlightId('h-1'),
+      bookId: BookId('b1'),
+      anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4)' },
+      selectedText: 'x',
+      sectionTitle: null,
+      color: 'yellow',
+      tags: [],
+      createdAt: IsoTimestamp('2026-05-04T12:00:00.000Z'),
+    };
+    await repo.add(initial);
+    const { result } = renderHook(() =>
+      useHighlights({ bookId: BookId('b1'), repo, readerState, onAfterRemove }),
+    );
+    await waitFor(() => {
+      expect(result.current.list).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.remove(initial);
+    });
+    expect(onAfterRemove).toHaveBeenCalledWith(initial);
+  });
+
+  it('onAfterRemove is not called on failed remove', async () => {
+    const repo = fakeRepo();
+    (repo.delete as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+    const readerState = fakeReaderState();
+    const onAfterRemove = vi.fn();
+    const initial: Highlight = {
+      id: HighlightId('h-2'),
+      bookId: BookId('b1'),
+      anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4)' },
+      selectedText: 'x',
+      sectionTitle: null,
+      color: 'yellow',
+      tags: [],
+      createdAt: IsoTimestamp('2026-05-04T12:00:00.000Z'),
+    };
+    await repo.add(initial);
+    const { result } = renderHook(() =>
+      useHighlights({ bookId: BookId('b1'), repo, readerState, onAfterRemove }),
+    );
+    await waitFor(() => {
+      expect(result.current.list).toHaveLength(1);
+    });
+    await act(async () => {
+      await result.current.remove(initial);
+    });
+    expect(onAfterRemove).not.toHaveBeenCalled();
   });
 });

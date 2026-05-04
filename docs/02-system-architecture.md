@@ -309,6 +309,47 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-04 — Phase 3.3 notes
+
+- New `notes` IndexedDB store at v5 (additive migration). `NotesRepository`
+  mirrors the `bookmarks`/`highlights` validating-reads pattern. Two indexes:
+  `by-book` (panel load) and `by-highlight` (unique; cascade lookup +
+  one-note-per-highlight invariant enforced at the storage layer via the
+  unique constraint). Repo `upsert` uses `put` so writes are create-or-replace
+  by primary id, which keeps the unique constraint stable across edits.
+- Domain types `Note` and `NoteAnchorRef` (pre-existing) are now consumed for
+  the first time. v1 only writes `NoteAnchorRef.kind === 'highlight'`; the
+  `'location'` variant remains for forward-compat (location-anchored notes
+  deferred — will likely surface in 3.4 or later).
+- Note-from-selection auto-creates a yellow highlight under the hood and
+  opens an inline `NoteEditor` anchored to the selection. This makes "add
+  note to passage" a one-tap gesture and keeps the data model at one anchor
+  shape for v1.
+- `NoteEditor` is a pure presentational component: plain text (no markdown,
+  no XSS surface), soft 2000-char cap (counter visible above 1600, red
+  above 2000, no hard block), autosave-on-blur, Esc cancels. Used in two
+  parents: an anchored overlay rendered by `ReaderWorkspace`, and an inline
+  expansion within each `HighlightsPanel` row.
+- `HighlightsPanel` rows show notes inline below the highlight snippet —
+  no overlay indicator on the rendered highlight in the reader, no
+  4th tab. The note text *is* the indicator. Reader surface stays clean.
+- Empty save deletes the note record; the highlight survives. This makes
+  "clear text + blur" the deletion path and removes the need for a separate
+  delete-note button. Highlight removal cascades the note via a new
+  `useHighlights.onAfterRemove` callback that the workspace wires to
+  `useNotes.clear`.
+- Settings: new `noteEditorHintShown` boolean key, mirroring
+  `focusModeHintShown`. The "Esc to discard" hint shows once per fresh
+  install and persists on first dismissal.
+- Cascade: `useReaderHost.onRemoveBook` adds `notesRepo.deleteByBook`
+  after the highlights cascade.
+- `useHighlights.add` widened from `Promise<void>` to `Promise<Highlight>`
+  so the workspace can chain `.then((h) => setActiveNoteEditor(...))` for
+  the one-tap note-from-selection path without re-deriving the highlight
+  id from the in-memory list.
+- No engine adapter changes. Notes are pure metadata over highlights;
+  EpubReaderAdapter / PdfReaderAdapter / `BookReader` interface untouched.
+
 ### 2026-05-03 — Phase 3.2 highlights
 
 - New `highlights` IndexedDB store at v4 (additive migration). `HighlightsRepository`

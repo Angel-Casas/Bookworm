@@ -66,4 +66,5 @@ describe('SettingsRepository', () => {
     });
     expect(await settings.getFocusModeHintShown()).toBe(false);
   });
+
 });
