@@ -29,19 +29,21 @@ export function NoteEditor({
     if (autoFocus) taRef.current?.focus();
   }, [autoFocus]);
 
-  // Close the editor when the user clicks outside it. Save if the content
-  // changed; otherwise just dismiss.
+  // Close the editor when the user clicks outside. Two signals cover the
+  // surface area:
   //
-  // Three sources of "outside click" need to be covered:
-  //   1. The textarea's own onBlur — fires when focus moves to another
-  //      focusable element (button, link, etc.).
-  //   2. mousedown on the parent document — covers clicks on non-focusable
-  //      elements outside the iframe (chrome, rail, page body), which
-  //      don't move focus and so don't fire blur.
-  //   3. mousedown on each same-origin iframe document — events inside the
-  //      EPUB iframe don't bubble to the parent document, so a click on
-  //      the book page text is invisible to (2). We attach to each
-  //      iframe's contentDocument as well.
+  //   1. textarea onBlur — fires whenever the textarea loses focus,
+  //      including when the user clicks inside the EPUB iframe (iframe
+  //      focus transfer always blurs the parent textarea). Foliate's iframe
+  //      is inside a closed shadow DOM, so we can't reach it via
+  //      document.querySelectorAll, but we don't need to — blur handles it.
+  //
+  //   2. document mousedown — covers clicks on non-focusable elements in
+  //      the parent document (chrome, rail, page body). These clicks don't
+  //      move focus, so the textarea doesn't blur on its own.
+  //
+  // In both cases: save if content changed, otherwise cancel. Either path
+  // closes the editor (parent unmounts on save or cancel).
   useEffect(() => {
     const close = (): void => {
       const trimmed = valueRef.current.trim();
@@ -55,28 +57,9 @@ export function NoteEditor({
       if (rootRef.current?.contains(e.target as Node)) return;
       close();
     };
-
     document.addEventListener('mousedown', onMouseDown);
-
-    const attachedDocs: Document[] = [];
-    for (const iframe of Array.from(document.querySelectorAll('iframe'))) {
-      try {
-        const doc = iframe.contentDocument;
-        if (doc) {
-          doc.addEventListener('mousedown', onMouseDown);
-          attachedDocs.push(doc);
-        }
-      } catch {
-        // Cross-origin iframe — can't attach. Acceptable: those iframes
-        // are not the EPUB reader (which is same-origin Blob URL).
-      }
-    }
-
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
-      for (const doc of attachedDocs) {
-        doc.removeEventListener('mousedown', onMouseDown);
-      }
     };
   }, [initialContent, onSave, onCancel]);
 
@@ -84,6 +67,8 @@ export function NoteEditor({
     const trimmed = value.trim();
     if (trimmed !== initialContent.trim()) {
       onSave(trimmed);
+    } else {
+      onCancel();
     }
   };
 

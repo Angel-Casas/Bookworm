@@ -54,11 +54,13 @@ describe('NoteEditor', () => {
     expect(onSave).toHaveBeenCalledWith('hello');
   });
 
-  it('onBlur is no-op when content unchanged', () => {
+  it('onBlur calls onCancel when content unchanged (always closes)', () => {
     const onSave = vi.fn();
-    setup({ initialContent: 'same', onSave });
+    const onCancel = vi.fn();
+    setup({ initialContent: 'same', onSave, onCancel });
     fireEvent.blur(getTextarea());
     expect(onSave).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
   });
 
   it('Esc calls onCancel and does NOT save', () => {
