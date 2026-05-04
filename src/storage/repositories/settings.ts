@@ -18,7 +18,13 @@ function isValidView(v: unknown): v is AppView {
   if (typeof v !== 'object' || v === null) return false;
   const x = v as { kind?: unknown; bookId?: unknown };
   if (x.kind === 'library') return true;
-  if (x.kind === 'reader' && typeof x.bookId === 'string' && x.bookId.length > 0) return true;
+  if (
+    (x.kind === 'reader' || x.kind === 'notebook') &&
+    typeof x.bookId === 'string' &&
+    x.bookId.length > 0
+  ) {
+    return true;
+  }
   return false;
 }
 

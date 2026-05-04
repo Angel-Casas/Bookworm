@@ -8,7 +8,8 @@ export const CURRENT_DB_VERSION = 5;
 
 export type AppView =
   | { readonly kind: 'library' }
-  | { readonly kind: 'reader'; readonly bookId: string };
+  | { readonly kind: 'reader'; readonly bookId: string }
+  | { readonly kind: 'notebook'; readonly bookId: string };
 
 export type SettingsRecord =
   | { readonly key: 'librarySort'; readonly value: string }

@@ -67,4 +67,29 @@ describe('SettingsRepository', () => {
     expect(await settings.getFocusModeHintShown()).toBe(false);
   });
 
+  describe('isValidView (notebook)', () => {
+    it('round-trips a notebook view', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.setView({ kind: 'notebook', bookId: 'b1' });
+      expect(await settings.getView()).toEqual({ kind: 'notebook', bookId: 'b1' });
+    });
+
+    it('drops a notebook view with empty bookId', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', {
+        key: 'view',
+        value: { kind: 'notebook', bookId: '' },
+      } as never);
+      expect(await settings.getView()).toBeUndefined();
+    });
+
+    it('drops a notebook view with missing bookId', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', {
+        key: 'view',
+        value: { kind: 'notebook' },
+      } as never);
+      expect(await settings.getView()).toBeUndefined();
+    });
+  });
 });
