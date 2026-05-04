@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { BookId, BookmarkId, HighlightId, IsoTimestamp } from '@/domain';
+import { BookId, BookmarkId, HighlightId, IsoTimestamp, NoteId } from '@/domain';
 import type {
   Bookmark,
   Highlight,
   HighlightAnchor,
   HighlightRect,
+  Note,
+  NoteAnchorRef,
 } from '@/domain/annotations/types';
 
 describe('Bookmark', () => {
@@ -75,5 +77,43 @@ describe('Highlight', () => {
     }
     expect(pdf.sectionTitle).toBeNull();
     expect(epub.tags).toEqual([]);
+  });
+});
+
+describe('Note', () => {
+  it('NoteId brand round-trips a string', () => {
+    const id = NoteId('00000000-0000-0000-0000-000000000001');
+    expect(typeof id).toBe('string');
+    expect(id).toBe('00000000-0000-0000-0000-000000000001');
+  });
+
+  it('narrows NoteAnchorRef on kind', () => {
+    const onHighlight: NoteAnchorRef = {
+      kind: 'highlight',
+      highlightId: HighlightId('h-1'),
+    };
+    const onLocation: NoteAnchorRef = {
+      kind: 'location',
+      anchor: { kind: 'pdf', page: 3 },
+    };
+    if (onHighlight.kind === 'highlight') {
+      expect(onHighlight.highlightId).toBe('h-1');
+    }
+    if (onLocation.kind === 'location') {
+      expect(onLocation.anchor.kind).toBe('pdf');
+    }
+  });
+
+  it('Note has v1 shape with createdAt + updatedAt', () => {
+    const n: Note = {
+      id: NoteId('n-1'),
+      bookId: BookId('book-1'),
+      anchorRef: { kind: 'highlight', highlightId: HighlightId('h-1') },
+      content: 'a thought',
+      createdAt: IsoTimestamp('2026-05-04T12:00:00.000Z'),
+      updatedAt: IsoTimestamp('2026-05-04T12:30:00.000Z'),
+    };
+    expect(n.content).toBe('a thought');
+    expect(n.updatedAt).not.toBe(n.createdAt);
   });
 });
