@@ -11,6 +11,9 @@ import {
   BOOKMARKS_STORE,
   HIGHLIGHTS_STORE,
   NOTES_STORE,
+  CHAT_THREADS_STORE,
+  CHAT_MESSAGES_STORE,
+  SAVED_ANSWERS_STORE,
   CURRENT_DB_VERSION,
 } from './schema';
 
@@ -254,5 +257,82 @@ describe('v4 → v5 migration', () => {
       | undefined;
     expect(found?.id).toBe('n1');
     v5.close();
+  });
+});
+
+describe('v5 → v6 migration', () => {
+  it('creates chat_threads, chat_messages, and saved_answers stores with correct indexes', async () => {
+    const dbName = `bookworm-mig6-${crypto.randomUUID()}`;
+
+    const v5 = await openDB(dbName, 5, {
+      upgrade(db) {
+        const books = db.createObjectStore('books', { keyPath: 'id' });
+        books.createIndex('by-checksum', 'source.checksum', { unique: true });
+        books.createIndex('by-created', 'createdAt', { unique: false });
+        books.createIndex('by-last-opened', 'lastOpenedAt', { unique: false });
+        db.createObjectStore('settings', { keyPath: 'key' });
+        db.createObjectStore('reading_progress', { keyPath: 'bookId' });
+        db.createObjectStore('reader_preferences', { keyPath: 'key' });
+        const bookmarks = db.createObjectStore('bookmarks', { keyPath: 'id' });
+        bookmarks.createIndex('by-book', 'bookId', { unique: false });
+        const highlights = db.createObjectStore('highlights', { keyPath: 'id' });
+        highlights.createIndex('by-book', 'bookId', { unique: false });
+        const notes = db.createObjectStore('notes', { keyPath: 'id' });
+        notes.createIndex('by-book', 'bookId', { unique: false });
+        notes.createIndex('by-highlight', 'anchorRef.highlightId', { unique: true });
+      },
+    });
+    await v5.put('books', { id: 'b1', title: 'Survivor' });
+    await v5.put('settings', { key: 'view', value: { kind: 'library' } });
+    v5.close();
+
+    const v6 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+
+    expect(v6.objectStoreNames.contains(CHAT_THREADS_STORE)).toBe(true);
+    expect(v6.objectStoreNames.contains(CHAT_MESSAGES_STORE)).toBe(true);
+    expect(v6.objectStoreNames.contains(SAVED_ANSWERS_STORE)).toBe(true);
+
+    const threadsTx = v6.transaction(CHAT_THREADS_STORE, 'readonly');
+    expect([...threadsTx.objectStore(CHAT_THREADS_STORE).indexNames]).toEqual(
+      expect.arrayContaining(['by-book', 'by-updated']),
+    );
+
+    const messagesTx = v6.transaction(CHAT_MESSAGES_STORE, 'readonly');
+    expect([...messagesTx.objectStore(CHAT_MESSAGES_STORE).indexNames]).toContain('by-thread');
+
+    const savedTx = v6.transaction(SAVED_ANSWERS_STORE, 'readonly');
+    const savedStore = savedTx.objectStore(SAVED_ANSWERS_STORE);
+    expect([...savedStore.indexNames]).toEqual(
+      expect.arrayContaining(['by-book', 'by-message']),
+    );
+    expect(savedStore.index('by-message').unique).toBe(true);
+
+    // Pre-existing v5 data intact.
+    const books = await v6.getAll('books');
+    expect(books).toHaveLength(1);
+    expect(books[0]).toMatchObject({ id: 'b1', title: 'Survivor' });
+    const view = (await v6.get('settings', 'view')) as
+      | { key?: string; value?: unknown }
+      | undefined;
+    expect(view).toMatchObject({ key: 'view', value: { kind: 'library' } });
+
+    v6.close();
+  });
+
+  it('opening at v6 from scratch creates all chat stores', async () => {
+    const dbName = `bookworm-mig6-fresh-${crypto.randomUUID()}`;
+    const db = await openBookwormDB(dbName);
+    expect(db.objectStoreNames.contains(CHAT_THREADS_STORE)).toBe(true);
+    expect(db.objectStoreNames.contains(CHAT_MESSAGES_STORE)).toBe(true);
+    expect(db.objectStoreNames.contains(SAVED_ANSWERS_STORE)).toBe(true);
+    db.close();
   });
 });

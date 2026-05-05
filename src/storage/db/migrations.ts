@@ -8,7 +8,10 @@ type StoreName =
   | 'reader_preferences'
   | 'bookmarks'
   | 'highlights'
-  | 'notes';
+  | 'notes'
+  | 'chat_threads'
+  | 'chat_messages'
+  | 'saved_answers';
 
 type UpgradeContext = {
   readonly db: IDBPDatabase<BookwormDBSchema>;
@@ -60,6 +63,23 @@ const migrations: Readonly<Record<number, Migration>> = {
       const store = db.createObjectStore('notes', { keyPath: 'id' });
       store.createIndex('by-book', 'bookId', { unique: false });
       store.createIndex('by-highlight', 'anchorRef.highlightId', { unique: true });
+    }
+  },
+  // 5 → 6: Phase 4.3 chat + saved answers
+  5: ({ db }) => {
+    if (!db.objectStoreNames.contains('chat_threads')) {
+      const store = db.createObjectStore('chat_threads', { keyPath: 'id' });
+      store.createIndex('by-book', 'bookId', { unique: false });
+      store.createIndex('by-updated', 'updatedAt', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('chat_messages')) {
+      const store = db.createObjectStore('chat_messages', { keyPath: 'id' });
+      store.createIndex('by-thread', 'threadId', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('saved_answers')) {
+      const store = db.createObjectStore('saved_answers', { keyPath: 'id' });
+      store.createIndex('by-book', 'bookId', { unique: false });
+      store.createIndex('by-message', 'messageId', { unique: true });
     }
   },
 };
