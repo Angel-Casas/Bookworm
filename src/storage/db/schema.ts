@@ -41,7 +41,8 @@ export type SettingsRecord =
         readonly fetchedAt: number;
       };
     }
-  | { readonly key: 'selectedModelId'; readonly value: string };
+  | { readonly key: 'selectedModelId'; readonly value: string }
+  | { readonly key: 'chatPanelHintShown'; readonly value: boolean };
 
 export type ReadingProgressRecord = {
   readonly bookId: string;

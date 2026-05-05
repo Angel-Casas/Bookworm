@@ -54,6 +54,8 @@ function fakeWiring(): Wiring {
       getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
       putSelectedModelId: vi.fn(() => Promise.resolve()),
       deleteSelectedModelId: vi.fn(() => Promise.resolve()),
+      getChatPanelHintShown: vi.fn(() => Promise.resolve(false)),
+      setChatPanelHintShown: vi.fn(() => Promise.resolve()),
     },
     opfs: {
       readFile: vi.fn(() => Promise.resolve(undefined)),

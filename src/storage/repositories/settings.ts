@@ -33,6 +33,8 @@ export type SettingsRepository = {
   getSelectedModelId(): Promise<string | undefined>;
   putSelectedModelId(id: string): Promise<void>;
   deleteSelectedModelId(): Promise<void>;
+  getChatPanelHintShown(): Promise<boolean>;
+  setChatPanelHintShown(shown: boolean): Promise<void>;
 };
 
 function isValidView(v: unknown): v is AppView {
@@ -158,6 +160,15 @@ export function createSettingsRepository(db: BookwormDB): SettingsRepository {
     },
     async deleteSelectedModelId() {
       await db.delete(SETTINGS_STORE, 'selectedModelId');
+    },
+    async getChatPanelHintShown() {
+      const rec = await get<Extract<SettingsRecord, { key: 'chatPanelHintShown' }>>(
+        'chatPanelHintShown',
+      );
+      return typeof rec?.value === 'boolean' ? rec.value : false;
+    },
+    async setChatPanelHintShown(shown) {
+      await put({ key: 'chatPanelHintShown', value: shown });
     },
   };
 }

@@ -50,6 +50,7 @@ type LoosePreferences = {
   theme?: unknown;
   modeByFormat?: { epub?: unknown; pdf?: unknown };
   focusMode?: unknown;
+  rightRailVisible?: unknown;
 };
 
 function normalize(value: unknown): ReaderPreferences | null {
@@ -73,6 +74,10 @@ function normalize(value: unknown): ReaderPreferences | null {
   const focusMode = isValidFocusMode(v.focusMode)
     ? v.focusMode
     : DEFAULT_READER_PREFERENCES.focusMode;
+  const rightRailVisible =
+    typeof v.rightRailVisible === 'boolean'
+      ? v.rightRailVisible
+      : DEFAULT_READER_PREFERENCES.rightRailVisible;
 
   return {
     typography: {
@@ -84,6 +89,7 @@ function normalize(value: unknown): ReaderPreferences | null {
     theme: v.theme,
     modeByFormat: { epub, pdf },
     focusMode,
+    rightRailVisible,
   };
 }
 

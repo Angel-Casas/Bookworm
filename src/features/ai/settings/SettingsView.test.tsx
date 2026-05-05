@@ -46,6 +46,8 @@ function fakeRepo(overrides: Partial<SettingsRepository> = {}): SettingsReposito
     getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
     putSelectedModelId: vi.fn(() => Promise.resolve()),
     deleteSelectedModelId: vi.fn(() => Promise.resolve()),
+    getChatPanelHintShown: vi.fn(() => Promise.resolve(false)),
+    setChatPanelHintShown: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }

@@ -84,4 +84,25 @@ describe('readerPreferencesRepository', () => {
     expect(loaded.modeByFormat.epub).toBe('scroll');
     expect(loaded.modeByFormat.pdf).toBe('paginated');
   });
+
+  it('loads a pre-4.3 record (missing rightRailVisible) and synthesizes default true', async () => {
+    const repo = createReaderPreferencesRepository(db);
+    await db.put('reader_preferences', {
+      key: 'global',
+      value: {
+        typography: DEFAULT_READER_PREFERENCES.typography,
+        theme: 'dark',
+        modeByFormat: { epub: 'scroll', pdf: 'paginated' },
+        focusMode: 'normal',
+      } as never,
+    });
+    const loaded = await repo.get();
+    expect(loaded.rightRailVisible).toBe(true);
+  });
+
+  it('round-trips rightRailVisible: false', async () => {
+    const repo = createReaderPreferencesRepository(db);
+    await repo.put({ ...DEFAULT_READER_PREFERENCES, rightRailVisible: false });
+    expect((await repo.get()).rightRailVisible).toBe(false);
+  });
 });
