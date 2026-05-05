@@ -29,6 +29,7 @@ type ReadyBoot = {
   readonly initialView: AppView;
   readonly initialFocusMode: FocusMode;
   readonly initialFocusModeHintShown: boolean;
+  readonly initialRightRailVisible: boolean;
 };
 
 type BootState =
@@ -61,6 +62,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     initialView,
     initialFocusMode,
     initialFocusModeHintShown,
+    initialRightRailVisible,
   } = boot;
   const view = useAppView({
     settingsRepo: wiring.settingsRepo,
@@ -73,6 +75,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     view: view.current,
     initialFocusMode,
     initialFocusModeHintShown,
+    initialRightRailVisible,
     onBookRemovedFromActiveView: view.goLibrary,
   });
   const hasBooks = useHasBooks(libraryStore);
@@ -174,6 +177,8 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           onOpenNotebook={() => {
             view.goNotebook(book.id);
           }}
+          initialRightRailVisible={reader.initialRightRailVisible}
+          onRightRailVisibilityChange={reader.onRightRailVisibilityChange}
         />
       </div>
     );
@@ -255,6 +260,7 @@ export function App() {
           initialView: persistedView ?? LIBRARY_VIEW,
           initialFocusMode: prefs.focusMode,
           initialFocusModeHintShown: hintShown,
+          initialRightRailVisible: prefs.rightRailVisible,
         });
       } catch (err) {
         const reason = err instanceof Error ? err.message : 'Unknown error';

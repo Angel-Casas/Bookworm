@@ -26,6 +26,8 @@ export type ReaderHostHandle = {
   bookmarksRepo: BookmarksRepository;
   highlightsRepo: HighlightsRepository;
   notesRepo: NotesRepository;
+  initialRightRailVisible: boolean;
+  onRightRailVisibilityChange: (visible: boolean) => void;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -44,6 +46,7 @@ type UseReaderHostOptions = {
   readonly view: AppView;
   readonly initialFocusMode: FocusMode;
   readonly initialFocusModeHintShown: boolean;
+  readonly initialRightRailVisible: boolean;
   readonly onBookRemovedFromActiveView?: () => void;
 };
 
@@ -53,6 +56,7 @@ export function useReaderHost({
   view,
   initialFocusMode,
   initialFocusModeHintShown,
+  initialRightRailVisible,
   onBookRemovedFromActiveView,
 }: UseReaderHostOptions): ReaderHostHandle {
   const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(initialFocusModeHintShown);
@@ -104,6 +108,16 @@ export function useReaderHost({
     async (mode: FocusMode) => {
       const current = await wiring.readerPreferencesRepo.get();
       await wiring.readerPreferencesRepo.put({ ...current, focusMode: mode });
+    },
+    [wiring],
+  );
+
+  const onRightRailVisibilityChange = useCallback(
+    (visible: boolean) => {
+      void (async () => {
+        const current = await wiring.readerPreferencesRepo.get();
+        await wiring.readerPreferencesRepo.put({ ...current, rightRailVisible: visible });
+      })();
     },
     [wiring],
   );
@@ -179,5 +193,7 @@ export function useReaderHost({
     bookmarksRepo: wiring.bookmarksRepo,
     highlightsRepo: wiring.highlightsRepo,
     notesRepo: wiring.notesRepo,
+    initialRightRailVisible,
+    onRightRailVisibilityChange,
   };
 }

@@ -49,6 +49,8 @@ const baseProps = {
   highlightsRepo: fakeHighlightsRepo,
   notesRepo: fakeNotesRepo,
   onOpenNotebook: () => undefined,
+  initialRightRailVisible: true,
+  onRightRailVisibilityChange: () => undefined,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

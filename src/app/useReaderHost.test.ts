@@ -103,6 +103,7 @@ function fakeWiring(): Wiring {
 const baseOpts = {
   initialFocusMode: 'normal' as const,
   initialFocusModeHintShown: false,
+  initialRightRailVisible: true,
 };
 
 describe('useReaderHost', () => {
