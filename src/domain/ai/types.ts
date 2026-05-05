@@ -7,6 +7,7 @@ import type {
   HighlightId,
   IsoTimestamp,
   PromptSetId,
+  SavedAnswerId,
   SectionId,
 } from '../ids';
 
@@ -16,7 +17,7 @@ export type Model = {
 
 export type ChatRole = 'system' | 'user' | 'assistant';
 
-export type ChatMode = 'passage' | 'chapter' | 'multi-excerpt' | 'retrieval' | 'full-book';
+export type ChatMode = 'open' | 'passage' | 'chapter' | 'multi-excerpt' | 'retrieval' | 'full-book';
 
 export type AnswerStyle = 'strict-grounded' | 'grounded-plus' | 'open';
 
@@ -40,7 +41,6 @@ export type ChatThread = {
   readonly bookId: BookId;
   readonly title: string;
   readonly modelId: string;
-  readonly mode: ChatMode;
   readonly answerStyle: AnswerStyle;
   readonly createdAt: IsoTimestamp;
   readonly updatedAt: IsoTimestamp;
@@ -51,8 +51,26 @@ export type ChatMessage = {
   readonly threadId: ChatThreadId;
   readonly role: ChatRole;
   readonly content: string;
+  readonly mode?: ChatMode;
   readonly contextRefs: readonly ContextRef[];
   readonly usage?: TokenUsage;
+  readonly streaming?: boolean;
+  readonly truncated?: boolean;
+  readonly error?: 'interrupted' | 'failed';
+  readonly createdAt: IsoTimestamp;
+};
+
+export type SavedAnswer = {
+  readonly id: SavedAnswerId;
+  readonly bookId: BookId;
+  readonly threadId: ChatThreadId;
+  readonly messageId: ChatMessageId;
+  readonly modelId: string;
+  readonly mode: ChatMode;
+  readonly content: string;
+  readonly question: string;
+  readonly contextRefs: readonly ContextRef[];
+  readonly userNote?: string;
   readonly createdAt: IsoTimestamp;
 };
 
