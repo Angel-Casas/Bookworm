@@ -95,6 +95,28 @@ function fakeWiring(): Wiring {
       deleteByHighlight: vi.fn(() => Promise.resolve()),
       deleteByBook: vi.fn(() => Promise.resolve()),
     },
+    chatThreadsRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    },
+    chatMessagesRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByThread: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByThread: vi.fn(() => Promise.resolve()),
+    },
+    savedAnswersRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      getByMessage: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
   };
@@ -104,6 +126,7 @@ const baseOpts = {
   initialFocusMode: 'normal' as const,
   initialFocusModeHintShown: false,
   initialRightRailVisible: true,
+  initialChatPanelHintShown: false,
 };
 
 describe('useReaderHost', () => {
