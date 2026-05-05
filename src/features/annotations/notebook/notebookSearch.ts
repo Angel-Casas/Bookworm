@@ -5,10 +5,14 @@ function entryHaystack(entry: NotebookEntry): string {
   if (entry.kind === 'bookmark') {
     if (entry.bookmark.snippet) parts.push(entry.bookmark.snippet);
     if (entry.bookmark.sectionTitle) parts.push(entry.bookmark.sectionTitle);
-  } else {
+  } else if (entry.kind === 'highlight') {
     parts.push(entry.highlight.selectedText);
     if (entry.highlight.sectionTitle) parts.push(entry.highlight.sectionTitle);
     if (entry.note) parts.push(entry.note.content);
+  } else {
+    parts.push(entry.savedAnswer.question);
+    parts.push(entry.savedAnswer.content);
+    if (entry.savedAnswer.userNote) parts.push(entry.savedAnswer.userNote);
   }
   return parts.join('\n').toLowerCase();
 }

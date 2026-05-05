@@ -158,9 +158,11 @@ describe('useNotebook', () => {
     await waitFor(() => {
       expect(result.current.entries).toHaveLength(3);
     });
-    const ids = result.current.entries.map((e) =>
-      e.kind === 'bookmark' ? e.bookmark.id : e.highlight.id,
-    );
+    const ids = result.current.entries.map((e) => {
+      if (e.kind === 'bookmark') return e.bookmark.id;
+      if (e.kind === 'highlight') return e.highlight.id;
+      return e.savedAnswer.id;
+    });
     expect(ids).toEqual(['h-1', 'b-1', 'h-2']);
     const noted = result.current.entries[2];
     expect(noted?.kind === 'highlight' && noted.note?.content).toBe('thought');

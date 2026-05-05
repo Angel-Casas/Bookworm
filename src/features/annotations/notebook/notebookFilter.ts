@@ -10,5 +10,7 @@ export function matchesFilter(entry: NotebookEntry, filter: NotebookFilter): boo
       return entry.kind === 'highlight';
     case 'notes':
       return entry.kind === 'highlight' && entry.note !== null;
+    case 'ai':
+      return entry.kind === 'savedAnswer';
   }
 }

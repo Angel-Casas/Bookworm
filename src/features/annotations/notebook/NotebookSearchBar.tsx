@@ -15,6 +15,7 @@ const FILTERS: readonly { value: NotebookFilter; label: string }[] = [
   { value: 'bookmarks', label: 'Bookmarks' },
   { value: 'highlights', label: 'Highlights' },
   { value: 'notes', label: 'Notes' },
+  { value: 'ai', label: 'AI answers' },
 ];
 
 export function NotebookSearchBar({

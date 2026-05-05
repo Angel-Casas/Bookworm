@@ -142,6 +142,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
           notesRepo={reader.notesRepo}
+          savedAnswersRepo={reader.savedAnswersRepo}
           onBack={() => {
             view.goReader(book);
           }}

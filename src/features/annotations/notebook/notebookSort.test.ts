@@ -40,7 +40,14 @@ function hl(opts: {
 }
 
 function idOf(e: NotebookEntry): string {
-  return e.kind === 'bookmark' ? e.bookmark.id : e.highlight.id;
+  switch (e.kind) {
+    case 'bookmark':
+      return e.bookmark.id;
+    case 'highlight':
+      return e.highlight.id;
+    case 'savedAnswer':
+      return e.savedAnswer.id;
+  }
 }
 
 describe('compareNotebookEntries', () => {
