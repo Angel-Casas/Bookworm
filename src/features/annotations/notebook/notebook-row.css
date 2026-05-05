@@ -140,3 +140,45 @@
   cursor: pointer;
   padding: 0 4px;
 }
+
+/* Saved AI answer rows (Phase 4.3) */
+.notebook-row--saved-answer .notebook-row__main {
+  padding: var(--space-3) var(--space-5);
+  gap: var(--space-2);
+}
+.notebook-row__model {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.notebook-row__question {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.notebook-row__answer {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text);
+  text-align: start;
+  white-space: pre-wrap;
+}
+.notebook-row__answer--expanded {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  display: block;
+}
+.notebook-row__user-note {
+  margin: 0;
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

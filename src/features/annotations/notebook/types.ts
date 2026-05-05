@@ -1,4 +1,5 @@
 import type { Bookmark, Highlight, Note } from '@/domain/annotations/types';
+import type { SavedAnswer } from '@/domain';
 
 export type NotebookEntry =
   | {
@@ -9,6 +10,10 @@ export type NotebookEntry =
       readonly kind: 'highlight';
       readonly highlight: Highlight;
       readonly note: Note | null;
+    }
+  | {
+      readonly kind: 'savedAnswer';
+      readonly savedAnswer: SavedAnswer;
     };
 
-export type NotebookFilter = 'all' | 'bookmarks' | 'highlights' | 'notes';
+export type NotebookFilter = 'all' | 'bookmarks' | 'highlights' | 'notes' | 'ai';

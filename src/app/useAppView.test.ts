@@ -44,6 +44,8 @@ function fakeSettingsRepo(): SettingsRepository & { setView: ReturnType<typeof v
     getSelectedModelId: () => Promise.resolve(undefined),
     putSelectedModelId: () => Promise.resolve(),
     deleteSelectedModelId: () => Promise.resolve(),
+    getChatPanelHintShown: () => Promise.resolve(false),
+    setChatPanelHintShown: () => Promise.resolve(),
   };
 }
 

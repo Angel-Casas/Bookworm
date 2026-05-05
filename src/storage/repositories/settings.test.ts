@@ -270,4 +270,21 @@ describe('SettingsRepository', () => {
       expect(await settings.getSelectedModelId()).toBeUndefined();
     });
   });
+
+  describe('chatPanelHintShown', () => {
+    it('defaults to false when not set', async () => {
+      const settings = createSettingsRepository(db);
+      expect(await settings.getChatPanelHintShown()).toBe(false);
+    });
+    it('round-trips a value', async () => {
+      const settings = createSettingsRepository(db);
+      await settings.setChatPanelHintShown(true);
+      expect(await settings.getChatPanelHintShown()).toBe(true);
+    });
+    it('returns false for corrupt records (non-boolean value)', async () => {
+      const settings = createSettingsRepository(db);
+      await db.put('settings', { key: 'chatPanelHintShown', value: 'yes' } as never);
+      expect(await settings.getChatPanelHintShown()).toBe(false);
+    });
+  });
 });

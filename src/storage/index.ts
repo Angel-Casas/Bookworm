@@ -26,4 +26,16 @@ export {
   type HighlightsRepository,
 } from './repositories/highlights';
 export { createNotesRepository, type NotesRepository } from './repositories/notes';
+export {
+  createChatThreadsRepository,
+  type ChatThreadsRepository,
+} from './repositories/chatThreads';
+export {
+  createChatMessagesRepository,
+  type ChatMessagesRepository,
+} from './repositories/chatMessages';
+export {
+  createSavedAnswersRepository,
+  type SavedAnswersRepository,
+} from './repositories/savedAnswers';
 export type { AppView } from './db/schema';

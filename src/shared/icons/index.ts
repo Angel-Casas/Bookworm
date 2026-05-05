@@ -4,3 +4,7 @@ export { ArrowLeftIcon } from './ArrowLeftIcon';
 export { SettingsIcon } from './SettingsIcon';
 export { EyeIcon } from './EyeIcon';
 export { EyeOffIcon } from './EyeOffIcon';
+export { ChatIcon } from './ChatIcon';
+export { SendIcon } from './SendIcon';
+export { StopIcon } from './StopIcon';
+export { SaveAnswerIcon } from './SaveAnswerIcon';

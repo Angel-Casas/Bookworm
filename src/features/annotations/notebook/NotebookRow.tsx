@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Bookmark, Highlight, HighlightColor } from '@/domain/annotations/types';
-import type { LocationAnchor } from '@/domain';
+import type { LocationAnchor, SavedAnswerId } from '@/domain';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from '@/features/reader/highlightColors';
 import { NoteEditor } from '@/features/reader/NoteEditor';
 import { NoteIcon } from '@/shared/icons';
@@ -16,6 +16,7 @@ type Props = {
   readonly onRemoveHighlight: (h: Highlight) => void;
   readonly onChangeColor: (h: Highlight, color: HighlightColor) => void;
   readonly onSaveNote: (h: Highlight, content: string) => void;
+  readonly onRemoveSavedAnswer?: (id: SavedAnswerId) => void;
 };
 
 function projectHighlightAnchor(h: Highlight): LocationAnchor {
@@ -31,8 +32,57 @@ export function NotebookRow({
   onRemoveHighlight,
   onChangeColor,
   onSaveNote,
+  onRemoveSavedAnswer,
 }: Props) {
   const [editingNote, setEditingNote] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  if (entry.kind === 'savedAnswer') {
+    const s = entry.savedAnswer;
+    return (
+      <li className="notebook-row notebook-row--saved-answer">
+        <div className="notebook-row__main">
+          <span className="notebook-row__top">
+            <span className="notebook-row__type">AI ANSWER</span>
+            <span className="notebook-row__model">{s.modelId}</span>
+            <span className="notebook-row__time">{relativeTime(s.createdAt, nowMs)}</span>
+          </span>
+          <p className="notebook-row__question">{s.question}</p>
+          <button
+            type="button"
+            className={
+              expanded
+                ? 'notebook-row__answer notebook-row__answer--expanded'
+                : 'notebook-row__answer'
+            }
+            aria-expanded={expanded}
+            onClick={() => {
+              setExpanded((cur) => !cur);
+            }}
+          >
+            {s.content}
+          </button>
+          {s.userNote ? (
+            <p className="notebook-row__user-note">{s.userNote}</p>
+          ) : null}
+        </div>
+        <span className="notebook-row__actions">
+          {onRemoveSavedAnswer ? (
+            <button
+              type="button"
+              className="notebook-row__delete"
+              aria-label="Remove saved answer"
+              onClick={() => {
+                onRemoveSavedAnswer(s.id);
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+        </span>
+      </li>
+    );
+  }
 
   if (entry.kind === 'bookmark') {
     const b = entry.bookmark;

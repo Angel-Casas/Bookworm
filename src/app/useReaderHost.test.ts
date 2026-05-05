@@ -54,6 +54,8 @@ function fakeWiring(): Wiring {
       getSelectedModelId: vi.fn(() => Promise.resolve(undefined)),
       putSelectedModelId: vi.fn(() => Promise.resolve()),
       deleteSelectedModelId: vi.fn(() => Promise.resolve()),
+      getChatPanelHintShown: vi.fn(() => Promise.resolve(false)),
+      setChatPanelHintShown: vi.fn(() => Promise.resolve()),
     },
     opfs: {
       readFile: vi.fn(() => Promise.resolve(undefined)),
@@ -93,6 +95,28 @@ function fakeWiring(): Wiring {
       deleteByHighlight: vi.fn(() => Promise.resolve()),
       deleteByBook: vi.fn(() => Promise.resolve()),
     },
+    chatThreadsRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    },
+    chatMessagesRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByThread: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByThread: vi.fn(() => Promise.resolve()),
+    },
+    savedAnswersRepo: {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      getByMessage: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
   };
@@ -101,6 +125,8 @@ function fakeWiring(): Wiring {
 const baseOpts = {
   initialFocusMode: 'normal' as const,
   initialFocusModeHintShown: false,
+  initialRightRailVisible: true,
+  initialChatPanelHintShown: false,
 };
 
 describe('useReaderHost', () => {

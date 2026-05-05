@@ -10,6 +10,7 @@ export type HighlightId = Brand<string, 'HighlightId'>;
 export type NoteId = Brand<string, 'NoteId'>;
 export type ChatThreadId = Brand<string, 'ChatThreadId'>;
 export type ChatMessageId = Brand<string, 'ChatMessageId'>;
+export type SavedAnswerId = Brand<string, 'SavedAnswerId'>;
 export type PromptSetId = Brand<string, 'PromptSetId'>;
 export type AIProfileId = Brand<string, 'AIProfileId'>;
 
@@ -21,6 +22,7 @@ export const HighlightId = (s: string): HighlightId => s as HighlightId;
 export const NoteId = (s: string): NoteId => s as NoteId;
 export const ChatThreadId = (s: string): ChatThreadId => s as ChatThreadId;
 export const ChatMessageId = (s: string): ChatMessageId => s as ChatMessageId;
+export const SavedAnswerId = (s: string): SavedAnswerId => s as SavedAnswerId;
 export const PromptSetId = (s: string): PromptSetId => s as PromptSetId;
 export const AIProfileId = (s: string): AIProfileId => s as AIProfileId;
 

@@ -33,6 +33,7 @@ export type ReaderPreferences = {
   readonly theme: ReaderTheme;
   readonly modeByFormat: { readonly epub: ReaderMode; readonly pdf: ReaderMode };
   readonly focusMode: FocusMode;
+  readonly rightRailVisible: boolean;
 };
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -45,6 +46,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   theme: 'light',
   modeByFormat: { epub: 'paginated', pdf: 'paginated' },
   focusMode: 'normal',
+  rightRailVisible: true,
 };
 
 // ----- BookReader contract (just-in-time minimal API) -----

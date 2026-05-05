@@ -29,6 +29,8 @@ type ReadyBoot = {
   readonly initialView: AppView;
   readonly initialFocusMode: FocusMode;
   readonly initialFocusModeHintShown: boolean;
+  readonly initialRightRailVisible: boolean;
+  readonly initialChatPanelHintShown: boolean;
 };
 
 type BootState =
@@ -61,6 +63,8 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     initialView,
     initialFocusMode,
     initialFocusModeHintShown,
+    initialRightRailVisible,
+    initialChatPanelHintShown,
   } = boot;
   const view = useAppView({
     settingsRepo: wiring.settingsRepo,
@@ -73,8 +77,17 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     view: view.current,
     initialFocusMode,
     initialFocusModeHintShown,
+    initialRightRailVisible,
+    initialChatPanelHintShown,
     onBookRemovedFromActiveView: view.goLibrary,
   });
+  const apiKeyState = useApiKeyStore((s) => s.state);
+  const selectedModelId = useModelCatalogStore((s) => s.selectedId);
+  const getApiKey = useCallback((): string | null => {
+    const s = useApiKeyStore.getState().state;
+    if (s.kind === 'session' || s.kind === 'unlocked') return s.key;
+    return null;
+  }, []);
   const hasBooks = useHasBooks(libraryStore);
   const hasImportActivity = useHasImportActivity(importStore);
   const showWorkspace = hasBooks || hasImportActivity;
@@ -129,6 +142,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
           notesRepo={reader.notesRepo}
+          savedAnswersRepo={reader.savedAnswersRepo}
           onBack={() => {
             view.goReader(book);
           }}
@@ -171,9 +185,20 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookmarksRepo={reader.bookmarksRepo}
           highlightsRepo={reader.highlightsRepo}
           notesRepo={reader.notesRepo}
+          chatThreadsRepo={reader.chatThreadsRepo}
+          chatMessagesRepo={reader.chatMessagesRepo}
+          savedAnswersRepo={reader.savedAnswersRepo}
           onOpenNotebook={() => {
             view.goNotebook(book.id);
           }}
+          onOpenSettings={view.goSettings}
+          initialRightRailVisible={reader.initialRightRailVisible}
+          onRightRailVisibilityChange={reader.onRightRailVisibilityChange}
+          initialChatPanelHintShown={reader.initialChatPanelHintShown}
+          onChatPanelHintDismiss={reader.onChatPanelHintDismiss}
+          apiKeyState={apiKeyState}
+          getApiKey={getApiKey}
+          selectedModelId={selectedModelId}
         />
       </div>
     );
@@ -224,15 +249,23 @@ export function App() {
         void sweepOrphans(wiring.opfs, wiring.bookRepo, wiring.readingProgressRepo).catch(() => {
           /* best effort */
         });
-        const [persistedView, prefs, hintShown, apiKeyBlob, catalogSnapshot, selectedId] =
-          await Promise.all([
-            wiring.settingsRepo.getView(),
-            wiring.readerPreferencesRepo.get(),
-            wiring.settingsRepo.getFocusModeHintShown(),
-            wiring.settingsRepo.getApiKeyBlob(),
-            wiring.settingsRepo.getModelCatalog(),
-            wiring.settingsRepo.getSelectedModelId(),
-          ]);
+        const [
+          persistedView,
+          prefs,
+          hintShown,
+          apiKeyBlob,
+          catalogSnapshot,
+          selectedId,
+          chatHintShown,
+        ] = await Promise.all([
+          wiring.settingsRepo.getView(),
+          wiring.readerPreferencesRepo.get(),
+          wiring.settingsRepo.getFocusModeHintShown(),
+          wiring.settingsRepo.getApiKeyBlob(),
+          wiring.settingsRepo.getModelCatalog(),
+          wiring.settingsRepo.getSelectedModelId(),
+          wiring.settingsRepo.getChatPanelHintShown(),
+        ]);
         if (apiKeyBlob) {
           useApiKeyStore.getState().markLocked();
         }
@@ -255,6 +288,8 @@ export function App() {
           initialView: persistedView ?? LIBRARY_VIEW,
           initialFocusMode: prefs.focusMode,
           initialFocusModeHintShown: hintShown,
+          initialRightRailVisible: prefs.rightRailVisible,
+          initialChatPanelHintShown: chatHintShown,
         });
       } catch (err) {
         const reason = err instanceof Error ? err.message : 'Unknown error';

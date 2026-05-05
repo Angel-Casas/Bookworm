@@ -1,10 +1,18 @@
 import type { DBSchema } from 'idb';
-import type { Book, Bookmark, Highlight, Note } from '@/domain';
+import type {
+  Book,
+  Bookmark,
+  ChatMessage,
+  ChatThread,
+  Highlight,
+  Note,
+  SavedAnswer,
+} from '@/domain';
 import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
 export const DB_NAME = 'bookworm';
-export const CURRENT_DB_VERSION = 5;
+export const CURRENT_DB_VERSION = 6;
 
 export type AppView =
   | { readonly kind: 'library' }
@@ -33,7 +41,8 @@ export type SettingsRecord =
         readonly fetchedAt: number;
       };
     }
-  | { readonly key: 'selectedModelId'; readonly value: string };
+  | { readonly key: 'selectedModelId'; readonly value: string }
+  | { readonly key: 'chatPanelHintShown'; readonly value: boolean };
 
 export type ReadingProgressRecord = {
   readonly bookId: string;
@@ -86,6 +95,29 @@ export interface BookwormDBSchema extends DBSchema {
       'by-highlight': string;
     };
   };
+  chat_threads: {
+    key: string;
+    value: ChatThread;
+    indexes: {
+      'by-book': string;
+      'by-updated': string;
+    };
+  };
+  chat_messages: {
+    key: string;
+    value: ChatMessage;
+    indexes: {
+      'by-thread': string;
+    };
+  };
+  saved_answers: {
+    key: string;
+    value: SavedAnswer;
+    indexes: {
+      'by-book': string;
+      'by-message': string;
+    };
+  };
 }
 
 export const BOOK_STORE = 'books' as const;
@@ -95,3 +127,6 @@ export const READER_PREFERENCES_STORE = 'reader_preferences' as const;
 export const BOOKMARKS_STORE = 'bookmarks' as const;
 export const HIGHLIGHTS_STORE = 'highlights' as const;
 export const NOTES_STORE = 'notes' as const;
+export const CHAT_THREADS_STORE = 'chat_threads' as const;
+export const CHAT_MESSAGES_STORE = 'chat_messages' as const;
+export const SAVED_ANSWERS_STORE = 'saved_answers' as const;

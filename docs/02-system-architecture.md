@@ -309,6 +309,86 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-05 — Phase 4.3 chat panel
+
+- **Surface:** Reader workspace's right rail finally lands. New `RightRail`
+  + `RightRailCollapsedTab` next to the existing `DesktopRail` and
+  `ReaderView`. Width fixed at 360px; collapse via translate-only animation
+  (no width animation — avoids foliate iframe reflow). Collapsed state
+  exposes a 28px edge tab with expand affordance and unread dot. Visibility
+  is a persisted `ReaderPreferences.rightRailVisible` boolean (defaults to
+  true; forward-compatible normalizer, no schema bump). Mobile sheet tab
+  for chat is deferred (the sheet currently surfaces TOC / Bookmarks /
+  Highlights only — chat-on-mobile lands when 4.4 adds passage-mode UX).
+- **Domain:** `ChatMode` extends with `'open'` (4.3 baseline). `mode` moves
+  from `ChatThread` to `ChatMessage` (real conversations mix modes — a
+  thread-level lock would be wrong; chat domain was unused so the refactor
+  is free). `ChatMessage` gains transient `streaming` / `truncated` /
+  `error` flags. New `SavedAnswer` domain type — distinct from `Note` per
+  the AI-engine doc's "Clearly separate user notes from AI-generated
+  content" rule. `SavedAnswer` snapshots
+  `content/question/modelId/mode/contextRefs` so deleting a thread or
+  message doesn't erase the saved answer.
+- **Storage:** v6 migration adds `chat_threads` /
+  `chat_messages` / `saved_answers` IDB stores with appropriate indexes
+  (`by-book` + `by-updated` on threads; `by-thread` on messages; `by-book`
+  + `by-message` on saved answers, the latter unique). Three new repos in
+  the validating-reads pattern. `chatPanelHintShown` added as a new
+  `SettingsRecord` variant (mirrors `focusModeHintShown`).
+- **Network:** New `nanogptChat.ts` module — sole consumer of
+  `/v1/chat/completions`. Async generator over `fetch + ReadableStream`
+  (EventSource can't carry Authorization). Permissive `parseSSE` helper
+  next door — line-buffered, tolerates `\r\n`, skips comment lines, joins
+  multi-line `data:` continuations. Pre-stream HTTP failures throw a
+  typed `ChatCompletionError` carrying `ChatCompletionFailure`; the lint
+  rule `@typescript-eslint/only-throw-error` required wrapping the typed
+  failure in an Error subclass rather than throwing the plain object.
+- **State machine:** XState v5 `chatRequestMachine`, one instance per
+  send. The spec's `assembling`/`sending` substates are collapsed into
+  `streaming` for v1 — assembly runs synchronously in the hook *before*
+  `actor.start()`, and the actor's invocation covers both pre-stream
+  fetch and streaming. Final states: `done | aborted | failed`.
+  `useChatSend` reads transition outcomes via `snap.value` (specific
+  final-state name) rather than `snap.output` (which proved brittle in
+  testing under happy-dom).
+- **Hooks:** `useChatThreads`, `useChatMessages`, `useChatSend`,
+  `useSavedAnswers` under `src/features/ai/chat/`; `useRightRailVisibility`
+  under workspace. Mirror the per-book hook pattern from
+  `useBookmarks`/`useHighlights`/`useNotes`.
+- **Replay safety:** User message persisted before the machine starts;
+  assistant placeholder persisted with `streaming: true` immediately;
+  patches debounced 80ms; `finalize` cancels pending patch and writes
+  immediately. Stale-stream detection on mount: any
+  `streaming: true && createdAt < now - 30s` row is repaired to
+  `truncated + error: 'interrupted'` before the message list is exposed.
+- **Privacy:** `PrivacyPreview` imports the same
+  `buildOpenModeSystemPrompt` constant the network adapter sends.
+  Snapshot-tested. Refactoring the prompt automatically updates the UI in
+  lockstep.
+- **Save-as-note:** Distinct entity, not overloaded onto `Note`.
+  `SaveAnswerInline` renders inline on the assistant bubble; on save,
+  `useSavedAnswers.add(snapshot)` writes a new `SavedAnswer` and the
+  bubble shows a 2s "Saved → notebook" microconfirmation.
+- **Notebook integration:** `NotebookEntry` union expands with
+  `{ kind: 'savedAnswer'; savedAnswer }`. New "AI answers" filter chip
+  in `NotebookSearchBar`. Saved answers sort by `createdAt` (no
+  book-position anchor in 4.3 — 4.4 will add provenance jumps when
+  `contextRefs` are non-empty). Search corpus extends to include
+  question + content + userNote.
+- **Cascade on book removal:** `useReaderHost.onRemoveBook` chain
+  extends with messages-by-thread → threads-by-book → saved-answers-by-book
+  (children before parents).
+- **First-time hint:** Dismissible banner on first chat-panel render once
+  the panel is usable — "Selected text becomes context in 4.4 — for now,
+  ask about the book in general." Persisted via `chatPanelHintShown`.
+  Mirrors Phase 2.3's `focusModeHintShown` pattern.
+- **Out of scope (deferred):** Passage mode, chapter mode, multi-excerpt,
+  retrieval, full-book attach, suggested prompts (all Phase 4.4 / Phase
+  5+). Markdown rendering, right-rail resize, per-book persisted
+  active-thread, AI-summarized thread titles, re-generate, token/cost
+  hints, prompt caching breakpoints, provider switcher, thread search,
+  export, mobile chat sheet tab.
+
 ### 2026-05-04 — Phase 4.2: Model catalog
 
 - **Surface:** New "Models" section in the existing Settings page, below

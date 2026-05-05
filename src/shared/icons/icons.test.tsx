@@ -7,6 +7,10 @@ import {
   SettingsIcon,
   EyeIcon,
   EyeOffIcon,
+  ChatIcon,
+  SendIcon,
+  StopIcon,
+  SaveAnswerIcon,
 } from './index';
 
 afterEach(cleanup);
@@ -61,6 +65,28 @@ describe('icons', () => {
 
   it('EyeOffIcon renders an svg', () => {
     const { container } = render(<EyeOffIcon />);
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('ChatIcon renders an svg with .icon class', () => {
+    const { container } = render(<ChatIcon />);
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg?.classList.contains('icon')).toBe(true);
+  });
+
+  it('SendIcon renders an svg', () => {
+    const { container } = render(<SendIcon />);
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('StopIcon renders an svg', () => {
+    const { container } = render(<StopIcon />);
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('SaveAnswerIcon renders an svg', () => {
+    const { container } = render(<SaveAnswerIcon />);
     expect(container.querySelector('svg')).not.toBeNull();
   });
 });

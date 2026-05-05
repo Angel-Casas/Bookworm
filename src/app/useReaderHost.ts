@@ -1,7 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
-import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
+import type {
+  BookmarksRepository,
+  ChatMessagesRepository,
+  ChatThreadsRepository,
+  HighlightsRepository,
+  NotesRepository,
+  SavedAnswersRepository,
+} from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
 import type { Wiring } from '@/features/library/wiring';
 import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
@@ -26,6 +33,13 @@ export type ReaderHostHandle = {
   bookmarksRepo: BookmarksRepository;
   highlightsRepo: HighlightsRepository;
   notesRepo: NotesRepository;
+  chatThreadsRepo: ChatThreadsRepository;
+  chatMessagesRepo: ChatMessagesRepository;
+  savedAnswersRepo: SavedAnswersRepository;
+  initialRightRailVisible: boolean;
+  onRightRailVisibilityChange: (visible: boolean) => void;
+  initialChatPanelHintShown: boolean;
+  onChatPanelHintDismiss: () => void;
 };
 
 function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
@@ -44,6 +58,8 @@ type UseReaderHostOptions = {
   readonly view: AppView;
   readonly initialFocusMode: FocusMode;
   readonly initialFocusModeHintShown: boolean;
+  readonly initialRightRailVisible: boolean;
+  readonly initialChatPanelHintShown: boolean;
   readonly onBookRemovedFromActiveView?: () => void;
 };
 
@@ -53,9 +69,12 @@ export function useReaderHost({
   view,
   initialFocusMode,
   initialFocusModeHintShown,
+  initialRightRailVisible,
+  initialChatPanelHintShown,
   onBookRemovedFromActiveView,
 }: UseReaderHostOptions): ReaderHostHandle {
   const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(initialFocusModeHintShown);
+  const [chatPanelHintShown, setChatPanelHintShown] = useState(initialChatPanelHintShown);
 
   const loadBookForReader = useCallback(
     async (
@@ -108,9 +127,24 @@ export function useReaderHost({
     [wiring],
   );
 
+  const onRightRailVisibilityChange = useCallback(
+    (visible: boolean) => {
+      void (async () => {
+        const current = await wiring.readerPreferencesRepo.get();
+        await wiring.readerPreferencesRepo.put({ ...current, rightRailVisible: visible });
+      })();
+    },
+    [wiring],
+  );
+
   const onFirstTimeHintShown = useCallback(() => {
     setHasShownFirstTimeHint(true);
     void wiring.settingsRepo.setFocusModeHintShown(true);
+  }, [wiring]);
+
+  const onChatPanelHintDismiss = useCallback(() => {
+    setChatPanelHintShown(true);
+    void wiring.settingsRepo.setChatPanelHintShown(true);
   }, [wiring]);
 
   const onFilesPicked = useCallback(
@@ -143,6 +177,13 @@ export function useReaderHost({
           await wiring.bookmarksRepo.deleteByBook(BookId(book.id));
           await wiring.highlightsRepo.deleteByBook(BookId(book.id));
           await wiring.notesRepo.deleteByBook(BookId(book.id));
+          // Chat cascade: messages-by-thread first, then threads-by-book, then saved answers.
+          const threads = await wiring.chatThreadsRepo.listByBook(BookId(book.id));
+          for (const t of threads) {
+            await wiring.chatMessagesRepo.deleteByThread(t.id);
+          }
+          await wiring.chatThreadsRepo.deleteByBook(BookId(book.id));
+          await wiring.savedAnswersRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
@@ -179,5 +220,12 @@ export function useReaderHost({
     bookmarksRepo: wiring.bookmarksRepo,
     highlightsRepo: wiring.highlightsRepo,
     notesRepo: wiring.notesRepo,
+    chatThreadsRepo: wiring.chatThreadsRepo,
+    chatMessagesRepo: wiring.chatMessagesRepo,
+    savedAnswersRepo: wiring.savedAnswersRepo,
+    initialRightRailVisible,
+    onRightRailVisibilityChange,
+    initialChatPanelHintShown: chatPanelHintShown,
+    onChatPanelHintDismiss,
   };
 }

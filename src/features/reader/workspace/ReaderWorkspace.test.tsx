@@ -48,7 +48,37 @@ const baseProps = {
   bookmarksRepo: fakeBookmarksRepo,
   highlightsRepo: fakeHighlightsRepo,
   notesRepo: fakeNotesRepo,
+  chatThreadsRepo: {
+    upsert: () => Promise.resolve(),
+    getById: () => Promise.resolve(null),
+    listByBook: () => Promise.resolve([]),
+    delete: () => Promise.resolve(),
+    deleteByBook: () => Promise.resolve(),
+  },
+  chatMessagesRepo: {
+    upsert: () => Promise.resolve(),
+    getById: () => Promise.resolve(null),
+    listByThread: () => Promise.resolve([]),
+    delete: () => Promise.resolve(),
+    deleteByThread: () => Promise.resolve(),
+  },
+  savedAnswersRepo: {
+    upsert: () => Promise.resolve(),
+    getById: () => Promise.resolve(null),
+    getByMessage: () => Promise.resolve(null),
+    listByBook: () => Promise.resolve([]),
+    delete: () => Promise.resolve(),
+    deleteByBook: () => Promise.resolve(),
+  },
   onOpenNotebook: () => undefined,
+  onOpenSettings: () => undefined,
+  initialRightRailVisible: true,
+  onRightRailVisibilityChange: () => undefined,
+  initialChatPanelHintShown: false,
+  onChatPanelHintDismiss: () => undefined,
+  apiKeyState: { kind: 'none' as const },
+  getApiKey: () => null,
+  selectedModelId: null,
 };
 
 describe('ReaderWorkspace (smoke)', () => {

@@ -1,0 +1,106 @@
+.message-bubble {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  max-width: 78%;
+  margin: var(--space-2) 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.message-bubble--user {
+  align-self: flex-end;
+  background: color-mix(in oklab, var(--color-accent) 14%, var(--color-surface));
+  color: var(--color-text);
+}
+
+.message-bubble--assistant {
+  align-self: flex-start;
+  background: var(--color-surface-elevated, var(--color-surface));
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+}
+
+.message-bubble--error {
+  align-self: flex-start;
+  background: color-mix(in oklab, var(--color-danger, #c0392b) 8%, var(--color-surface));
+  border: 1px solid
+    color-mix(in oklab, var(--color-danger, #c0392b) 40%, var(--color-border-subtle));
+  color: var(--color-text);
+}
+
+.message-bubble__content {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-bubble__caret {
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  background: currentColor;
+  margin-inline-start: 2px;
+  vertical-align: text-bottom;
+  opacity: 0.4;
+  animation: bubble-caret 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-bubble__caret {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+@keyframes bubble-caret {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.message-bubble__footer {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-block-start: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.message-bubble__badge {
+  font-size: 0.65rem;
+  padding: 0 var(--space-2);
+  border-radius: 3px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.message-bubble__truncated {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.message-bubble__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+
+.message-bubble__save:hover {
+  color: var(--color-text);
+}
+
+.message-bubble__save:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

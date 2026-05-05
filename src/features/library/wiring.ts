@@ -8,6 +8,9 @@ import {
   createBookmarksRepository,
   createHighlightsRepository,
   createNotesRepository,
+  createChatThreadsRepository,
+  createChatMessagesRepository,
+  createSavedAnswersRepository,
   type OpfsAdapter,
   type BookRepository,
   type SettingsRepository,
@@ -16,6 +19,9 @@ import {
   type BookmarksRepository,
   type HighlightsRepository,
   type NotesRepository,
+  type ChatThreadsRepository,
+  type ChatMessagesRepository,
+  type SavedAnswersRepository,
 } from '@/storage';
 import { BookId, IsoTimestamp, type Book, type ParsedMetadata } from '@/domain';
 import type { ImportInput } from './import/importMachine';
@@ -43,6 +49,9 @@ export type Wiring = {
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
   readonly notesRepo: NotesRepository;
+  readonly chatThreadsRepo: ChatThreadsRepository;
+  readonly chatMessagesRepo: ChatMessagesRepository;
+  readonly savedAnswersRepo: SavedAnswersRepository;
   readonly importDeps: Omit<ImportInput, 'file'>;
   persistFirstQuotaRequest(): Promise<void>;
 };
@@ -56,6 +65,9 @@ export function createWiring(db: BookwormDB): Wiring {
   const bookmarksRepo = createBookmarksRepository(db);
   const highlightsRepo = createHighlightsRepository(db);
   const notesRepo = createNotesRepository(db);
+  const chatThreadsRepo = createChatThreadsRepository(db);
+  const chatMessagesRepo = createChatMessagesRepository(db);
+  const savedAnswersRepo = createSavedAnswersRepository(db);
 
   let workerSingleton: Worker | null = null;
   const ensureWorker = (): Worker => {
@@ -164,6 +176,9 @@ export function createWiring(db: BookwormDB): Wiring {
     bookmarksRepo,
     highlightsRepo,
     notesRepo,
+    chatThreadsRepo,
+    chatMessagesRepo,
+    savedAnswersRepo,
     importDeps,
     persistFirstQuotaRequest,
   };

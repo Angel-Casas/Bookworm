@@ -11,10 +11,12 @@ import type {
   HighlightColor,
   Note,
 } from '@/domain/annotations/types';
+import type { SavedAnswer, SavedAnswerId } from '@/domain';
 import type {
   BookmarksRepository,
   HighlightsRepository,
   NotesRepository,
+  SavedAnswersRepository,
 } from '@/storage';
 import { compareNotebookEntries } from './notebookSort';
 import { matchesFilter } from './notebookFilter';
@@ -32,6 +34,7 @@ export type UseNotebookHandle = {
   readonly removeHighlight: (h: Highlight) => Promise<void>;
   readonly changeColor: (h: Highlight, color: HighlightColor) => Promise<void>;
   readonly saveNote: (h: Highlight, content: string) => Promise<void>;
+  readonly removeSavedAnswer: (id: SavedAnswerId) => Promise<void>;
 };
 
 type Options = {
@@ -39,6 +42,7 @@ type Options = {
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
   readonly notesRepo: NotesRepository;
+  readonly savedAnswersRepo?: SavedAnswersRepository;
 };
 
 function buildNotesMap(notes: readonly Note[]): Map<HighlightId, Note> {
@@ -56,12 +60,14 @@ export function useNotebook({
   bookmarksRepo,
   highlightsRepo,
   notesRepo,
+  savedAnswersRepo,
 }: Options): UseNotebookHandle {
   const [bookmarks, setBookmarks] = useState<readonly Bookmark[]>([]);
   const [highlights, setHighlights] = useState<readonly Highlight[]>([]);
   const [notesByHighlightId, setNotesByHighlightId] = useState<ReadonlyMap<HighlightId, Note>>(
     () => new Map(),
   );
+  const [savedAnswers, setSavedAnswers] = useState<readonly SavedAnswer[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<NotebookFilter>('all');
 
@@ -71,16 +77,18 @@ export function useNotebook({
       bookmarksRepo.listByBook(bookId),
       highlightsRepo.listByBook(bookId),
       notesRepo.listByBook(bookId),
-    ]).then(([bms, hls, ns]) => {
+      savedAnswersRepo ? savedAnswersRepo.listByBook(bookId) : Promise.resolve([]),
+    ]).then(([bms, hls, ns, sas]) => {
       if (cancelled) return;
       setBookmarks(bms);
       setHighlights(hls);
       setNotesByHighlightId(buildNotesMap(ns));
+      setSavedAnswers(sas);
     });
     return () => {
       cancelled = true;
     };
-  }, [bookId, bookmarksRepo, highlightsRepo, notesRepo]);
+  }, [bookId, bookmarksRepo, highlightsRepo, notesRepo, savedAnswersRepo]);
 
   const entries = useMemo<readonly NotebookEntry[]>(() => {
     const unified: NotebookEntry[] = [
@@ -92,14 +100,17 @@ export function useNotebook({
           note: notesByHighlightId.get(highlight.id) ?? null,
         }),
       ),
+      ...savedAnswers.map(
+        (savedAnswer): NotebookEntry => ({ kind: 'savedAnswer', savedAnswer }),
+      ),
     ];
     const filtered = unified.filter(
       (e) => matchesFilter(e, filter) && matchesQuery(e, query),
     );
     return filtered.sort(compareNotebookEntries);
-  }, [bookmarks, highlights, notesByHighlightId, filter, query]);
+  }, [bookmarks, highlights, notesByHighlightId, savedAnswers, filter, query]);
 
-  const totalCount = bookmarks.length + highlights.length;
+  const totalCount = bookmarks.length + highlights.length + savedAnswers.length;
 
   const removeBookmark = useCallback(
     async (b: Bookmark): Promise<void> => {
@@ -213,6 +224,21 @@ export function useNotebook({
     [notesByHighlightId, notesRepo],
   );
 
+  const removeSavedAnswer = useCallback(
+    async (id: SavedAnswerId): Promise<void> => {
+      if (!savedAnswersRepo) return;
+      const before = savedAnswers;
+      setSavedAnswers((xs) => xs.filter((x) => x.id !== id));
+      try {
+        await savedAnswersRepo.delete(id);
+      } catch (err) {
+        console.warn('[notebook] removeSavedAnswer failed; restoring', err);
+        setSavedAnswers(before);
+      }
+    },
+    [savedAnswers, savedAnswersRepo],
+  );
+
   return {
     entries,
     totalCount,
@@ -224,5 +250,6 @@ export function useNotebook({
     removeHighlight,
     changeColor,
     saveNote,
+    removeSavedAnswer,
   };
 }

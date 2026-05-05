@@ -2,7 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import type { HighlightId} from '@/domain';
 import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
-import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
+import type {
+  BookmarksRepository,
+  ChatMessagesRepository,
+  ChatThreadsRepository,
+  HighlightsRepository,
+  NotesRepository,
+  SavedAnswersRepository,
+} from '@/storage';
+import type { ApiKeyState } from '@/features/ai/key/apiKeyStore';
 import type {
   Highlight,
   HighlightAnchor,
@@ -18,7 +26,11 @@ import { HighlightToolbar } from '@/features/reader/HighlightToolbar';
 import { NoteEditor } from '@/features/reader/NoteEditor';
 import { DesktopRail, type RailTab } from './DesktopRail';
 import { MobileSheet } from './MobileSheet';
+import { RightRail } from './RightRail';
+import { RightRailCollapsedTab } from './RightRailCollapsedTab';
+import { ChatPanel } from '@/features/ai/chat/ChatPanel';
 import { useFocusMode } from './useFocusMode';
+import { useRightRailVisibility } from './useRightRailVisibility';
 import { useViewport } from './useViewport';
 import { useBookmarks } from './useBookmarks';
 import { useHighlights } from './useHighlights';
@@ -46,7 +58,18 @@ type Props = {
   readonly bookmarksRepo: BookmarksRepository;
   readonly highlightsRepo: HighlightsRepository;
   readonly notesRepo: NotesRepository;
+  readonly chatThreadsRepo: ChatThreadsRepository;
+  readonly chatMessagesRepo: ChatMessagesRepository;
+  readonly savedAnswersRepo: SavedAnswersRepository;
   readonly onOpenNotebook: () => void;
+  readonly onOpenSettings: () => void;
+  readonly initialRightRailVisible: boolean;
+  readonly onRightRailVisibilityChange: (visible: boolean) => void;
+  readonly initialChatPanelHintShown: boolean;
+  readonly onChatPanelHintDismiss: () => void;
+  readonly apiKeyState: ApiKeyState;
+  readonly getApiKey: () => string | null;
+  readonly selectedModelId: string | null;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -115,6 +138,10 @@ export function ReaderWorkspace(props: Props) {
     },
     hasShownFirstTimeHint: props.hasShownFirstTimeHint,
     onFirstTimeHintShown: props.onFirstTimeHintShown,
+  });
+  const rightRail = useRightRailVisibility({
+    initial: props.initialRightRailVisible,
+    onChange: props.onRightRailVisibilityChange,
   });
 
   const [activeSheet, setActiveSheet] = useState<'toc' | 'typography' | null>(null);
@@ -312,6 +339,8 @@ export function ReaderWorkspace(props: Props) {
   ];
 
   const showRail = isDesktop && focus.mode === 'normal';
+  const showRightRail = isDesktop && focus.mode === 'normal' && rightRail.visible;
+  const showRightRailEdgeTab = isDesktop && focus.mode === 'normal' && !rightRail.visible;
 
   const sheetTabs: readonly SheetTab[] = [
     { key: 'contents', label: 'Contents' },
@@ -367,6 +396,42 @@ export function ReaderWorkspace(props: Props) {
             onStateChange={handleStateChange}
           />
         </div>
+        {showRightRail ? (
+          <RightRail
+            title="Chat"
+            onCollapse={() => {
+              rightRail.set(false);
+            }}
+          >
+            <ChatPanel
+              bookId={props.bookId}
+              book={{
+                title: props.bookTitle,
+                ...(props.bookSubtitle !== undefined && { author: props.bookSubtitle }),
+                format: props.bookFormat,
+              }}
+              apiKeyState={props.apiKeyState}
+              getApiKey={props.getApiKey}
+              selectedModelId={props.selectedModelId}
+              threadsRepo={props.chatThreadsRepo}
+              messagesRepo={props.chatMessagesRepo}
+              savedAnswersRepo={props.savedAnswersRepo}
+              onOpenSettings={props.onOpenSettings}
+              onCollapse={() => {
+                rightRail.set(false);
+              }}
+              hintShown={props.initialChatPanelHintShown}
+              onHintDismiss={props.onChatPanelHintDismiss}
+            />
+          </RightRail>
+        ) : null}
+        {showRightRailEdgeTab ? (
+          <RightRailCollapsedTab
+            onExpand={() => {
+              rightRail.set(true);
+            }}
+          />
+        ) : null}
       </div>
 
       {!isDesktop && activeSheet === 'toc' ? (
