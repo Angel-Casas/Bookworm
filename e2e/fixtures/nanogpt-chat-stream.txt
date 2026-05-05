@@ -1,0 +1,10 @@
+data: {"choices":[{"delta":{"content":"Hello"}}]}
+
+data: {"choices":[{"delta":{"content":", "}}]}
+
+data: {"choices":[{"delta":{"content":"reader."}}]}
+
+data: {"choices":[{"delta":{}}],"usage":{"prompt_tokens":42,"completion_tokens":3}}
+
+data: [DONE]
+
