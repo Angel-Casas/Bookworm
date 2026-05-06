@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, ChatMessageId } from '@/domain';
+import type { HighlightAnchor } from '@/domain/annotations/types';
 import { MessageBubble } from './MessageBubble';
 import { ChatErrorBubble } from './ChatErrorBubble';
 import type { ChatCompletionFailure } from './nanogptChat';
@@ -14,6 +15,8 @@ type Props = {
   readonly onSwitchModel?: () => void;
   readonly onOpenSettings?: () => void;
   readonly onDismissError?: () => void;
+  // Phase 4.4: passes through to MessageBubble's source footer.
+  readonly onJumpToSource?: (anchor: HighlightAnchor) => void;
 };
 
 export function MessageList({
@@ -24,6 +27,7 @@ export function MessageList({
   onSwitchModel,
   onOpenSettings,
   onDismissError,
+  onJumpToSource,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [stickToBottom, setStickToBottom] = useState<boolean>(true);
@@ -54,6 +58,7 @@ export function MessageList({
           key={m.id}
           message={m}
           {...(onSaveMessage ? { onSave: onSaveMessage } : {})}
+          {...(onJumpToSource ? { onJumpToSource } : {})}
         />
       ))}
       {failure ? (

@@ -10,6 +10,7 @@ import type {
   SavedAnswerId,
   SectionId,
 } from '../ids';
+import type { HighlightAnchor } from '../annotations/types';
 
 export type Model = {
   readonly id: string;
@@ -25,7 +26,15 @@ export type AnswerStyle = 'strict-grounded' | 'grounded-plus' | 'open';
 // answer can be linked back to source passages even after the user navigates
 // away from the originating selection.
 export type ContextRef =
-  | { readonly kind: 'passage'; readonly text: string; readonly chunkId?: ChunkId }
+  | {
+      readonly kind: 'passage';
+      readonly text: string;
+      readonly anchor: HighlightAnchor;
+      readonly sectionTitle?: string;
+      readonly windowBefore?: string;
+      readonly windowAfter?: string;
+      readonly chunkId?: ChunkId;
+    }
   | { readonly kind: 'highlight'; readonly highlightId: HighlightId }
   | { readonly kind: 'chunk'; readonly chunkId: ChunkId }
   | { readonly kind: 'section'; readonly sectionId: SectionId };

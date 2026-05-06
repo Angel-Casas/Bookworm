@@ -309,6 +309,67 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-06 — Phase 4.4 passage mode
+
+- **`ContextRef.passage` extended** with required `anchor: HighlightAnchor`
+  plus optional `windowBefore` / `windowAfter` / `sectionTitle`. The
+  product invariant "AI response links back to source" is now type-
+  enforced — a passage ref without an anchor is a compile error, not a
+  runtime hope. Pre-flight grep confirmed zero call sites in 4.3 had
+  ever constructed a passage ref, so no migration was needed; storage
+  validators (per-element via shared `isValidContextRef`) drop malformed
+  passage refs while preserving the surrounding message — more lenient
+  than the existing "drop the whole record" pattern, matching the
+  validating-reads spirit.
+- **Single combined system message** in `assemblePassageChatPrompt` —
+  the open-mode prompt and the passage-mode addendum are concatenated
+  with `\n\n` and shipped as message[0], not as two adjacent system
+  messages. NanoGPT proxies multiple upstream providers; some (notably
+  Anthropic-via-shim) collapse adjacent systems anyway, and a few niche
+  upstreams ignore everything past system[0]. Combining at assembly
+  time guarantees parity at zero semantic cost; the assistant still
+  sees the addendum text verbatim.
+- **Asymmetric `contextRefs` persistence.** `mode: 'passage'` goes on
+  both user and assistant messages of a turn — keeps the soft-cap
+  history scan symmetric and obvious. The passage `contextRef` itself
+  goes only on the assistant message — that's the side with provenance
+  (the source-footer reads it; the user message has no consumer).
+  Saves ~5KB of dead duplicate per question. Locked by an explicit
+  useChatSend test so a future "let's normalize them" refactor can't
+  silently re-introduce the bloat.
+- **Auto-highlight on Ask AI: rejected.** Selection materializes as a
+  transient chip via workspace state, not by creating a `Highlight`
+  record. Keeps the "user notes vs. AI side effects" boundary clean
+  for Phase 5+ multi-excerpt and retrieval modes — those will explicit-
+  ly NOT auto-highlight every chunk, and shipping 4.4 with the cleaner
+  pattern keeps the codebase consistent.
+- **Mobile chat as 4th sheet tab.** Fulfills the 4.3 commitment ("chat-
+  on-mobile lands when 4.4 adds passage-mode UX"). `ChatPanel` is
+  container-agnostic; the workspace just adds the chat key to the
+  existing sheet `tabs` array. Tab unmount cancels in-flight streams
+  via `useChatSend`'s existing cleanup; on remount, 4.3's stale-stream
+  detection marks the assistant message `truncated + error: 'inter-
+  rupted'`. Chosen over keep-mounted-by-transform — simpler unmount
+  semantics, and tab-switching is an explicit "doing something else"
+  gesture that silent stream continuation would surprise.
+- **PDF first-match-wins documented.** When the selected text appears
+  multiple times on a page, the first string match in
+  `getTextContent()`'s joined output wins for window extraction. The
+  PDF anchor (rects with y-coordinates) is unaffected, so jump-to-
+  passage stays correct; only `windowBefore`/`windowAfter` may come
+  from a different occurrence than the user actually selected, which
+  can subtly degrade answer quality. Locked by a unit test in
+  `pdfPassageWindows.test.ts`. `// TODO(passage-y-bias)` marker points
+  at the future enhancement (bias the search toward the rect mean-y;
+  needs a parallel item→char-offset map). Acceptable for v1 because
+  the failure mode is quality, not correctness.
+- **Composer focus mechanism.** ChatComposer accepts a one-shot
+  `focusRequest: { current: boolean }` ref that drains via `useEffect`
+  on each render — flag self-clears after firing focus(). Survives
+  desktop re-render and the mobile sheet → chat-tab mount path; chosen
+  over an imperative-handle pattern for simplicity (no forwardRef
+  needed; ChatPanel passes the ref through as a regular prop).
+
 ### 2026-05-05 — Phase 4.3 chat panel
 
 - **Surface:** Reader workspace's right rail finally lands. New `RightRail`

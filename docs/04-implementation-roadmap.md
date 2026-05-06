@@ -8,6 +8,7 @@
 - Phase 4.1 — complete (2026-05-04)
 - Phase 4.2 — complete (2026-05-04)
 - Phase 4.3 — complete (2026-05-05)
+- Phase 4.4 — complete (2026-05-06)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
@@ -227,10 +228,52 @@ Introduce AI carefully, starting with transparent, bounded workflows.
 - thread persists
 - errors are recoverable
 
-#### Task 4.4 — Passage mode
+#### Task 4.4 — Passage mode (complete 2026-05-06)
 - send selected passage as context
 - show context chips
 - show provenance
+
+**Shipped:**
+- `ContextRef.passage` carries a required `anchor: HighlightAnchor`
+  plus optional section + before/after windows; storage validators
+  enforce shape and drop malformed passage refs without dropping the
+  surrounding message.
+- `BookReader.getPassageContextAt(anchor)` extracts ~400-char windows.
+  EPUB caches the live `Range` from `handleSelectionChange` and uses
+  boundary ranges. PDF string-matches the selection against
+  `getTextContent()` page text via the pure `extractPassageWindows`
+  helper; first-match-wins is documented + tested as a known v1
+  limitation (anchor and jump-back are unaffected).
+- `assemblePassageChatPrompt` emits a single combined system message
+  (open prompt + addendum, separated by `\n\n`) for cross-upstream
+  parity, followed by history and a passage-block-prefixed user
+  message. History soft-cap drops 40 → 30 pairs in passage threads.
+- `useChatSend.attachedPassage`: routes through passage assembly when
+  set; writes `mode: 'passage'` on both user + assistant messages but
+  the passage `contextRef` only on the assistant — the asymmetry is
+  locked by an explicit test to prevent silent re-bloating.
+- `HighlightToolbar` gains an "Ask AI" action gated by api-key state
+  + selectedModelId. `ReaderWorkspace` materializes the selection as
+  a chip, auto-expands the right rail (desktop) or auto-switches the
+  mobile sheet to a new "Chat" 4th tab, and queues composer focus.
+- `PassageChip` (new): sticky chip above composer; `MessageBubble`
+  source footer (.find()-based predicate for forward compat with
+  multi-source modes) navigates the reader to the saved anchor;
+  `PrivacyPreview` renders the byte-equal passage block via a shared
+  `buildPassageBlockForPreview` helper, locked by a snapshot-equiv-
+  alence test against `assemblePassageChatPrompt`.
+- `NotebookRow` exposes "Jump to passage" on saved-answer rows when
+  their snapshotted contextRefs include a passage anchor.
+
+**Deferred:**
+- Multi-passage / chapter-mode / retrieval-mode (Phase 5)
+- E2E coverage of streaming send + source-footer + jump-back (needs
+  SSE mock harness for `/api/v1/chat/completions`); skip-tagged in
+  the new specs with TODO references to the unit tests that already
+  lock the underlying logic.
+- PDF y-coordinate biasing for window extraction when selection text
+  appears multiple times on a page (`TODO(passage-y-bias)` marker in
+  `pdfPassageWindows.ts`).
 
 **Acceptance criteria**
 - user can ask about selected text

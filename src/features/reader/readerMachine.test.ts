@@ -50,6 +50,9 @@ function fakeAdapter(): BookReader & { destroyed: boolean } {
     onHighlightTap() {
       return () => undefined;
     },
+    getPassageContextAt() {
+      return Promise.resolve({ text: '' });
+    },
     destroy() {
       out.destroyed = true;
     },
@@ -130,6 +133,7 @@ describe('readerMachine', () => {
       removeHighlight: () => undefined,
       onSelectionChange: () => () => undefined,
       onHighlightTap: () => () => undefined,
+      getPassageContextAt: () => Promise.resolve({ text: '' }),
       destroy() {
         this.destroyed = true;
       },

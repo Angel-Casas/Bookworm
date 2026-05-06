@@ -47,6 +47,37 @@ describe('EpubReaderAdapter', () => {
     host.remove();
   });
 
+  describe('getPassageContextAt', () => {
+    it('returns {text: ""} for a PDF anchor', async () => {
+      const adapter = new EpubReaderAdapter();
+      const result = await adapter.getPassageContextAt({
+        kind: 'pdf',
+        page: 1,
+        rects: [],
+      });
+      expect(result.text).toBe('');
+      expect(result.windowBefore).toBeUndefined();
+      expect(result.windowAfter).toBeUndefined();
+      expect(result.sectionTitle).toBeUndefined();
+      adapter.destroy();
+    });
+
+    it('returns {text: ""} when the adapter has not been opened', async () => {
+      const adapter = new EpubReaderAdapter();
+      const result = await adapter.getPassageContextAt({
+        kind: 'epub-cfi',
+        cfi: 'epubcfi(/6/4!/4/2/1:0,/4/2/1:5)',
+      });
+      expect(result.text).toBe('');
+      adapter.destroy();
+    });
+
+    // Real-fixture extraction is exercised in the E2E suite (see
+    // chat-passage-mode-desktop.spec.ts in Phase 4.4 Task 16). happy-dom
+    // can't load foliate-js's dynamic imports reliably, so unit-testing
+    // the live-range path here is not viable.
+  });
+
   // The full open() against the real fixture pulls foliate-js's dynamic
   // imports (zip.js, paginator.js, etc.) which are unreliable in happy-dom.
   // TOC parsing + render-dependent flows are exercised by the E2E suites.

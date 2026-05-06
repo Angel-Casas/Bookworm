@@ -112,4 +112,69 @@ describe('ChatMessagesRepository', () => {
     expect(await repo.getById(a.id)).toBeNull();
     expect(await repo.getById(b.id)).not.toBeNull();
   });
+
+  describe('contextRef.passage validation (Phase 4.4)', () => {
+    it('round-trips a well-formed passage ref', async () => {
+      const repo = createChatMessagesRepository(db);
+      const m = makeMessage({
+        role: 'assistant',
+        content: 'response',
+        mode: 'passage',
+        contextRefs: [
+          {
+            kind: 'passage',
+            text: 'selected text',
+            anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/2)' },
+            sectionTitle: 'Chapter 1',
+            windowBefore: 'before…',
+            windowAfter: '…after',
+          },
+        ],
+      });
+      await repo.upsert(m);
+      const fetched = await repo.getById(m.id);
+      expect(fetched?.contextRefs).toEqual(m.contextRefs);
+    });
+
+    it('filters a malformed passage ref (missing anchor) but keeps the message', async () => {
+      const repo = createChatMessagesRepository(db);
+      await db.put(CHAT_MESSAGES_STORE, {
+        ...makeMessage({ role: 'assistant' }),
+        contextRefs: [{ kind: 'passage', text: 'no anchor here' }] as never,
+      });
+      const list = await repo.listByThread(ChatThreadId('t-1'));
+      expect(list).toHaveLength(1);
+      expect(list[0]!.contextRefs).toEqual([]);
+    });
+
+    it('filters a passage ref with bad anchor.kind but keeps siblings', async () => {
+      const repo = createChatMessagesRepository(db);
+      await db.put(CHAT_MESSAGES_STORE, {
+        ...makeMessage({ role: 'assistant' }),
+        contextRefs: [
+          { kind: 'passage', text: 'bad', anchor: { kind: 'unknown' } },
+          { kind: 'highlight', highlightId: 'h1' },
+        ] as never,
+      });
+      const list = await repo.listByThread(ChatThreadId('t-1'));
+      expect(list[0]!.contextRefs).toEqual([{ kind: 'highlight', highlightId: 'h1' }]);
+    });
+
+    it('rejects a passage ref with non-string sectionTitle', async () => {
+      const repo = createChatMessagesRepository(db);
+      await db.put(CHAT_MESSAGES_STORE, {
+        ...makeMessage({ role: 'assistant' }),
+        contextRefs: [
+          {
+            kind: 'passage',
+            text: 'x',
+            anchor: { kind: 'epub-cfi', cfi: '/abc' },
+            sectionTitle: 42,
+          },
+        ] as never,
+      });
+      const list = await repo.listByThread(ChatThreadId('t-1'));
+      expect(list[0]!.contextRefs).toEqual([]);
+    });
+  });
 });

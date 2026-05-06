@@ -114,4 +114,70 @@ describe('SavedAnswersRepository', () => {
     expect(await repo.getById(a.id)).toBeNull();
     expect(await repo.getById(b.id)).not.toBeNull();
   });
+
+  describe('contextRef.passage validation (Phase 4.4)', () => {
+    it('round-trips a well-formed passage ref', async () => {
+      const repo = createSavedAnswersRepository(db);
+      const s = makeSaved({
+        mode: 'passage',
+        contextRefs: [
+          {
+            kind: 'passage',
+            text: 'selected text',
+            anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/2)' },
+            sectionTitle: 'Chapter 1',
+            windowBefore: 'before…',
+            windowAfter: '…after',
+          },
+        ],
+      });
+      await repo.upsert(s);
+      const fetched = await repo.getById(s.id);
+      expect(fetched?.contextRefs).toEqual(s.contextRefs);
+    });
+
+    it('filters a malformed passage ref (missing anchor) but keeps the saved answer', async () => {
+      const repo = createSavedAnswersRepository(db);
+      const baseId = SavedAnswerId(crypto.randomUUID());
+      await db.put(SAVED_ANSWERS_STORE, {
+        ...makeSaved({ id: baseId, mode: 'passage' }),
+        contextRefs: [{ kind: 'passage', text: 'no anchor' }] as never,
+      });
+      const fetched = await repo.getById(baseId);
+      expect(fetched).not.toBeNull();
+      expect(fetched!.contextRefs).toEqual([]);
+    });
+
+    it('filters a passage ref with bad anchor.kind but keeps siblings', async () => {
+      const repo = createSavedAnswersRepository(db);
+      const baseId = SavedAnswerId(crypto.randomUUID());
+      await db.put(SAVED_ANSWERS_STORE, {
+        ...makeSaved({ id: baseId, mode: 'passage' }),
+        contextRefs: [
+          { kind: 'passage', text: 'bad', anchor: { kind: 'unknown' } },
+          { kind: 'highlight', highlightId: 'h1' },
+        ] as never,
+      });
+      const fetched = await repo.getById(baseId);
+      expect(fetched!.contextRefs).toEqual([{ kind: 'highlight', highlightId: 'h1' }]);
+    });
+
+    it('rejects a passage ref with non-string windowBefore', async () => {
+      const repo = createSavedAnswersRepository(db);
+      const baseId = SavedAnswerId(crypto.randomUUID());
+      await db.put(SAVED_ANSWERS_STORE, {
+        ...makeSaved({ id: baseId, mode: 'passage' }),
+        contextRefs: [
+          {
+            kind: 'passage',
+            text: 'x',
+            anchor: { kind: 'epub-cfi', cfi: '/abc' },
+            windowBefore: 42,
+          },
+        ] as never,
+      });
+      const fetched = await repo.getById(baseId);
+      expect(fetched!.contextRefs).toEqual([]);
+    });
+  });
 });

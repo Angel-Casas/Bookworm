@@ -5,9 +5,10 @@ import {
   IsoTimestamp,
   SavedAnswerId,
 } from '@/domain';
-import type { ChatMode, ContextRef, SavedAnswer } from '@/domain';
+import type { ChatMode, SavedAnswer } from '@/domain';
 import type { BookwormDB } from '../db/open';
 import { SAVED_ANSWERS_STORE } from '../db/schema';
+import { isValidContextRef } from './contextRefValidation';
 
 export type SavedAnswersRepository = {
   upsert(answer: SavedAnswer): Promise<void>;
@@ -39,6 +40,9 @@ function normalizeSavedAnswer(record: unknown): SavedAnswer | null {
   if (typeof r.content !== 'string') return null;
   if (typeof r.question !== 'string') return null;
   if (!Array.isArray(r.contextRefs)) return null;
+  // Per-element validation: drop malformed passage refs but keep the rest.
+  // See contextRefValidation.ts for the rationale.
+  const contextRefs = r.contextRefs.filter(isValidContextRef);
   if (typeof r.createdAt !== 'string') return null;
   if (r.userNote !== undefined && typeof r.userNote !== 'string') return null;
   return {
@@ -50,7 +54,7 @@ function normalizeSavedAnswer(record: unknown): SavedAnswer | null {
     mode: r.mode,
     content: r.content,
     question: r.question,
-    contextRefs: r.contextRefs as readonly ContextRef[],
+    contextRefs,
     createdAt: IsoTimestamp(r.createdAt),
     ...(r.userNote !== undefined && { userNote: r.userNote }),
   };

@@ -80,6 +80,16 @@ export interface BookReader {
   // Both return null on failure (image-only PDF page, unresolvable CFI, etc.).
   getSnippetAt(anchor: LocationAnchor): Promise<string | null>;
   getSectionTitleAt(anchor: LocationAnchor): string | null;
+  // Passage mode (Phase 4.4): extract the text + ~400 char windows around a
+  // selection. Returns {text: ''} on failure rather than throwing — the caller
+  // (workspace) falls back to the SelectionInfo's selectedText. Section title
+  // is undefined for PDFs (no first-class sections).
+  getPassageContextAt(anchor: HighlightAnchor): Promise<{
+    readonly text: string;
+    readonly windowBefore?: string;
+    readonly windowAfter?: string;
+    readonly sectionTitle?: string;
+  }>;
   // Highlights (Phase 3.2).
   loadHighlights(highlights: readonly Highlight[]): void;
   addHighlight(highlight: Highlight): void;

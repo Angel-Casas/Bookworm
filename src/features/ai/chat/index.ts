@@ -12,10 +12,18 @@ export type {
 } from './nanogptChat';
 export {
   HISTORY_SOFT_CAP,
+  HISTORY_SOFT_CAP_OPEN,
+  HISTORY_SOFT_CAP_PASSAGE,
   assembleOpenChatPrompt,
+  assemblePassageChatPrompt,
   buildOpenModeSystemPrompt,
+  buildPassageBlockForPreview,
 } from './promptAssembly';
-export type { AssembleOpenChatInput, AssembleOpenChatResult } from './promptAssembly';
+export type {
+  AssembleOpenChatInput,
+  AssemblePassageChatInput,
+  AssembleOpenChatResult,
+} from './promptAssembly';
 export { makeChatRequestMachine } from './chatRequestMachine';
 export type {
   ChatRequestContext,

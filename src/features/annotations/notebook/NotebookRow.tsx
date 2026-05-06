@@ -39,6 +39,16 @@ export function NotebookRow({
 
   if (entry.kind === 'savedAnswer') {
     const s = entry.savedAnswer;
+    // Phase 4.4: when the snapshotted contextRefs include a passage anchor,
+    // expose a Jump-to-passage affordance. .find() so future multi-source
+    // saved answers (Phase 5+) keep working without changes here.
+    const passageRef = s.contextRefs.find((r) => r.kind === 'passage');
+    const passageAnchor: LocationAnchor | null =
+      passageRef !== undefined
+        ? passageRef.anchor.kind === 'epub-cfi'
+          ? { kind: 'epub-cfi', cfi: passageRef.anchor.cfi }
+          : { kind: 'pdf', page: passageRef.anchor.page }
+        : null;
     return (
       <li className="notebook-row notebook-row--saved-answer">
         <div className="notebook-row__main">
@@ -64,6 +74,18 @@ export function NotebookRow({
           </button>
           {s.userNote ? (
             <p className="notebook-row__user-note">{s.userNote}</p>
+          ) : null}
+          {passageAnchor !== null ? (
+            <button
+              type="button"
+              className="notebook-row__jump-to-passage"
+              aria-label="Jump to passage in book"
+              onClick={() => {
+                onJumpToAnchor(passageAnchor);
+              }}
+            >
+              📎 Jump to passage
+            </button>
           ) : null}
         </div>
         <span className="notebook-row__actions">

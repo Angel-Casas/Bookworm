@@ -172,3 +172,84 @@ describe('HighlightToolbar — note button', () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 });
+
+describe('HighlightToolbar — Ask AI button (Phase 4.4)', () => {
+  it('renders Ask AI button in create mode when canAskAI=true and onAskAI is defined', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onAskAI={() => undefined}
+        canAskAI
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /ask ai about this passage/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders Ask AI button in edit mode too', () => {
+    render(
+      <HighlightToolbar
+        mode="edit"
+        screenRect={RECT}
+        currentColor="yellow"
+        onPickColor={() => undefined}
+        onDelete={() => undefined}
+        onDismiss={() => undefined}
+        onAskAI={() => undefined}
+        canAskAI
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /ask ai about this passage/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides Ask AI button when canAskAI=false', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onAskAI={() => undefined}
+        canAskAI={false}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /ask ai/i })).toBeNull();
+  });
+
+  it('hides Ask AI button when onAskAI is undefined (even with canAskAI=true)', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        canAskAI
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /ask ai/i })).toBeNull();
+  });
+
+  it('clicking Ask AI calls onAskAI and onDismiss', () => {
+    const onAskAI = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={onDismiss}
+        onAskAI={onAskAI}
+        canAskAI
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /ask ai about this passage/i }));
+    expect(onAskAI).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+});
