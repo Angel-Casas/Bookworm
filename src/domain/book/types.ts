@@ -64,3 +64,16 @@ export type TextChunk = {
   readonly checksum: string;
   readonly chunkerVersion: number;
 };
+
+// id mirrors the chunk's id so the two stores stay 1:1; chunkerVersion +
+// embeddingModelVersion let us invalidate independently (chunker bump →
+// chunks rebuild → embeddings cascade-invalidate; model bump → embeddings
+// drop, chunks untouched).
+export type BookEmbedding = {
+  readonly id: ChunkId;
+  readonly bookId: BookId;
+  readonly vector: Float32Array;
+  readonly chunkerVersion: number;
+  readonly embeddingModelVersion: number;
+  readonly embeddedAt: IsoTimestamp;
+};
