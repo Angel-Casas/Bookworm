@@ -38,4 +38,8 @@ export {
   createSavedAnswersRepository,
   type SavedAnswersRepository,
 } from './repositories/savedAnswers';
+export {
+  createBookChunksRepository,
+  type BookChunksRepository,
+} from './repositories/bookChunks';
 export type { AppView } from './db/schema';

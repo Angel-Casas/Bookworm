@@ -11,6 +11,7 @@ import {
   createChatThreadsRepository,
   createChatMessagesRepository,
   createSavedAnswersRepository,
+  createBookChunksRepository,
   type OpfsAdapter,
   type BookRepository,
   type SettingsRepository,
@@ -22,6 +23,7 @@ import {
   type ChatThreadsRepository,
   type ChatMessagesRepository,
   type SavedAnswersRepository,
+  type BookChunksRepository,
 } from '@/storage';
 import { BookId, IsoTimestamp, type Book, type ParsedMetadata } from '@/domain';
 import type { ImportInput } from './import/importMachine';
@@ -52,8 +54,13 @@ export type Wiring = {
   readonly chatThreadsRepo: ChatThreadsRepository;
   readonly chatMessagesRepo: ChatMessagesRepository;
   readonly savedAnswersRepo: SavedAnswersRepository;
+  readonly bookChunksRepo: BookChunksRepository;
   readonly importDeps: Omit<ImportInput, 'file'>;
   persistFirstQuotaRequest(): Promise<void>;
+  // Phase 5.1: registers a callback fired immediately after a fresh book
+  // record is persisted. Used by App.tsx to enqueue indexing without coupling
+  // wiring to React.
+  setOnBookImported(callback: (bookId: BookId) => void): void;
 };
 
 export function createWiring(db: BookwormDB): Wiring {
@@ -68,6 +75,9 @@ export function createWiring(db: BookwormDB): Wiring {
   const chatThreadsRepo = createChatThreadsRepository(db);
   const chatMessagesRepo = createChatMessagesRepository(db);
   const savedAnswersRepo = createSavedAnswersRepository(db);
+  const bookChunksRepo = createBookChunksRepository(db);
+
+  let onBookImportedRef: ((id: BookId) => void) | null = null;
 
   let workerSingleton: Worker | null = null;
   const ensureWorker = (): Worker => {
@@ -154,6 +164,9 @@ export function createWiring(db: BookwormDB): Wiring {
         updatedAt: now,
       };
       await bookRepo.put(book);
+      // Phase 5.1: kick off indexing in the background. The callback is
+      // registered by App.tsx via setOnBookImported once useIndexing mounts.
+      if (onBookImportedRef !== null) onBookImportedRef(id);
       return book;
     },
   };
@@ -179,7 +192,11 @@ export function createWiring(db: BookwormDB): Wiring {
     chatThreadsRepo,
     chatMessagesRepo,
     savedAnswersRepo,
+    bookChunksRepo,
     importDeps,
     persistFirstQuotaRequest,
+    setOnBookImported(callback) {
+      onBookImportedRef = callback;
+    },
   };
 }

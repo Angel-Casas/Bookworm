@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Book } from '@/domain';
+import type { Book, BookId } from '@/domain';
 import type { CoverCache } from './store/coverCache';
 import { BookCardMenu } from './BookCardMenu';
+import { BookCardIndexingStatus } from './indexing/BookCardIndexingStatus';
 import './book-card.css';
 
 type Props = {
@@ -9,9 +10,18 @@ type Props = {
   readonly coverCache: CoverCache;
   readonly onRemove: (book: Book) => void;
   readonly onOpen?: (book: Book) => void;
+  readonly onOpenInspector?: (bookId: BookId) => void;
+  readonly onRetryIndex?: (bookId: BookId) => void;
 };
 
-export function BookCard({ book, coverCache, onRemove, onOpen }: Props) {
+export function BookCard({
+  book,
+  coverCache,
+  onRemove,
+  onOpen,
+  onOpenInspector,
+  onRetryIndex,
+}: Props) {
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +52,17 @@ export function BookCard({ book, coverCache, onRemove, onOpen }: Props) {
         <div className="book-card__title">{book.title}</div>
         <div className="book-card__author">{book.author ?? ''}</div>
       </button>
+      {onOpenInspector !== undefined && onRetryIndex !== undefined ? (
+        <BookCardIndexingStatus
+          book={book}
+          onOpenInspector={() => {
+            onOpenInspector(book.id);
+          }}
+          onRetry={() => {
+            onRetryIndex(book.id);
+          }}
+        />
+      ) : null}
       <BookCardMenu
         onRemove={() => {
           onRemove(book);

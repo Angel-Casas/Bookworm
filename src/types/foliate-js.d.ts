@@ -9,7 +9,6 @@ declare module 'foliate-js/view.js' {
   export {};
 }
 
-
 declare global {
   interface FoliateBookTocItem {
     readonly label: string;

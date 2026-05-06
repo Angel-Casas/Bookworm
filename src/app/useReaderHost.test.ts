@@ -117,8 +117,19 @@ function fakeWiring(): Wiring {
       delete: vi.fn(() => Promise.resolve()),
       deleteByBook: vi.fn(() => Promise.resolve()),
     },
+    bookChunksRepo: {
+      upsertMany: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      listBySection: vi.fn(() => Promise.resolve([])),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+      deleteBySection: vi.fn(() => Promise.resolve()),
+      countByBook: vi.fn(() => Promise.resolve(0)),
+      countStaleVersions: vi.fn(() => Promise.resolve([])),
+      hasChunksFor: vi.fn(() => Promise.resolve(false)),
+    },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
+    setOnBookImported: vi.fn(),
   };
 }
 

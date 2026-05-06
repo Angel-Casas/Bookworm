@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Book, SortKey } from '@/domain';
+import type { Book, BookId, SortKey } from '@/domain';
 import type { LibraryStore } from './store/libraryStore';
 import type { CoverCache } from './store/coverCache';
 import type { ImportStore } from './import/importStore';
@@ -16,6 +16,8 @@ type Props = {
   readonly onRemoveBook: (book: Book) => void;
   readonly onOpenBook?: (book: Book) => void;
   readonly onOpenSettings: () => void;
+  readonly onOpenInspector?: (bookId: BookId) => void;
+  readonly onRetryIndex?: (bookId: BookId) => void;
 };
 
 export function LibraryWorkspace({
@@ -27,6 +29,8 @@ export function LibraryWorkspace({
   onRemoveBook,
   onOpenBook,
   onOpenSettings,
+  onOpenInspector,
+  onRetryIndex,
 }: Props) {
   const [search, setSearch] = useState(libraryStore.getState().search);
   const [sort, setSort] = useState(libraryStore.getState().sort);
@@ -70,6 +74,8 @@ export function LibraryWorkspace({
         searchQuery={search}
         onRemove={onRemoveBook}
         {...(onOpenBook && { onOpenBook })}
+        {...(onOpenInspector && { onOpenInspector })}
+        {...(onRetryIndex && { onRetryIndex })}
       />
     </div>
   );

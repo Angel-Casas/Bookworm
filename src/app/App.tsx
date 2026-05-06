@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { openBookwormDB } from '@/storage';
+import type { Book, BookId } from '@/domain';
 import { createLibraryStore, type LibraryStore } from '@/features/library/store/libraryStore';
 import { createCoverCache, type CoverCache } from '@/features/library/store/coverCache';
 import { createImportStore, type ImportStore } from '@/features/library/import/importStore';
@@ -16,6 +24,10 @@ import { useApiKeyStore } from '@/features/ai/key/apiKeyStore';
 import { useModelCatalogStore } from '@/features/ai/models/modelCatalogStore';
 import { useAppView } from '@/app/useAppView';
 import { useReaderHost } from '@/app/useReaderHost';
+import { useIndexing } from '@/features/library/indexing/useIndexing';
+import { EpubChunkExtractor } from '@/features/library/indexing/EpubChunkExtractor';
+import { PdfChunkExtractor } from '@/features/library/indexing/PdfChunkExtractor';
+import { IndexInspectorModal } from '@/features/library/indexing/IndexInspectorModal';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
 import type { FocusMode } from '@/domain/reader';
 import './app.css';
@@ -71,6 +83,42 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     libraryStore,
     initial: initialView,
   });
+
+  // Phase 5.1: indexing extractors (depend on opfs to read book blobs).
+  const resolveBlob = useCallback(
+    async (book: Book): Promise<Blob> => {
+      const blob = await wiring.opfs.readFile(book.source.opfsPath);
+      if (blob === undefined) {
+        throw new Error(`opfs: book blob missing at ${book.source.opfsPath}`);
+      }
+      return blob;
+    },
+    [wiring.opfs],
+  );
+  const epubExtractor = useMemo(
+    () => new EpubChunkExtractor(resolveBlob),
+    [resolveBlob],
+  );
+  const pdfExtractor = useMemo(
+    () => new PdfChunkExtractor(resolveBlob),
+    [resolveBlob],
+  );
+  const indexing = useIndexing({
+    booksRepo: wiring.bookRepo,
+    chunksRepo: wiring.bookChunksRepo,
+    epubExtractor,
+    pdfExtractor,
+  });
+
+  // Wire the import → enqueue pipeline. wiring.persistBook calls a stored
+  // callback on each successful import; useIndexing isn't available until
+  // render time, so we set the callback in an effect.
+  useEffect(() => {
+    wiring.setOnBookImported((bookId) => {
+      indexing.enqueue(bookId);
+    });
+  }, [wiring, indexing]);
+
   const reader = useReaderHost({
     wiring,
     libraryStore,
@@ -80,7 +128,13 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     initialRightRailVisible,
     initialChatPanelHintShown,
     onBookRemovedFromActiveView: view.goLibrary,
+    onBookRemovedCancelIndexing: indexing.cancel,
   });
+
+  // Inspector modal state.
+  const [inspectorBookId, setInspectorBookId] = useState<BookId | null>(null);
+  const inspectorBook =
+    inspectorBookId !== null ? reader.findBook(inspectorBookId) : undefined;
   const apiKeyState = useApiKeyStore((s) => s.state);
   const selectedModelId = useModelCatalogStore((s) => s.selectedId);
   const getApiKey = useCallback((): string | null => {
@@ -216,8 +270,25 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
         onRemoveBook={reader.onRemoveBook}
         onOpenBook={view.goReader}
         onOpenSettings={view.goSettings}
+        onOpenInspector={(bookId) => {
+          setInspectorBookId(bookId);
+        }}
+        onRetryIndex={(bookId) => {
+          void indexing.rebuild(bookId);
+        }}
       />
       <DropOverlay onFilesDropped={reader.onFilesPicked} />
+      {inspectorBookId !== null && inspectorBook !== undefined ? (
+        <IndexInspectorModal
+          bookId={inspectorBookId}
+          bookTitle={inspectorBook.title}
+          chunksRepo={wiring.bookChunksRepo}
+          onRebuild={(id) => indexing.rebuild(id)}
+          onClose={() => {
+            setInspectorBookId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
