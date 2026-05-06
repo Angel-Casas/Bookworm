@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { HighlightColor } from '@/domain/annotations/types';
-import { NoteIcon } from '@/shared/icons';
+import { ChatIcon, NoteIcon } from '@/shared/icons';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from './highlightColors';
 import './highlight-toolbar.css';
 
@@ -15,6 +15,9 @@ type Props = {
   readonly onNote?: () => void;
   readonly hasNote?: boolean;
   readonly onDismiss: () => void;
+  // Phase 4.4 passage mode. Both must be defined+true for the button to render.
+  readonly onAskAI?: () => void;
+  readonly canAskAI?: boolean;
 };
 
 const TOOLBAR_HEIGHT = 36;
@@ -29,6 +32,8 @@ export function HighlightToolbar({
   onNote,
   hasNote,
   onDismiss,
+  onAskAI,
+  canAskAI,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -104,6 +109,22 @@ export function HighlightToolbar({
             onClick={onNote}
           >
             <NoteIcon />
+          </button>
+        </>
+      ) : null}
+      {onAskAI && canAskAI === true ? (
+        <>
+          <span className="highlight-toolbar__divider" aria-hidden="true" />
+          <button
+            type="button"
+            className="highlight-toolbar__ask-ai"
+            aria-label="Ask AI about this passage"
+            onClick={() => {
+              onDismiss();
+              onAskAI();
+            }}
+          >
+            <ChatIcon />
           </button>
         </>
       ) : null}
