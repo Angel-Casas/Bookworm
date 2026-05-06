@@ -42,4 +42,8 @@ export {
   createBookChunksRepository,
   type BookChunksRepository,
 } from './repositories/bookChunks';
+export {
+  createBookEmbeddingsRepository,
+  type BookEmbeddingsRepository,
+} from './repositories/bookEmbeddings';
 export type { AppView } from './db/schema';
