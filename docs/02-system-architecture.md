@@ -309,6 +309,51 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-06 — Phase 5.2 retrieval baseline
+
+- **Embeddings storage in a new `book_embeddings` IDB store (v7 → v8).**
+  Keyed by `ChunkId`, indexed by `bookId`. Vectors stored as
+  `Float32Array` (1536-dim, L2-normalized at write time). Decoupled from
+  `book_chunks` lifecycle so model-version bumps invalidate embeddings
+  without re-chunking; chunker bumps cascade-invalidate embeddings via
+  the `IndexingQueue.onAppOpen` path.
+- **Embedding model hardcoded as v1 default.**
+  `EMBEDDING_MODEL_VERSION = 1` maps to `text-embedding-3-small` (1536
+  dims). `embeddingModelVersion` on each record enables independent
+  invalidation. User-selectable model is Phase 6+ polish.
+- **Hybrid retrieval: BM25 + cosine via Reciprocal Rank Fusion.**
+  BM25 (k1=1.2, b=0.75, IDF computed inline per query — no inverted
+  index) + cosine (pre-normalized vectors → dot product, ~3M FLOPs per
+  250-chunk book, runs in <5ms on the main thread). RRF combines with
+  k=60. No score calibration; simpler than learned weights and
+  empirically robust.
+- **Evidence bundle: token-budgeted, section-grouped, reading-order
+  within group.** Greedy-pack to 3000-token budget; minChunks=3,
+  maxChunks=12. Citation tags `[1]…[N]` follow RRF order.
+  `buildEvidenceBundleForPreview` exported so PrivacyPreview can render
+  character-for-character what gets sent.
+- **Pipeline integration extends Phase 5.1.** `runIndexing` flows
+  `pending → chunking{n} → embedding{n} → ready`. Per-batch idempotent
+  resume via `embeddingsRepo.hasEmbeddingFor(chunkId)`. 3-attempt
+  exponential backoff on rate-limit; terminal failure on other embed
+  errors. Two-version model (chunker + embedding) tracked
+  independently — chunker bump cascades to embeddings; model bump
+  leaves chunks intact.
+- **Retrieval is send-time, not chip-attach-time.** The chip attaches
+  intent ("the next message will use this book's content"); the actual
+  excerpts are determined when the user sends. PrivacyPreview shows the
+  search plan pre-send (chunk count + budget); MessageBubble shows the
+  actual chunks post-send via `contextRefs[].kind === 'chunk'`. Engine
+  doc's "user always sees what we send" doctrine satisfied.
+- **Chip mutual exclusivity at workspace level.** `attachedRetrieval`
+  and `attachedPassage` are independent state; activating one clears
+  the other. ChatPanel's chip slot is XOR (retrieval wins when both
+  are non-null, defensive).
+- **`EmbedClient` interface for DI.** Decouples `runEmbeddingStage` and
+  `runRetrieval` from the network module; tests inject deterministic
+  stubs. App.tsx constructs the live client from
+  `nanogptEmbeddings.embed` + the api-key store.
+
 ### 2026-05-06 — Phase 5.1 text chunking
 
 - **Pipeline timing — on import, background, main-thread yielded.**

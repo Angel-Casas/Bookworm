@@ -11,6 +11,10 @@ import type {
   SavedAnswersRepository,
 } from '@/storage';
 import type { ApiKeyState } from '@/features/ai/key/apiKeyStore';
+import type { ChunkId } from '@/domain';
+import type { RetrievalDeps } from '@/features/ai/retrieval/runRetrieval';
+import type { BookChunksRepository, BookEmbeddingsRepository } from '@/storage';
+import type { AttachedRetrieval } from '@/features/ai/chat/useChatSend';
 import type {
   Highlight,
   HighlightAnchor,
@@ -71,6 +75,9 @@ type Props = {
   readonly apiKeyState: ApiKeyState;
   readonly getApiKey: () => string | null;
   readonly selectedModelId: string | null;
+  readonly retrievalDeps?: RetrievalDeps;
+  readonly bookChunksRepo: BookChunksRepository;
+  readonly bookEmbeddingsRepo: BookEmbeddingsRepository;
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -159,6 +166,9 @@ export function ReaderWorkspace(props: Props) {
   // Phase 4.4 passage mode. Sticky-until-dismissed across sends; cleared on
   // thread switch (handled inside ChatPanel) or via the chip's ✕.
   const [attachedPassage, setAttachedPassage] = useState<AttachedPassage | null>(null);
+  // Phase 5.2 retrieval mode. One-shot per send (chip clears on send-success
+  // inside useChatSend). Mutually exclusive with passage chip.
+  const [attachedRetrieval, setAttachedRetrieval] = useState<AttachedRetrieval | null>(null);
   // One-shot focus signal for the chat composer after Ask AI. ChatComposer
   // self-clears the flag once it has fired focus().
   const composerFocusRef = useRef<boolean>(false);
@@ -336,6 +346,28 @@ export function ReaderWorkspace(props: Props) {
     setAttachedPassage(null);
   }, []);
 
+  const handleToggleSearch = useCallback((): void => {
+    setAttachedRetrieval((cur) => {
+      if (cur !== null) return null;
+      // Mutual exclusivity: clear passage chip when activating retrieval.
+      setAttachedPassage(null);
+      return { bookId: BookId(props.bookId) };
+    });
+  }, [props.bookId]);
+
+  const handleClearAttachedRetrieval = useCallback((): void => {
+    setAttachedRetrieval(null);
+  }, []);
+
+  const resolveChunkAnchor = useCallback(
+    async (chunkId: ChunkId): Promise<LocationAnchor | null> => {
+      const allChunks = await props.bookChunksRepo.listByBook(BookId(props.bookId));
+      const c = allChunks.find((x) => x.id === chunkId);
+      return c !== undefined ? c.locationAnchor : null;
+    },
+    [props.bookChunksRepo, props.bookId],
+  );
+
   const isDesktop = viewport === 'desktop';
 
   const tocPanelContent = readerState?.toc ? (
@@ -492,6 +524,13 @@ export function ReaderWorkspace(props: Props) {
               onHintDismiss={props.onChatPanelHintDismiss}
               attachedPassage={attachedPassage}
               onClearAttachedPassage={handleClearAttachedPassage}
+              attachedRetrieval={attachedRetrieval}
+              onClearAttachedRetrieval={handleClearAttachedRetrieval}
+              onToggleSearch={handleToggleSearch}
+              {...(props.retrievalDeps !== undefined && {
+                retrievalDeps: props.retrievalDeps,
+              })}
+              resolveChunkAnchor={resolveChunkAnchor}
               onJumpToReaderAnchor={(anchor) => {
                 if (!readerState) return;
                 const target: LocationAnchor =
@@ -595,6 +634,13 @@ export function ReaderWorkspace(props: Props) {
               onHintDismiss={props.onChatPanelHintDismiss}
               attachedPassage={attachedPassage}
               onClearAttachedPassage={handleClearAttachedPassage}
+              attachedRetrieval={attachedRetrieval}
+              onClearAttachedRetrieval={handleClearAttachedRetrieval}
+              onToggleSearch={handleToggleSearch}
+              {...(props.retrievalDeps !== undefined && {
+                retrievalDeps: props.retrievalDeps,
+              })}
+              resolveChunkAnchor={resolveChunkAnchor}
               onJumpToReaderAnchor={(anchor) => {
                 if (!readerState) return;
                 const target: LocationAnchor =

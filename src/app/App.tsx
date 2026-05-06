@@ -28,6 +28,8 @@ import { useIndexing } from '@/features/library/indexing/useIndexing';
 import { EpubChunkExtractor } from '@/features/library/indexing/EpubChunkExtractor';
 import { PdfChunkExtractor } from '@/features/library/indexing/PdfChunkExtractor';
 import { IndexInspectorModal } from '@/features/library/indexing/IndexInspectorModal';
+import { embed as nanogptEmbed } from '@/features/ai/chat/nanogptEmbeddings';
+import type { EmbedClient } from '@/features/library/indexing/embeddings/types';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
 import type { FocusMode } from '@/domain/reader';
 import './app.css';
@@ -103,12 +105,40 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     () => new PdfChunkExtractor(resolveBlob),
     [resolveBlob],
   );
+  const getApiKeyForEmbed = useCallback((): string => {
+    const s = useApiKeyStore.getState().state;
+    if (s.kind === 'session' || s.kind === 'unlocked') return s.key;
+    return '';
+  }, []);
+  const embedClient = useMemo<EmbedClient>(
+    () => ({
+      embed: (req) =>
+        nanogptEmbed({
+          apiKey: getApiKeyForEmbed(),
+          modelId: req.modelId,
+          inputs: req.inputs,
+          ...(req.signal !== undefined ? { signal: req.signal } : {}),
+        }),
+    }),
+    [getApiKeyForEmbed],
+  );
   const indexing = useIndexing({
     booksRepo: wiring.bookRepo,
     chunksRepo: wiring.bookChunksRepo,
+    embeddingsRepo: wiring.bookEmbeddingsRepo,
     epubExtractor,
     pdfExtractor,
+    embedClient,
   });
+
+  const retrievalDeps = useMemo(
+    () => ({
+      chunksRepo: wiring.bookChunksRepo,
+      embeddingsRepo: wiring.bookEmbeddingsRepo,
+      embedClient,
+    }),
+    [wiring.bookChunksRepo, wiring.bookEmbeddingsRepo, embedClient],
+  );
 
   // Wire the import → enqueue pipeline. wiring.persistBook calls a stored
   // callback on each successful import; useIndexing isn't available until
@@ -253,6 +283,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           apiKeyState={apiKeyState}
           getApiKey={getApiKey}
           selectedModelId={selectedModelId}
+          retrievalDeps={retrievalDeps}
+          bookChunksRepo={wiring.bookChunksRepo}
+          bookEmbeddingsRepo={wiring.bookEmbeddingsRepo}
         />
       </div>
     );
@@ -283,6 +316,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookId={inspectorBookId}
           bookTitle={inspectorBook.title}
           chunksRepo={wiring.bookChunksRepo}
+          embeddingsRepo={wiring.bookEmbeddingsRepo}
           onRebuild={(id) => indexing.rebuild(id)}
           onClose={() => {
             setInspectorBookId(null);

@@ -34,6 +34,18 @@ function fakeChunksRepo(chunks: TextChunk[]) {
   };
 }
 
+function fakeEmbeddingsRepo() {
+  return {
+    upsertMany: vi.fn(() => Promise.resolve()),
+    listByBook: vi.fn(() => Promise.resolve([])),
+    deleteByBook: vi.fn(() => Promise.resolve()),
+    countByBook: vi.fn(() => Promise.resolve(0)),
+    hasEmbeddingFor: vi.fn(() => Promise.resolve(false)),
+    countStaleVersions: vi.fn(() => Promise.resolve([])),
+    deleteOrphans: vi.fn(() => Promise.resolve(0)),
+  };
+}
+
 describe('IndexInspectorModal', () => {
   it('renders chunks with header counts derived from the chunk list', async () => {
     const chunks = makeChunks(5);
@@ -42,6 +54,7 @@ describe('IndexInspectorModal', () => {
         bookId={BookId('b1')}
         bookTitle="Test Book"
         chunksRepo={fakeChunksRepo(chunks) as never}
+        embeddingsRepo={fakeEmbeddingsRepo() as never}
         onRebuild={vi.fn(() => Promise.resolve())}
         onClose={vi.fn()}
       />,
@@ -60,6 +73,7 @@ describe('IndexInspectorModal', () => {
         bookId={BookId('b1')}
         bookTitle="Test Book"
         chunksRepo={fakeChunksRepo(chunks) as never}
+        embeddingsRepo={fakeEmbeddingsRepo() as never}
         onRebuild={onRebuild}
         onClose={onClose}
       />,
@@ -81,6 +95,7 @@ describe('IndexInspectorModal', () => {
         bookId={BookId('b1')}
         bookTitle="Test Book"
         chunksRepo={fakeChunksRepo(makeChunks(1)) as never}
+        embeddingsRepo={fakeEmbeddingsRepo() as never}
         onRebuild={vi.fn(() => Promise.resolve())}
         onClose={onClose}
       />,
@@ -95,6 +110,7 @@ describe('IndexInspectorModal', () => {
         bookId={BookId('b1')}
         bookTitle="Test Book"
         chunksRepo={fakeChunksRepo(makeChunks(1)) as never}
+        embeddingsRepo={fakeEmbeddingsRepo() as never}
         onRebuild={vi.fn(() => Promise.resolve())}
         onClose={vi.fn()}
       />,

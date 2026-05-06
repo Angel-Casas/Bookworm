@@ -8,3 +8,4 @@ export { ChatIcon } from './ChatIcon';
 export { SendIcon } from './SendIcon';
 export { StopIcon } from './StopIcon';
 export { SaveAnswerIcon } from './SaveAnswerIcon';
+export { SearchIcon } from './SearchIcon';

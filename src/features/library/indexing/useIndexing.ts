@@ -1,14 +1,21 @@
 import { useEffect, useRef } from 'react';
 import type { BookId } from '@/domain';
-import type { BookRepository, BookChunksRepository } from '@/storage';
+import type {
+  BookChunksRepository,
+  BookEmbeddingsRepository,
+  BookRepository,
+} from '@/storage';
 import type { ChunkExtractor } from './extractor';
+import type { EmbedClient } from './embeddings/types';
 import { IndexingQueue } from './IndexingQueue';
 
 export type UseIndexingDeps = {
   readonly booksRepo: BookRepository;
   readonly chunksRepo: BookChunksRepository;
+  readonly embeddingsRepo: BookEmbeddingsRepository;
   readonly epubExtractor: ChunkExtractor;
   readonly pdfExtractor: ChunkExtractor;
+  readonly embedClient: EmbedClient;
 };
 
 export type UseIndexingHandle = {

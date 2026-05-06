@@ -14,6 +14,7 @@ import {
   CHAT_THREADS_STORE,
   CHAT_MESSAGES_STORE,
   SAVED_ANSWERS_STORE,
+  BOOK_EMBEDDINGS_STORE,
   CURRENT_DB_VERSION,
 } from './schema';
 
@@ -334,5 +335,65 @@ describe('v5 → v6 migration', () => {
     expect(db.objectStoreNames.contains(CHAT_MESSAGES_STORE)).toBe(true);
     expect(db.objectStoreNames.contains(SAVED_ANSWERS_STORE)).toBe(true);
     db.close();
+  });
+});
+
+describe('v7 → v8 migration', () => {
+  it('CURRENT_DB_VERSION is 8', () => {
+    expect(CURRENT_DB_VERSION).toBe(8);
+  });
+
+  it('opening at v8 from scratch creates the book_embeddings store with by-book index', async () => {
+    const dbName = `bookworm-mig8-fresh-${crypto.randomUUID()}`;
+    const db = await openBookwormDB(dbName);
+    expect(db.objectStoreNames.contains(BOOK_EMBEDDINGS_STORE)).toBe(true);
+    const tx = db.transaction(BOOK_EMBEDDINGS_STORE, 'readonly');
+    expect([...tx.objectStore(BOOK_EMBEDDINGS_STORE).indexNames]).toContain('by-book');
+    db.close();
+  });
+
+  it('v7 → v8 preserves existing chunks while adding the embeddings store', async () => {
+    const dbName = `bookworm-mig8-${crypto.randomUUID()}`;
+
+    const v7 = await openDB(dbName, 7, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? 7,
+        );
+      },
+    });
+    await v7.put('books', { id: 'b1', title: 'Survivor' });
+    await v7.put('book_chunks', {
+      id: 'chunk-b1-s1-0',
+      bookId: 'b1',
+      sectionId: 's1',
+      sectionTitle: 'Ch 1',
+      text: 'hello',
+      normalizedText: 'hello',
+      tokenEstimate: 1,
+      locationAnchor: { kind: 'epub-cfi', cfi: '/6/4!/4/2' },
+      checksum: 'cs',
+      chunkerVersion: 1,
+    });
+    v7.close();
+
+    const v8 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+
+    expect(v8.objectStoreNames.contains(BOOK_EMBEDDINGS_STORE)).toBe(true);
+    const survivors = await v8.getAll('book_chunks');
+    expect(survivors).toHaveLength(1);
+    expect(survivors[0]).toMatchObject({ id: 'chunk-b1-s1-0' });
+
+    v8.close();
   });
 });

@@ -12,7 +12,8 @@ type StoreName =
   | 'chat_threads'
   | 'chat_messages'
   | 'saved_answers'
-  | 'book_chunks';
+  | 'book_chunks'
+  | 'book_embeddings';
 
 type UpgradeContext = {
   readonly db: IDBPDatabase<BookwormDBSchema>;
@@ -89,6 +90,13 @@ const migrations: Readonly<Record<number, Migration>> = {
       const store = db.createObjectStore('book_chunks', { keyPath: 'id' });
       store.createIndex('by-book', 'bookId', { unique: false });
       store.createIndex('by-book-section', ['bookId', 'sectionId'], { unique: false });
+    }
+  },
+  // 7 → 8: Phase 5.2 book embeddings store
+  7: ({ db }) => {
+    if (!db.objectStoreNames.contains('book_embeddings')) {
+      const store = db.createObjectStore('book_embeddings', { keyPath: 'id' });
+      store.createIndex('by-book', 'bookId', { unique: false });
     }
   },
 };

@@ -8,9 +8,9 @@ import type { ContextRef } from '@/domain';
 // existing validating-reads spirit (more lenient than "drop the whole
 // message", since a partial provenance is still useful).
 //
-// Other variants (highlight / chunk / section) keep their existing lenient
-// pass-through behavior — the spec scopes the strictness change to the
-// passage variant only.
+// Phase 5.2 adds real validation for the chunk variant (retrieval mode is the
+// first feature to populate chunk refs — chunkId must be a non-empty string).
+// highlight / section keep their lenient pass-through.
 export function isValidContextRef(value: unknown): value is ContextRef {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as { kind?: unknown };
@@ -25,6 +25,10 @@ export function isValidContextRef(value: unknown): value is ContextRef {
     if (p.windowAfter !== undefined && typeof p.windowAfter !== 'string') return false;
     return true;
   }
-  if (v.kind === 'highlight' || v.kind === 'chunk' || v.kind === 'section') return true;
+  if (v.kind === 'chunk') {
+    const c = v as Record<string, unknown>;
+    return typeof c.chunkId === 'string' && c.chunkId !== '';
+  }
+  if (v.kind === 'highlight' || v.kind === 'section') return true;
   return false;
 }

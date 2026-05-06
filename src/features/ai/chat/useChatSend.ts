@@ -4,26 +4,39 @@ import {
   ChatMessageId,
   IsoTimestamp,
   type BookFormat,
+  type BookId,
   type ChatMessage,
   type ChatThreadId,
   type ContextRef,
 } from '@/domain';
 import type { HighlightAnchor } from '@/domain/annotations/types';
-import { assembleOpenChatPrompt, assemblePassageChatPrompt } from './promptAssembly';
+import {
+  assembleOpenChatPrompt,
+  assemblePassageChatPrompt,
+  assembleRetrievalChatPrompt,
+} from './promptAssembly';
 import { streamChatCompletion, type ChatCompletionFailure } from './nanogptChat';
 import { makeChatRequestMachine } from './chatRequestMachine';
+import {
+  runRetrieval,
+  type RetrievalDeps,
+  type RetrievalResult,
+} from '@/features/ai/retrieval/runRetrieval';
 
 export type SendState = 'idle' | 'streaming' | 'error' | 'aborted';
 
-// Phase 4.4 passage mode. The chip's lifetime is owned by ChatPanel state
-// (sticky-until-dismissed-or-replaced); useChatSend just reads whatever is
-// currently attached at send-time.
 export type AttachedPassage = {
   readonly anchor: HighlightAnchor;
   readonly text: string;
   readonly windowBefore?: string;
   readonly windowAfter?: string;
   readonly sectionTitle?: string;
+};
+
+// Phase 5.2 retrieval mode. One-shot per send (chip clears on send); the
+// actual retrieved chunks are determined at send-time by runRetrieval.
+export type AttachedRetrieval = {
+  readonly bookId: BookId;
 };
 
 type Args = {
@@ -37,6 +50,14 @@ type Args = {
   readonly finalize: (id: ChatMessageId, fields: Partial<ChatMessage>) => Promise<void>;
   readonly streamFactory?: typeof streamChatCompletion;
   readonly attachedPassage?: AttachedPassage | null;
+  readonly attachedRetrieval?: AttachedRetrieval | null;
+  readonly retrievalDeps?: RetrievalDeps;
+  readonly retrievalRunner?: (input: {
+    bookId: BookId;
+    question: string;
+    deps: RetrievalDeps;
+    signal?: AbortSignal;
+  }) => Promise<RetrievalResult>;
 };
 
 export type UseChatSendHandle = {
@@ -88,12 +109,134 @@ export function useChatSend(args: Args): UseChatSendHandle {
     const now = IsoTimestamp(new Date().toISOString());
     const nowPlus = IsoTimestamp(new Date(Date.now() + 1).toISOString());
 
-    // Phase 4.4: passage mode triggers when a chip is attached at send-time.
-    // mode goes on BOTH user + assistant messages (keeps the soft-cap history
-    // scan symmetric); contextRefs goes on the assistant ONLY (it's the side
-    // with provenance — saves ~5KB of dead duplicate per question).
+    const retrieval = a.attachedRetrieval ?? null;
     const passage = a.attachedPassage ?? null;
-    const isPassage = passage !== null;
+    const isRetrieval = retrieval !== null;
+    const isPassage = !isRetrieval && passage !== null;
+
+    // Retrieval branch — needs an async runRetrieval before assembly.
+    if (isRetrieval) {
+      void a.append({
+        id: userMsgId,
+        threadId: a.threadId,
+        role: 'user',
+        content: userText,
+        mode: 'retrieval',
+        contextRefs: [],
+        createdAt: now,
+      });
+      void a.append({
+        id: assistantMsgId,
+        threadId: a.threadId,
+        role: 'assistant',
+        content: '',
+        mode: 'retrieval',
+        contextRefs: [],
+        streaming: true,
+        createdAt: nowPlus,
+      });
+
+      void (async () => {
+        const runner = a.retrievalRunner ?? runRetrieval;
+        if (a.retrievalDeps === undefined) {
+          await a.finalize(assistantMsgId, {
+            content: 'Retrieval is not configured for this book.',
+            streaming: false,
+          });
+          setState('idle');
+          return;
+        }
+        const result = await runner({
+          bookId: retrieval.bookId,
+          question: userText,
+          deps: a.retrievalDeps,
+        });
+        if (result.kind === 'no-embeddings') {
+          await a.finalize(assistantMsgId, {
+            content:
+              'This book is still being prepared for AI. Wait for the library card to show ✓ Indexed and try again.',
+            streaming: false,
+          });
+          setState('idle');
+          return;
+        }
+        if (result.kind === 'no-results') {
+          await a.finalize(assistantMsgId, {
+            content:
+              'No relevant excerpts found for that question. Try rephrasing or asking about a different topic from the book.',
+            streaming: false,
+          });
+          setState('idle');
+          return;
+        }
+        if (result.kind === 'embed-failed') {
+          setFailure({ reason: 'server', status: 500 });
+          await a.finalize(assistantMsgId, {
+            content: '',
+            streaming: false,
+            truncated: true,
+          });
+          setState('error');
+          return;
+        }
+
+        const refs: ContextRef[] = result.bundle.includedChunkIds.map((id) => ({
+          kind: 'chunk',
+          chunkId: id,
+        }));
+        await a.patch(assistantMsgId, { contextRefs: refs });
+
+        const assembled = assembleRetrievalChatPrompt({
+          book: a.book,
+          history: a.history,
+          newUserText: userText,
+          bundle: result.bundle,
+        });
+        const factory = a.streamFactory ?? streamChatCompletion;
+        const machine = makeChatRequestMachine({
+          streamFactory: (assembled2, modelId, signal) =>
+            factory({ apiKey, modelId, messages: assembled2.messages, signal }),
+          onDelta: async (id, fields) => {
+            setPartial(fields.content);
+            await a.patch(id, fields);
+          },
+          finalize: async (id, fields) => {
+            await a.finalize(id, fields);
+          },
+        });
+        actorRef.current?.stop();
+        const actor = createActor(machine, {
+          input: {
+            threadId: a.threadId,
+            pendingUserMessageId: userMsgId,
+            pendingAssistantMessageId: assistantMsgId,
+            modelId: a.modelId,
+            assembled,
+          },
+        });
+        actor.subscribe((snap) => {
+          if (snap.status === 'done') {
+            if (snap.value === 'failed') {
+              const ctxFailure = (snap.context as { failure?: ChatCompletionFailure }).failure;
+              if (ctxFailure) setFailure(ctxFailure);
+              setState('error');
+            } else if (snap.value === 'aborted') {
+              setState('aborted');
+            } else {
+              setState('idle');
+            }
+          }
+        });
+        actorRef.current = actor;
+        setState('streaming');
+        setPartial('');
+        setFailure(null);
+        actor.start();
+      })();
+      return;
+    }
+
+    // Passage and open-mode paths (unchanged from Phase 4.4).
     const assistantContextRefs: readonly ContextRef[] = isPassage
       ? [
           {

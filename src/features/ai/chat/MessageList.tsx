@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatMessage, ChatMessageId } from '@/domain';
+import type { ChatMessage, ChatMessageId, ChunkId, LocationAnchor } from '@/domain';
 import type { HighlightAnchor } from '@/domain/annotations/types';
 import { MessageBubble } from './MessageBubble';
 import { ChatErrorBubble } from './ChatErrorBubble';
@@ -16,7 +16,9 @@ type Props = {
   readonly onOpenSettings?: () => void;
   readonly onDismissError?: () => void;
   // Phase 4.4: passes through to MessageBubble's source footer.
-  readonly onJumpToSource?: (anchor: HighlightAnchor) => void;
+  // Phase 5.2: also accepts LocationAnchor for chunk-ref resolution.
+  readonly onJumpToSource?: (anchor: HighlightAnchor | LocationAnchor) => void;
+  readonly resolveChunkAnchor?: (chunkId: ChunkId) => Promise<LocationAnchor | null>;
 };
 
 export function MessageList({
@@ -28,6 +30,7 @@ export function MessageList({
   onOpenSettings,
   onDismissError,
   onJumpToSource,
+  resolveChunkAnchor,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [stickToBottom, setStickToBottom] = useState<boolean>(true);
@@ -59,6 +62,7 @@ export function MessageList({
           message={m}
           {...(onSaveMessage ? { onSave: onSaveMessage } : {})}
           {...(onJumpToSource ? { onJumpToSource } : {})}
+          {...(resolveChunkAnchor ? { resolveChunkAnchor } : {})}
         />
       ))}
       {failure ? (

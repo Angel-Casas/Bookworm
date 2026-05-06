@@ -1,14 +1,22 @@
 import { IsoTimestamp, type BookId } from '@/domain';
-import type { BookRepository, BookChunksRepository } from '@/storage';
+import type {
+  BookChunksRepository,
+  BookEmbeddingsRepository,
+  BookRepository,
+} from '@/storage';
 import type { ChunkExtractor } from './extractor';
 import { CHUNKER_VERSION } from './CHUNKER_VERSION';
+import { EMBEDDING_MODEL_VERSION } from './embeddings/EMBEDDING_MODEL';
+import type { EmbedClient } from './embeddings/types';
 import { runIndexing, type PipelineDeps } from './pipeline';
 
 export type IndexingQueueDeps = {
   readonly booksRepo: BookRepository;
   readonly chunksRepo: BookChunksRepository;
+  readonly embeddingsRepo: BookEmbeddingsRepository;
   readonly epubExtractor: ChunkExtractor;
   readonly pdfExtractor: ChunkExtractor;
+  readonly embedClient: EmbedClient;
 };
 
 export class IndexingQueue {
@@ -32,35 +40,46 @@ export class IndexingQueue {
   async rebuild(bookId: BookId): Promise<void> {
     this.cancel(bookId);
     await this.deps.chunksRepo.deleteByBook(bookId);
-    const book = await this.deps.booksRepo.getById(bookId);
-    if (book !== undefined) {
-      await this.deps.booksRepo.put({
-        ...book,
-        indexingStatus: { kind: 'pending' },
-        updatedAt: IsoTimestamp(new Date().toISOString()),
-      });
-    }
+    await this.deps.embeddingsRepo.deleteByBook(bookId);
+    await this.markPending(bookId);
     this.enqueue(bookId);
   }
 
   async onAppOpen(): Promise<void> {
-    const staleBookIds = await this.deps.chunksRepo.countStaleVersions(CHUNKER_VERSION);
-    for (const id of staleBookIds) {
+    const staleChunkBooks = await this.deps.chunksRepo.countStaleVersions(CHUNKER_VERSION);
+    const cascaded = new Set<BookId>();
+    for (const id of staleChunkBooks) {
       await this.deps.chunksRepo.deleteByBook(id);
-      const book = await this.deps.booksRepo.getById(id);
-      if (book !== undefined) {
-        await this.deps.booksRepo.put({
-          ...book,
-          indexingStatus: { kind: 'pending' },
-          updatedAt: IsoTimestamp(new Date().toISOString()),
-        });
-      }
+      // Cascade: stale chunks invalidate their embeddings (chunkId no longer matches).
+      await this.deps.embeddingsRepo.deleteByBook(id);
+      cascaded.add(id);
+      await this.markPending(id);
     }
+
+    const staleEmbedBooks = await this.deps.embeddingsRepo.countStaleVersions(
+      EMBEDDING_MODEL_VERSION,
+    );
+    for (const id of staleEmbedBooks) {
+      if (cascaded.has(id)) continue;
+      await this.deps.embeddingsRepo.deleteByBook(id);
+      await this.markPending(id);
+    }
+
     const all = await this.deps.booksRepo.getAll();
     for (const book of all) {
       const k = book.indexingStatus.kind;
-      if (k === 'pending' || k === 'chunking') this.enqueue(book.id);
+      if (k === 'pending' || k === 'chunking' || k === 'embedding') this.enqueue(book.id);
     }
+  }
+
+  private async markPending(id: BookId): Promise<void> {
+    const book = await this.deps.booksRepo.getById(id);
+    if (book === undefined) return;
+    await this.deps.booksRepo.put({
+      ...book,
+      indexingStatus: { kind: 'pending' },
+      updatedAt: IsoTimestamp(new Date().toISOString()),
+    });
   }
 
   private async drain(): Promise<void> {
@@ -79,8 +98,10 @@ export class IndexingQueue {
           const pipelineDeps: PipelineDeps = {
             booksRepo: this.deps.booksRepo,
             chunksRepo: this.deps.chunksRepo,
+            embeddingsRepo: this.deps.embeddingsRepo,
             epubExtractor: this.deps.epubExtractor,
             pdfExtractor: this.deps.pdfExtractor,
+            embedClient: this.deps.embedClient,
           };
           await runIndexing(book, ctrl.signal, pipelineDeps);
         }

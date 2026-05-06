@@ -16,8 +16,15 @@ import type {
 } from '@/storage';
 import { useChatThreads } from './useChatThreads';
 import { useChatMessages } from './useChatMessages';
-import { useChatSend, type AttachedPassage } from './useChatSend';
+import {
+  useChatSend,
+  type AttachedPassage,
+  type AttachedRetrieval,
+} from './useChatSend';
 import type { HighlightAnchor } from '@/domain/annotations/types';
+import type { ChunkId, LocationAnchor } from '@/domain';
+import type { RetrievalDeps } from '@/features/ai/retrieval/runRetrieval';
+import { RetrievalChip } from './RetrievalChip';
 import { useSavedAnswers } from './useSavedAnswers';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
@@ -46,9 +53,14 @@ type Props = {
   // panel without wiring the chip; behavior reduces to Phase 4.3 in that case.
   readonly attachedPassage?: AttachedPassage | null;
   readonly onClearAttachedPassage?: () => void;
+  readonly attachedRetrieval?: AttachedRetrieval | null;
+  readonly onClearAttachedRetrieval?: () => void;
+  readonly onToggleSearch?: () => void;
+  readonly retrievalDeps?: RetrievalDeps;
+  readonly resolveChunkAnchor?: (chunkId: ChunkId) => Promise<LocationAnchor | null>;
   // When provided, MessageBubble's source footer can navigate the reader to
   // a saved-passage anchor. Workspace passes its goToAnchor here.
-  readonly onJumpToReaderAnchor?: (anchor: HighlightAnchor) => void;
+  readonly onJumpToReaderAnchor?: (anchor: HighlightAnchor | LocationAnchor) => void;
   // One-shot focus request: when .current === true, the composer textarea
   // focuses on next render and the flag self-clears. Used by Ask AI.
   readonly composerFocusRef?: { current: boolean };
@@ -86,6 +98,7 @@ export function ChatPanel(props: Props) {
   });
 
   const attachedPassage = props.attachedPassage ?? null;
+  const attachedRetrieval = props.attachedRetrieval ?? null;
 
   const send = useChatSend({
     threadId: activeThreadId,
@@ -97,6 +110,8 @@ export function ChatPanel(props: Props) {
     patch: messages.patch,
     finalize: messages.finalize,
     attachedPassage,
+    attachedRetrieval,
+    ...(props.retrievalDeps !== undefined && { retrievalDeps: props.retrievalDeps }),
   });
 
   const savedAnswers = useSavedAnswers({
@@ -149,6 +164,7 @@ export function ChatPanel(props: Props) {
   const handleSelectThread = useCallback(
     (id: ChatThreadId): void => {
       props.onClearAttachedPassage?.();
+      props.onClearAttachedRetrieval?.();
       threads.setActive(id);
     },
     // threads.setActive identity is stable per useChatThreads hook contract;
@@ -203,6 +219,7 @@ export function ChatPanel(props: Props) {
             onRetry={send.retry}
             onOpenSettings={props.onOpenSettings}
             {...(props.onJumpToReaderAnchor && { onJumpToSource: props.onJumpToReaderAnchor })}
+            {...(props.resolveChunkAnchor && { resolveChunkAnchor: props.resolveChunkAnchor })}
           />
         )}
       </div>
@@ -228,7 +245,9 @@ export function ChatPanel(props: Props) {
       ) : null}
       {variant === 'ready' || variant === 'no-threads' ? (
         <>
-          {attachedPassage !== null && props.onClearAttachedPassage ? (
+          {attachedRetrieval !== null && props.onClearAttachedRetrieval ? (
+            <RetrievalChip onDismiss={props.onClearAttachedRetrieval} />
+          ) : attachedPassage !== null && props.onClearAttachedPassage ? (
             <PassageChip
               text={attachedPassage.text}
               {...(attachedPassage.sectionTitle !== undefined && {
@@ -242,6 +261,13 @@ export function ChatPanel(props: Props) {
             modelId={props.selectedModelId ?? ''}
             historyCount={messages.list.length}
             attachedPassage={attachedPassage}
+            attachedRetrieval={attachedRetrieval}
+            {...(props.retrievalDeps?.chunksRepo !== undefined && {
+              chunksRepo: props.retrievalDeps.chunksRepo,
+            })}
+            {...(props.retrievalDeps?.embeddingsRepo !== undefined && {
+              embeddingsRepo: props.retrievalDeps.embeddingsRepo,
+            })}
           />
           <ChatComposer
             disabled={false}
@@ -252,6 +278,10 @@ export function ChatPanel(props: Props) {
             }}
             onCancel={send.cancel}
             {...(props.composerFocusRef && { focusRequest: props.composerFocusRef })}
+            {...(props.onToggleSearch !== undefined && {
+              onToggleSearch: props.onToggleSearch,
+            })}
+            retrievalAttached={attachedRetrieval !== null}
           />
         </>
       ) : null}
