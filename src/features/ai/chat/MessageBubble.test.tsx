@@ -49,3 +49,95 @@ describe('MessageBubble', () => {
     expect(screen.getByLabelText('Save answer')).toBeDefined();
   });
 });
+
+describe('MessageBubble — source footer (Phase 4.4)', () => {
+  const passageAnchor = { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/2)' };
+  const passageRef = {
+    kind: 'passage' as const,
+    text: 'she scarcely heard the rest, she was so taken aback',
+    anchor: passageAnchor,
+    sectionTitle: 'Chapter 4',
+  };
+
+  it('renders the source footer when assistant has a passage ref AND onJumpToSource is defined', () => {
+    render(
+      <MessageBubble
+        message={mk({ contextRefs: [passageRef] })}
+        onJumpToSource={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /jump to passage from chapter 4/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/she scarcely heard/i)).toBeInTheDocument();
+  });
+
+  // Locks the .find() pattern from spec §8.5 — when Phase 5+ multi-source mode
+  // mixes ref kinds in the same array, this stays correct.
+  it('uses .find() — renders the footer even when passage is not the first contextRef', () => {
+    const otherRef = { kind: 'highlight' as const, highlightId: 'h1' as never };
+    render(
+      <MessageBubble
+        message={mk({ contextRefs: [otherRef, passageRef] })}
+        onJumpToSource={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /jump to passage/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not render the footer when contextRefs is empty (open-mode message)', () => {
+    render(
+      <MessageBubble
+        message={mk({ contextRefs: [] })}
+        onJumpToSource={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /jump to passage/i })).toBeNull();
+  });
+
+  it('does not render the footer when onJumpToSource is undefined', () => {
+    render(<MessageBubble message={mk({ contextRefs: [passageRef] })} />);
+    expect(screen.queryByRole('button', { name: /jump to/i })).toBeNull();
+  });
+
+  it('does not render the footer on user messages even with passage refs', () => {
+    render(
+      <MessageBubble
+        message={mk({ role: 'user', contextRefs: [passageRef] })}
+        onJumpToSource={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /jump to/i })).toBeNull();
+  });
+
+  it('clicking the footer calls onJumpToSource with the matched ref anchor', () => {
+    const onJumpToSource = vi.fn();
+    render(
+      <MessageBubble
+        message={mk({ contextRefs: [passageRef] })}
+        onJumpToSource={onJumpToSource}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /jump to passage/i }));
+    expect(onJumpToSource).toHaveBeenCalledWith(passageAnchor);
+  });
+
+  it('uses generic aria-label when sectionTitle is absent', () => {
+    const refNoSection = {
+      kind: 'passage' as const,
+      text: 't',
+      anchor: passageAnchor,
+    };
+    render(
+      <MessageBubble
+        message={mk({ contextRefs: [refNoSection] })}
+        onJumpToSource={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /jump to source/i }),
+    ).toBeInTheDocument();
+  });
+});

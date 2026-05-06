@@ -17,6 +17,7 @@ import type {
 import { useChatThreads } from './useChatThreads';
 import { useChatMessages } from './useChatMessages';
 import { useChatSend, type AttachedPassage } from './useChatSend';
+import type { HighlightAnchor } from '@/domain/annotations/types';
 import { useSavedAnswers } from './useSavedAnswers';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
@@ -45,6 +46,9 @@ type Props = {
   // panel without wiring the chip; behavior reduces to Phase 4.3 in that case.
   readonly attachedPassage?: AttachedPassage | null;
   readonly onClearAttachedPassage?: () => void;
+  // When provided, MessageBubble's source footer can navigate the reader to
+  // a saved-passage anchor. Workspace passes its goToAnchor here.
+  readonly onJumpToReaderAnchor?: (anchor: HighlightAnchor) => void;
 };
 
 const DRAFT_THREAD_ID = ChatThreadId('__draft__');
@@ -195,6 +199,7 @@ export function ChatPanel(props: Props) {
             }}
             onRetry={send.retry}
             onOpenSettings={props.onOpenSettings}
+            {...(props.onJumpToReaderAnchor && { onJumpToSource: props.onJumpToReaderAnchor })}
           />
         )}
       </div>
