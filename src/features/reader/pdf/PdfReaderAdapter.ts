@@ -15,6 +15,7 @@ import type {
 import type { HighlightId } from '@/domain';
 import type {
   Highlight,
+  HighlightAnchor,
   HighlightRect,
 } from '@/domain/annotations/types';
 import type { PageViewport } from 'pdfjs-dist';
@@ -217,6 +218,21 @@ export class PdfReaderAdapter implements BookReader {
     }
     if (best) return best.title;
     return `Page ${String(anchor.page)}`;
+  }
+
+  // Phase 4.4 passage mode. Real implementation lands in Task 3 (PDF
+  // first-match-wins window extraction with documented limitation). This stub
+  // returns text-only so the BookReader contract is satisfied; callers fall
+  // back to their own selectedText.
+  getPassageContextAt(
+    _anchor: HighlightAnchor,
+  ): Promise<{
+    text: string;
+    windowBefore?: string;
+    windowAfter?: string;
+    sectionTitle?: string;
+  }> {
+    return Promise.resolve({ text: '' });
   }
 
   loadHighlights(highlights: readonly Highlight[]): void {

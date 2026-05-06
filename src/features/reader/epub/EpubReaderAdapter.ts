@@ -13,7 +13,7 @@ import type {
   HighlightTapListener,
 } from '@/domain/reader';
 import type { HighlightId } from '@/domain';
-import type { Highlight } from '@/domain/annotations/types';
+import type { Highlight, HighlightAnchor } from '@/domain/annotations/types';
 import { COLOR_HEX } from '../highlightColors';
 
 const highlightDrawer = Overlayer.highlight;
@@ -95,6 +95,11 @@ export class EpubReaderAdapter implements BookReader {
   private selectionListeners = new Set<SelectionListener>();
   private highlightTapListeners = new Set<HighlightTapListener>();
   private selectionDebounceTimer: number | undefined;
+  // Phase 4.4 passage mode: cache the most recent non-empty selection so
+  // getPassageContextAt(anchor) can extract windows from the live range
+  // without reverse-resolving the CFI. The range is cloned to survive
+  // selection-clear events. Cleared on destroy.
+  private lastPassageSelection: { cfi: string; range: Range } | null = null;
 
   constructor(host?: HTMLElement) {
     if (host) this.host = host;
@@ -265,6 +270,48 @@ export class EpubReaderAdapter implements BookReader {
     return topLevel[this.currentSectionIndex]?.title ?? null;
   }
 
+  getPassageContextAt(
+    anchor: HighlightAnchor,
+  ): Promise<{
+    text: string;
+    windowBefore?: string;
+    windowAfter?: string;
+    sectionTitle?: string;
+  }> {
+    if (anchor.kind !== 'epub-cfi') return Promise.resolve({ text: '' });
+    if (!this.view) return Promise.resolve({ text: '' });
+    // We extract windows from the live range cached at selection time. If the
+    // user clicks Ask AI on a different selection (or no selection was cached),
+    // return text-only and let the caller fall back to its own selectedText.
+    const cached = this.lastPassageSelection;
+    if (cached?.cfi !== anchor.cfi) {
+      return Promise.resolve({ text: '' });
+    }
+    try {
+      const fullText = cached.range.toString();
+      if (fullText.length === 0) return Promise.resolve({ text: '' });
+      const cappedText = fullText.length > 4000 ? fullText.slice(0, 4000) : fullText;
+
+      const windowBefore = collectWindowBefore(cached.range, 400);
+      const windowAfter = collectWindowAfter(cached.range, 400);
+      const sectionTitle = this.getSectionTitleAt({ kind: 'epub-cfi', cfi: anchor.cfi });
+
+      const result: {
+        text: string;
+        windowBefore?: string;
+        windowAfter?: string;
+        sectionTitle?: string;
+      } = { text: cappedText };
+      if (windowBefore !== undefined) result.windowBefore = windowBefore;
+      if (windowAfter !== undefined) result.windowAfter = windowAfter;
+      if (sectionTitle !== null) result.sectionTitle = sectionTitle;
+      return Promise.resolve(result);
+    } catch (err) {
+      console.warn('[passage-mode] EPUB extraction failed; returning text-only', err);
+      return Promise.resolve({ text: '' });
+    }
+  }
+
   loadHighlights(highlights: readonly Highlight[]): void {
     if (!this.view) {
       // Cache for when the view becomes ready; foliate's create-overlay will
@@ -382,6 +429,9 @@ export class EpubReaderAdapter implements BookReader {
         selectedText: text,
         screenRect,
       };
+      // Cache for passage-mode window extraction. Clone the range so it
+      // survives the selection clearing when the toolbar dismisses.
+      this.lastPassageSelection = { cfi, range: range.cloneRange() };
       for (const fn of this.selectionListeners) fn(info);
     }, 100);
   }
@@ -419,6 +469,7 @@ export class EpubReaderAdapter implements BookReader {
     this.highlightIdByCfi.clear();
     this.selectionListeners.clear();
     this.highlightTapListeners.clear();
+    this.lastPassageSelection = null;
     if (this.selectionDebounceTimer !== undefined) {
       window.clearTimeout(this.selectionDebounceTimer);
       this.selectionDebounceTimer = undefined;
@@ -497,5 +548,52 @@ export class EpubReaderAdapter implements BookReader {
         this.walkToc(item.subitems, depth + 1, out);
       }
     }
+  }
+}
+
+// ----- Passage-mode window helpers (file-private) -----
+// Build a Range from start-of-doc to range.start (or range.end to end-of-doc)
+// and read its text. Range.toString() handles cross-element text concatenation
+// correctly, so we don't have to walk text nodes ourselves.
+
+function collectWindowBefore(range: Range, maxChars: number): string | undefined {
+  const doc = range.startContainer.ownerDocument;
+  if (!doc) return undefined;
+  const root = doc.body;
+  try {
+    const before = doc.createRange();
+    before.setStart(root, 0);
+    before.setEnd(range.startContainer, range.startOffset);
+    const text = before.toString();
+    if (text.length === 0) return undefined;
+    const tail = text.length > maxChars ? text.slice(-maxChars) : text;
+    // Drop a leading partial word so the window starts at a word boundary.
+    const firstSpace = tail.indexOf(' ');
+    const trimmed = firstSpace > 0 ? tail.slice(firstSpace + 1) : tail;
+    const final = trimmed.replace(/\s+/g, ' ').trim();
+    return final.length > 0 ? final : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function collectWindowAfter(range: Range, maxChars: number): string | undefined {
+  const doc = range.endContainer.ownerDocument;
+  if (!doc) return undefined;
+  const root = doc.body;
+  try {
+    const after = doc.createRange();
+    after.setStart(range.endContainer, range.endOffset);
+    after.setEnd(root, root.childNodes.length);
+    const text = after.toString();
+    if (text.length === 0) return undefined;
+    const head = text.length > maxChars ? text.slice(0, maxChars) : text;
+    // Drop a trailing partial word.
+    const lastSpace = head.lastIndexOf(' ');
+    const trimmed = lastSpace > 0 ? head.slice(0, lastSpace) : head;
+    const final = trimmed.replace(/\s+/g, ' ').trim();
+    return final.length > 0 ? final : undefined;
+  } catch {
+    return undefined;
   }
 }
