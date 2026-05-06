@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Bookmark, Highlight, HighlightColor } from '@/domain/annotations/types';
-import type { LocationAnchor, SavedAnswerId } from '@/domain';
+import type { ChunkId, LocationAnchor, SavedAnswerId } from '@/domain';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from '@/features/reader/highlightColors';
 import { NoteEditor } from '@/features/reader/NoteEditor';
 import { NoteIcon } from '@/shared/icons';
@@ -12,6 +12,7 @@ type Props = {
   readonly entry: NotebookEntry;
   readonly nowMs?: number;
   readonly onJumpToAnchor: (anchor: LocationAnchor) => void;
+  readonly onJumpToChunk?: (chunkId: ChunkId) => void;
   readonly onRemoveBookmark: (b: Bookmark) => void;
   readonly onRemoveHighlight: (h: Highlight) => void;
   readonly onChangeColor: (h: Highlight, color: HighlightColor) => void;
@@ -28,6 +29,7 @@ export function NotebookRow({
   entry,
   nowMs,
   onJumpToAnchor,
+  onJumpToChunk,
   onRemoveBookmark,
   onRemoveHighlight,
   onChangeColor,
@@ -43,12 +45,16 @@ export function NotebookRow({
     // expose a Jump-to-passage affordance. .find() so future multi-source
     // saved answers (Phase 5+) keep working without changes here.
     const passageRef = s.contextRefs.find((r) => r.kind === 'passage');
+    const chunkRefs = s.contextRefs.filter(
+      (r): r is Extract<typeof r, { kind: 'chunk' }> => r.kind === 'chunk',
+    );
     const passageAnchor: LocationAnchor | null =
       passageRef !== undefined
         ? passageRef.anchor.kind === 'epub-cfi'
           ? { kind: 'epub-cfi', cfi: passageRef.anchor.cfi }
           : { kind: 'pdf', page: passageRef.anchor.page }
         : null;
+    const visibleChunkRefs = chunkRefs.slice(0, 5);
     return (
       <li className="notebook-row notebook-row--saved-answer">
         <div className="notebook-row__main">
@@ -75,7 +81,31 @@ export function NotebookRow({
           {s.userNote ? (
             <p className="notebook-row__user-note">{s.userNote}</p>
           ) : null}
-          {passageAnchor !== null ? (
+          {chunkRefs.length >= 1 ? (
+            <span className="notebook-row__sources">
+              <span aria-hidden="true">🔍</span>
+              <span>Sources:</span>
+              {visibleChunkRefs.map((ref, i) => (
+                <button
+                  key={ref.chunkId}
+                  type="button"
+                  className="notebook-row__citation"
+                  aria-label={`Jump to source ${String(i + 1)}`}
+                  disabled={onJumpToChunk === undefined}
+                  onClick={() => {
+                    onJumpToChunk?.(ref.chunkId);
+                  }}
+                >
+                  [{String(i + 1)}]
+                </button>
+              ))}
+              {chunkRefs.length > 5 ? (
+                <span className="notebook-row__more">
+                  +{String(chunkRefs.length - 5)} more
+                </span>
+              ) : null}
+            </span>
+          ) : passageAnchor !== null ? (
             <button
               type="button"
               className="notebook-row__jump-to-passage"
