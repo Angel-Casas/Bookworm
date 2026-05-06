@@ -16,11 +16,12 @@ import type {
 } from '@/storage';
 import { useChatThreads } from './useChatThreads';
 import { useChatMessages } from './useChatMessages';
-import { useChatSend } from './useChatSend';
+import { useChatSend, type AttachedPassage } from './useChatSend';
 import { useSavedAnswers } from './useSavedAnswers';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { ChatComposer } from './ChatComposer';
+import { PassageChip } from './PassageChip';
 import { PrivacyPreview } from './PrivacyPreview';
 import { ChatEmptyState } from './ChatEmptyState';
 import { SaveAnswerInline } from './SaveAnswerInline';
@@ -40,6 +41,10 @@ type Props = {
   readonly onCollapse: () => void;
   readonly hintShown: boolean;
   readonly onHintDismiss: () => void;
+  // Phase 4.4 passage mode. Optional so non-passage surfaces can mount the
+  // panel without wiring the chip; behavior reduces to Phase 4.3 in that case.
+  readonly attachedPassage?: AttachedPassage | null;
+  readonly onClearAttachedPassage?: () => void;
 };
 
 const DRAFT_THREAD_ID = ChatThreadId('__draft__');
@@ -73,6 +78,8 @@ export function ChatPanel(props: Props) {
     messagesRepo: props.messagesRepo,
   });
 
+  const attachedPassage = props.attachedPassage ?? null;
+
   const send = useChatSend({
     threadId: activeThreadId,
     modelId: props.selectedModelId ?? '',
@@ -82,6 +89,7 @@ export function ChatPanel(props: Props) {
     append: messages.append,
     patch: messages.patch,
     finalize: messages.finalize,
+    attachedPassage,
   });
 
   const savedAnswers = useSavedAnswers({
@@ -129,13 +137,25 @@ export function ChatPanel(props: Props) {
       ? findPreviousUser(messages.list, targetMessage)
       : undefined;
 
+  // Wrap thread switching so attached passage chips don't follow the user
+  // into a different conversation. Sticky-across-sends; cleared on switch.
+  const handleSelectThread = useCallback(
+    (id: ChatThreadId): void => {
+      props.onClearAttachedPassage?.();
+      threads.setActive(id);
+    },
+    // threads.setActive identity is stable per useChatThreads hook contract;
+    // re-binding when the callback changes is acceptable here.
+    [threads, props],
+  );
+
   return (
     <div className="chat-panel">
       <ChatHeader
         threads={threads.list}
         activeId={threads.activeId}
         {...(threads.draft ? { draftTitleHint: 'New conversation' } : {})}
-        onSelectThread={threads.setActive}
+        onSelectThread={handleSelectThread}
         onRenameThread={(id, title) => {
           void threads.rename(id, title);
         }}
@@ -200,6 +220,15 @@ export function ChatPanel(props: Props) {
       ) : null}
       {variant === 'ready' || variant === 'no-threads' ? (
         <>
+          {attachedPassage !== null && props.onClearAttachedPassage ? (
+            <PassageChip
+              text={attachedPassage.text}
+              {...(attachedPassage.sectionTitle !== undefined && {
+                sectionTitle: attachedPassage.sectionTitle,
+              })}
+              onDismiss={props.onClearAttachedPassage}
+            />
+          ) : null}
           <PrivacyPreview
             book={props.book}
             modelId={props.selectedModelId ?? ''}
