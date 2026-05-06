@@ -30,7 +30,7 @@ function normalizeEmbedding(record: unknown): BookEmbedding | null {
     vector: r.vector,
     chunkerVersion: r.chunkerVersion,
     embeddingModelVersion: r.embeddingModelVersion,
-    embeddedAt: r.embeddedAt as BookEmbedding['embeddedAt'],
+    embeddedAt: r.embeddedAt,
   };
 }
 
