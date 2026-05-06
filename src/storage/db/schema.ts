@@ -2,6 +2,7 @@ import type { DBSchema } from 'idb';
 import type {
   Book,
   BookEmbedding,
+  BookProfileRecord,
   Bookmark,
   ChatMessage,
   ChatThread,
@@ -14,7 +15,7 @@ import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
 export const DB_NAME = 'bookworm';
-export const CURRENT_DB_VERSION = 8;
+export const CURRENT_DB_VERSION = 9;
 
 export type AppView =
   | { readonly kind: 'library' }
@@ -135,6 +136,10 @@ export interface BookwormDBSchema extends DBSchema {
       'by-book': string;
     };
   };
+  book_profiles: {
+    key: string;
+    value: BookProfileRecord;
+  };
 }
 
 export const BOOK_STORE = 'books' as const;
@@ -149,3 +154,4 @@ export const CHAT_MESSAGES_STORE = 'chat_messages' as const;
 export const SAVED_ANSWERS_STORE = 'saved_answers' as const;
 export const BOOK_CHUNKS_STORE = 'book_chunks' as const;
 export const BOOK_EMBEDDINGS_STORE = 'book_embeddings' as const;
+export const BOOK_PROFILES_STORE = 'book_profiles' as const;

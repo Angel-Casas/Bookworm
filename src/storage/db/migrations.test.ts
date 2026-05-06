@@ -15,6 +15,7 @@ import {
   CHAT_MESSAGES_STORE,
   SAVED_ANSWERS_STORE,
   BOOK_EMBEDDINGS_STORE,
+  BOOK_PROFILES_STORE,
   CURRENT_DB_VERSION,
 } from './schema';
 
@@ -339,10 +340,6 @@ describe('v5 → v6 migration', () => {
 });
 
 describe('v7 → v8 migration', () => {
-  it('CURRENT_DB_VERSION is 8', () => {
-    expect(CURRENT_DB_VERSION).toBe(8);
-  });
-
   it('opening at v8 from scratch creates the book_embeddings store with by-book index', async () => {
     const dbName = `bookworm-mig8-fresh-${crypto.randomUUID()}`;
     const db = await openBookwormDB(dbName);
@@ -395,5 +392,59 @@ describe('v7 → v8 migration', () => {
     expect(survivors[0]).toMatchObject({ id: 'chunk-b1-s1-0' });
 
     v8.close();
+  });
+});
+
+describe('v8 → v9 migration', () => {
+  it('CURRENT_DB_VERSION is 9', () => {
+    expect(CURRENT_DB_VERSION).toBe(9);
+  });
+
+  it('opening at v9 from scratch creates the book_profiles store', async () => {
+    const dbName = `bookworm-mig9-fresh-${crypto.randomUUID()}`;
+    const db = await openBookwormDB(dbName);
+    expect(db.objectStoreNames.contains(BOOK_PROFILES_STORE)).toBe(true);
+    db.close();
+  });
+
+  it('v8 → v9 preserves existing embeddings while adding the profiles store', async () => {
+    const dbName = `bookworm-mig9-${crypto.randomUUID()}`;
+
+    const v8 = await openDB(dbName, 8, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? 8,
+        );
+      },
+    });
+    await v8.put('books', { id: 'b1', title: 'Survivor' });
+    await v8.put('book_embeddings', {
+      id: 'chunk-b1-s1-0',
+      bookId: 'b1',
+      vector: new Float32Array(1536),
+      chunkerVersion: 1,
+      embeddingModelVersion: 1,
+      embeddedAt: '2026-05-06T00:00:00.000Z',
+    });
+    v8.close();
+
+    const v9 = await openDB(dbName, CURRENT_DB_VERSION, {
+      upgrade(db, oldVersion, newVersion, tx) {
+        runMigrations(
+          { db: db as never, tx: tx as never },
+          oldVersion,
+          newVersion ?? CURRENT_DB_VERSION,
+        );
+      },
+    });
+
+    expect(v9.objectStoreNames.contains(BOOK_PROFILES_STORE)).toBe(true);
+    const survivors = await v9.getAll('book_embeddings');
+    expect(survivors).toHaveLength(1);
+    expect(survivors[0]).toMatchObject({ id: 'chunk-b1-s1-0' });
+
+    v9.close();
   });
 });
