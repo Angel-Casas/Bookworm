@@ -7,12 +7,13 @@ import type {
   Highlight,
   Note,
   SavedAnswer,
+  TextChunk,
 } from '@/domain';
 import type { LocationAnchor } from '@/domain';
 import type { ReaderPreferences } from '@/domain/reader';
 
 export const DB_NAME = 'bookworm';
-export const CURRENT_DB_VERSION = 6;
+export const CURRENT_DB_VERSION = 7;
 
 export type AppView =
   | { readonly kind: 'library' }
@@ -118,6 +119,14 @@ export interface BookwormDBSchema extends DBSchema {
       'by-message': string;
     };
   };
+  book_chunks: {
+    key: string;
+    value: TextChunk;
+    indexes: {
+      'by-book': string;
+      'by-book-section': [string, string];
+    };
+  };
 }
 
 export const BOOK_STORE = 'books' as const;
@@ -130,3 +139,4 @@ export const NOTES_STORE = 'notes' as const;
 export const CHAT_THREADS_STORE = 'chat_threads' as const;
 export const CHAT_MESSAGES_STORE = 'chat_messages' as const;
 export const SAVED_ANSWERS_STORE = 'saved_answers' as const;
+export const BOOK_CHUNKS_STORE = 'book_chunks' as const;
