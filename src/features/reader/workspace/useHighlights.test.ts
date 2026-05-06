@@ -58,6 +58,7 @@ function fakeReaderState(
     getCurrentAnchor: () => ({ kind: 'epub-cfi', cfi: 'x' }),
     getSnippetAt: () => Promise.resolve(null),
     getSectionTitleAt: () => 'Chapter 1',
+    getPassageContextAt: () => Promise.resolve({ text: '' }),
     loadHighlights: () => undefined,
     addHighlight: vi.fn(() => undefined),
     removeHighlight: vi.fn(() => undefined),

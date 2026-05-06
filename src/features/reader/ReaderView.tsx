@@ -9,7 +9,7 @@ import type {
   HighlightTapListener,
 } from '@/domain/reader';
 import type { HighlightId } from '@/domain';
-import type { Highlight } from '@/domain/annotations/types';
+import type { Highlight, HighlightAnchor } from '@/domain/annotations/types';
 import { makeReaderMachine } from './readerMachine';
 import './reader-view.css';
 
@@ -23,6 +23,13 @@ export type ReaderViewExposedState = {
   readonly getCurrentAnchor: () => LocationAnchor | null;
   readonly getSnippetAt: (anchor: LocationAnchor) => Promise<string | null>;
   readonly getSectionTitleAt: (anchor: LocationAnchor) => string | null;
+  // Phase 4.4 passage mode. Returns {text: ''} on failure rather than throwing.
+  readonly getPassageContextAt: (anchor: HighlightAnchor) => Promise<{
+    readonly text: string;
+    readonly windowBefore?: string;
+    readonly windowAfter?: string;
+    readonly sectionTitle?: string;
+  }>;
   // Highlights (Phase 3.2).
   readonly loadHighlights: (highlights: readonly Highlight[]) => void;
   readonly addHighlight: (highlight: Highlight) => void;
@@ -197,6 +204,19 @@ export function ReaderView({
     }
   }, []);
 
+  const getPassageContextAt = useCallback(
+    (anchor: HighlightAnchor): Promise<{
+      text: string;
+      windowBefore?: string;
+      windowAfter?: string;
+      sectionTitle?: string;
+    }> => {
+      if (!adapterRef.current) return Promise.resolve({ text: '' });
+      return adapterRef.current.getPassageContextAt(anchor).catch(() => ({ text: '' }));
+    },
+    [],
+  );
+
   const loadHighlights = useCallback((highlights: readonly Highlight[]): void => {
     adapterRef.current?.loadHighlights(highlights);
   }, []);
@@ -237,6 +257,7 @@ export function ReaderView({
       getCurrentAnchor,
       getSnippetAt,
       getSectionTitleAt,
+      getPassageContextAt,
       loadHighlights,
       addHighlight,
       removeHighlight,
@@ -253,6 +274,7 @@ export function ReaderView({
     getCurrentAnchor,
     getSnippetAt,
     getSectionTitleAt,
+    getPassageContextAt,
     loadHighlights,
     addHighlight,
     removeHighlight,

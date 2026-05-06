@@ -57,6 +57,7 @@ function fakeReaderState(
     getCurrentAnchor: () => ANCHOR,
     getSnippetAt: () => Promise.resolve('a fresh snippet'),
     getSectionTitleAt: () => 'Chapter 4',
+    getPassageContextAt: () => Promise.resolve({ text: '' }),
     loadHighlights: () => undefined,
     addHighlight: () => undefined,
     removeHighlight: () => undefined,
