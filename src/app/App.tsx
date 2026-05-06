@@ -316,6 +316,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookId={inspectorBookId}
           bookTitle={inspectorBook.title}
           chunksRepo={wiring.bookChunksRepo}
+          embeddingsRepo={wiring.bookEmbeddingsRepo}
           onRebuild={(id) => indexing.rebuild(id)}
           onClose={() => {
             setInspectorBookId(null);
