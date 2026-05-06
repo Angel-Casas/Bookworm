@@ -18,14 +18,14 @@ The design fulfills three deferred promises from Phase 4.3: (1) passage-mode cha
 - Add `BookReader.getPassageContextAt(anchor)` to the reader contract: returns `{text, windowBefore?, windowAfter?, sectionTitle?}`. Implemented by both `EpubReaderAdapter` and `PdfReaderAdapter` with graceful degradation when extraction fails (returns `{text}` only, never throws).
 - Selection text capped at 4000 chars in the outgoing prompt + chip + privacy preview, with `(truncated for AI)` notice; the full anchor is preserved regardless.
 - Window character bounds: ~400 before, ~400 after, word-boundary trimmed, ellipses surface in the prompt block.
-- New pure helper `assemblePassageChatPrompt(input)` next to the existing `assembleOpenChatPrompt`. Output structure: `[ system(open-mode) | system(passage-addendum) | ...history | user-with-passage-block ]`. The passage block is prepended to the new user message (not a separate message — keeps the model's attention focused), with bold delimiters around the exact selection and ellipses on the windows.
+- New pure helper `assemblePassageChatPrompt(input)` next to the existing `assembleOpenChatPrompt`. Output structure: `[ system(open-mode prompt + "\n\n" + passage-addendum, single combined message) | …history | user-with-passage-block ]`. Single combined system (not two adjacent systems) for upstream-provider parity. The passage block is prepended to the new user message (not a separate message — keeps the model's attention focused), with bold delimiters around the exact selection and ellipses on the windows.
 - History soft-cap drops from 40 user/assistant pairs to 30 when **any** message in the thread is `mode === 'passage'` OR the new message is passage-mode. Single-condition check at assembly time.
-- `useChatSend` accepts an optional `attachedPassage: AttachedPassage | null` prop. When non-null, send goes through `assemblePassageChatPrompt`, sets `mode: 'passage'` on the user + assistant messages, and writes `contextRefs: [{kind: 'passage', text, anchor, sectionTitle?, windowBefore?, windowAfter?}]`. When null, behavior identical to Phase 4.3 (`mode: 'open'`, empty `contextRefs`).
+- `useChatSend` accepts an optional `attachedPassage: AttachedPassage | null` prop. When non-null, send goes through `assemblePassageChatPrompt`, sets `mode: 'passage'` on **both** user and assistant messages, and writes `contextRefs: [{kind: 'passage', text, anchor, sectionTitle?, windowBefore?, windowAfter?}]` **only on the assistant message** (the user message keeps `contextRefs: []`). When null, behavior identical to Phase 4.3 (`mode: 'open'`, empty `contextRefs` on both).
 - New "Ask AI" action in `HighlightToolbar` — appears in both `'create'` (fresh selection) and `'edit'` (existing-highlight tap) modes, gated by `canAskAI` (api-key state ∈ session/unlocked AND selectedModelId is non-empty). Hidden entirely when `canAskAI` is false — no disabled state.
 - Selection bridge in `ReaderWorkspace`: clicking "Ask AI" calls `readerState.getPassageContextAt(anchor)`, stores the resulting `AttachedPassage` in workspace state, auto-expands the right rail (desktop) or auto-switches to the chat tab + opens the sheet (mobile), focuses the chat composer via the existing `pendingFocus` ref pattern, and dismisses the highlight toolbar. No `Highlight` record is created — the selection is materialized only as a chip + transient state.
 - New `PassageChip` component: sits above `ChatComposer` when `attachedPassage` is non-null, shows section title (when present) + truncated selection text (~80 chars + ellipsis), ✕ button to dismiss, `role="status" aria-live="polite"`. Sticky across sends (Q3 lock); replaced when the user re-selects + clicks "Ask AI" again; cleared when the user switches threads or dismisses explicitly.
 - `ChatPanel` accepts `attachedPassage` + `onClearAttachedPassage` props; threads them through to `useChatSend`; renders `PassageChip` between message list and composer.
-- `MessageBubble` (assistant variant) gains an inline source footer when `contextRefs[0].kind === 'passage'`: `📎 Source: "{snippet…}"` with click → `onJumpToSource(anchor)`. `MessageBubble.onJumpToSource?` is added; `undefined` hides the footer (used in surfaces like the notebook's preview where jump-back is handled differently).
+- `MessageBubble` (assistant variant) gains an inline source footer when `contextRefs.find(r => r.kind === 'passage')` is defined: `📎 Source: "{snippet…}"` with click → `onJumpToSource(matchedRef.anchor)`. `.find()` (not `[0]?.kind`) so the predicate survives Phase 5+ multi-source mode without a follow-up edit. `MessageBubble.onJumpToSource?` is added; `undefined` hides the footer (used in surfaces like the notebook's preview where jump-back is handled differently).
 - `PrivacyPreview` updated: collapsed summary shows "+ section + selected passage (~N chars)" when attached; expanded form adds an "Attached passage" subsection with the literal selection text + windows. Snapshot-tested against `assemblePassageChatPrompt` output (same pattern as the existing system-prompt snapshot test).
 - `MobileSheet` chat tab: 4th entry in the existing `tabs` array. Uses the same `ChatPanel` instance pattern. `ChatPanel` mounts only when the chat tab is active (tab-switching unmounts; sheet-dismissal unmounts; in-flight streams cancel cleanly via the existing `useChatSend` cleanup effect). The 4.3 spec's "keep mounted by transform" idea is **not** implemented — simpler unmount semantics win; in-flight messages get `truncated + error: 'interrupted'` per Phase 4.3's stale-stream detection.
 - Notebook saved-answer jump-back: `NotebookRow`'s `'savedAnswer'` variant gains a "Jump to passage" affordance when `contextRefs.find(r => r.kind === 'passage')?.anchor` is non-null. Wired through `NotebookList → NotebookView → App.tsx`'s existing `view.goReaderAt(book.id, anchor)`. 4.3 saved answers (no passage refs) just don't render the button — pure backward compat.
@@ -155,8 +155,10 @@ export type ContextRef =
 ### 4.2 `ChatMessage.mode` actually populated
 
 4.3 sets `mode: 'open'` on every message. 4.4 sets:
-- `mode: 'passage'` when `attachedPassage !== null` at `useChatSend.send()` time (both user + assistant messages of that turn).
+- `mode: 'passage'` when `attachedPassage !== null` at `useChatSend.send()` time (both user + assistant messages of that turn — keeps the soft-cap history scan symmetric and obvious).
 - `mode: 'open'` otherwise.
+
+`contextRefs`, by contrast, is set **only on the assistant message** (the one with provenance — the source footer renders there). The user message keeps `contextRefs: []` even in passage mode. This avoids ~5KB of duplicated payload per question that nothing consumes; the soft-cap selector reads `mode`, not `contextRefs`, so the symmetry isn't load-bearing.
 
 ### 4.3 Storage normalizers
 
@@ -187,7 +189,7 @@ Malformed `passage` refs are filtered from the array (`contextRefs.filter(isVali
 
 ### 4.4 No migration
 
-v6 schema unchanged. `contextRefs` JSON payload is additive; existing 4.3 records (always `[]`) round-trip cleanly. Pre-flight grep confirms no `passage` refs were ever persisted in 4.3 (only `'open'` mode shipped) — no back-compat work for the new required `anchor` field.
+v6 schema unchanged. `contextRefs` JSON payload is additive; existing 4.3 records (always `[]`) round-trip cleanly. Pre-flight grep (verified 2026-05-06: `git grep "kind: *['\"]passage['\"]"` matches only the type definition in `src/domain/ai/types.ts:28` — zero call sites construct or persist `passage` refs) confirms no `passage` refs were ever persisted in 4.3 (only `'open'` mode shipped) — no back-compat work for the new required `anchor` field. Even if a stray malformed ref surfaced, the lenient validator (§4.3) would filter it without dropping the surrounding message.
 
 ---
 
@@ -227,6 +229,13 @@ Both adapters implement. Extraction failures → return `{text}` only (selection
 - If selection isn't found (whitespace-normalization mismatch — rare): graceful fallback to `{text}` only.
 - `sectionTitle` is `null` for PDF (existing Phase 3.1 behavior — PDFs don't have first-class sections).
 
+**Documented limitation — first-match wins.** When the selection text appears more than once on the page (common for short/common phrases), the implementation takes the first string match in the joined page text. The **anchor** (PDF rects on the page) is still correct, so jump-to-passage is unaffected; only `windowBefore`/`windowAfter` may come from a different instance than the user actually selected, which can subtly mislead the AI's reading of context. Acceptable for v1.
+
+Mitigation in v1:
+- A single-line code comment at the slice site documenting the first-match-wins choice.
+- A unit test (`PdfReaderAdapter.test.ts`) asserting the documented behavior with a fixture page that has the selection text appearing twice — locks the contract so future refactors don't silently change it.
+- A `// TODO(passage-y-bias)` marker pointing at the future enhancement: PDF anchors carry per-rect `y`, and `getTextContent()` items expose y via their transform — biasing the chosen match toward the rect-mean y is feasible. Deferred to a follow-up because it requires keeping a parallel item→char-offset map; the concrete cost in answer quality is unknown until users exercise the feature.
+
 ### 5.4 `ReaderViewExposedState` passthrough
 
 `ReaderViewExposedState` (the workspace's view of the reader's state, defined in `ReaderView.tsx`) gains a `getPassageContextAt(anchor)` passthrough — same pattern as `getCurrentAnchor` and `getSectionTitleAt` from Phase 3.1.
@@ -258,11 +267,12 @@ export function assemblePassageChatPrompt(input: AssemblePassageChatInput): Asse
 ### 6.2 Output structure
 
 ```
-[ 0 ] system     — open-mode system prompt (book title + author + grounding rules)
-[ 1 ] system     — passage-mode addendum
-[ 2…N-2 ] user/assistant — preserved history
+[ 0 ] system     — combined: open-mode prompt + "\n\n" + passage-mode addendum
+[ 1…N-2 ] user/assistant — preserved history
 [ N-1 ] user     — newUserText, prefixed with the passage block
 ```
+
+A **single combined system message** is emitted, not two. NanoGPT proxies a wide range of upstream providers; OpenAI-compatible endpoints accept multi-system, but some providers (notably the Anthropic-via-shim path) collapse adjacent system messages anyway, and a couple of niche upstreams ignore everything past system[0]. Combining at assembly time guarantees parity across all upstreams at zero semantic cost — the addendum content is identical, just appended after a `\n\n` separator. Tests assert the addendum's substring is present in `messages[0].content`.
 
 The passage block (prepended to the new user message — keeps the model's attention focused on the user's question alongside the source):
 
@@ -277,11 +287,11 @@ The passage block (prepended to the new user message — keeps the model's atten
 
 The bold delimiters around the exact selection make the model's anchor unambiguous. Ellipses on the windows visually distinguish "context for orientation" from "the actual selection".
 
-### 6.3 Passage-mode system addendum (message [1])
+### 6.3 Passage-mode system addendum (appended to message [0])
 
 > The user has attached a passage from this book. Treat the bolded text between the ellipsis windows as the primary subject. The surrounding ellipsis text is included only for orientation — do not summarize or analyze it as if it were the user's selection. If the user asks for something that requires text outside the attached window, say so and offer to help once they share more.
 
-Tested via structural assertions (book title in last user message, passage text bracketed by `**`, system addendum mentions "passage" and "attached") — not verbatim string match.
+Concatenated to `buildOpenModeSystemPrompt(book)` with a `\n\n` separator at assembly time. Tested via structural assertions (book title in `messages[0].content`, addendum substring in `messages[0].content`, passage text bracketed by `**` in last user message) — not verbatim string match.
 
 ### 6.4 Soft-cap reduction
 
@@ -338,25 +348,25 @@ type AttachedPassage = {
 
 ```
 if (attachedPassage === null) {
-  → assembleOpenChatPrompt(...)
-  → mode: 'open'
-  → contextRefs: []
+  user message    → mode: 'open',    contextRefs: []
+  assistant msg   → mode: 'open',    contextRefs: []
+  prompt          → assembleOpenChatPrompt(...)
 }
 else {
-  → assemblePassageChatPrompt({...input, passage: attachedPassage})
-  → mode: 'passage'
-  → contextRefs: [{
+  user message    → mode: 'passage', contextRefs: []
+  assistant msg   → mode: 'passage', contextRefs: [{
       kind: 'passage',
       text: attachedPassage.text,
       anchor: attachedPassage.anchor,
-      ...(attachedPassage.sectionTitle && {sectionTitle}),
-      ...(attachedPassage.windowBefore && {windowBefore}),
-      ...(attachedPassage.windowAfter && {windowAfter}),
+      ...(attachedPassage.sectionTitle && {sectionTitle: …}),
+      ...(attachedPassage.windowBefore && {windowBefore: …}),
+      ...(attachedPassage.windowAfter && {windowAfter: …}),
     }]
+  prompt          → assemblePassageChatPrompt({...input, passage: attachedPassage})
 }
 ```
 
-`mode` set on **both** the user and assistant messages of that turn. `contextRefs` set on the assistant message (it's the message that has provenance; the user message has it too symmetrically for completeness, but the source footer renders only on assistant bubbles).
+`mode` is set on **both** messages of the turn — keeps the soft-cap history scan symmetric and makes "this turn was passage-mode" explicit on either side. `contextRefs` is set **only on the assistant message** — that's the surface with provenance (the source footer reads `contextRefs`); persisting the same payload on the user message would be ~5KB of dead duplicate per question. The `useChatSend` test must assert this asymmetry explicitly so future "let's normalize them" refactors don't silently re-introduce the bloat.
 
 ---
 
@@ -451,7 +461,7 @@ type Props = {
 };
 ```
 
-Renders source footer when `message.role === 'assistant'` AND `message.contextRefs[0]?.kind === 'passage'` AND `onJumpToSource` defined. Layout:
+Renders source footer when `message.role === 'assistant'` AND `message.contextRefs.find(r => r.kind === 'passage')` is defined AND `onJumpToSource` is defined. Use `.find()`, not `[0]?.kind`: Phase 5+ multi-source mode will mix `passage` with other ref kinds in the same array, and `.find()` survives that change without a follow-up edit. The matched ref's `anchor` is what `onJumpToSource` is called with. Layout:
 
 ```
 AI · 2m ago · 📎 Source: "she scarcely heard the…"  →  [Save]
@@ -589,11 +599,11 @@ The chip's truncated display (~80 chars) and the privacy preview's truncated out
 
 ### 11.1 Unit (Vitest)
 
-- `assemblePassageChatPrompt` — passage block in last user message, system addendum present, history-soft-cap reduction triggers correctly when any history message is passage-mode, edge cases (no window, no section, truncated selection).
-- `getPassageContextAt` for each adapter — happy path, missing window (selection at start/end of section/page), section title present/absent, 4000-char truncation marker.
+- `assemblePassageChatPrompt` — passage block in last user message, addendum substring in `messages[0].content` (combined system, single message), history-soft-cap reduction triggers correctly when any history message is passage-mode, edge cases (no window, no section, truncated selection).
+- `getPassageContextAt` for each adapter — happy path, missing window (selection at start/end of section/page), section title present/absent, 4000-char truncation marker. **PDF specifically**: a fixture page with the selection text appearing twice locks first-match-wins behavior.
 - `ContextRef.passage` validator — accepts well-formed; rejects missing anchor; rejects bad anchor kind; preserves valid refs while filtering invalid siblings.
-- `useChatSend` with attachedPassage — assembles correct prompt, sets `mode: 'passage'`, persists `contextRefs` correctly. Without attachedPassage — Phase 4.3 behavior unchanged.
-- `MessageBubble` source-footer — renders when `contextRefs[0].kind === 'passage'` and `onJumpToSource` defined; absent for `'open'` messages; click calls `onJumpToSource` with the right anchor.
+- `useChatSend` with attachedPassage — assembles correct prompt; sets `mode: 'passage'` on **both** user and assistant messages; sets `contextRefs` **only on the assistant message** (asymmetry asserted explicitly so a future refactor can't silently bloat persistence). Without attachedPassage — Phase 4.3 behavior unchanged.
+- `MessageBubble` source-footer — renders when an assistant message has `contextRefs.find(r => r.kind === 'passage')` and `onJumpToSource` defined; absent for `'open'` messages and for messages where the only refs are non-passage; click calls `onJumpToSource` with the matched ref's anchor.
 - `NotebookRow.savedAnswer` — renders "Jump to passage" only when `contextRefs.find(r => r.kind === 'passage')?.anchor` is non-null; click fires the right callback.
 - `PrivacyPreview` — collapsed summary shows attached state; expanded form contains the passage block; snapshot equivalence with `assemblePassageChatPrompt` output.
 - Repo normalizers (`chatMessages`, `savedAnswers`) — passage variant survives round-trip; malformed passage refs filter out without dropping the message.
