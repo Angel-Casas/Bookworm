@@ -182,3 +182,29 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+.notebook-row__jump-to-passage {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-block-start: var(--space-2);
+}
+
+.notebook-row__jump-to-passage:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.notebook-row__jump-to-passage:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

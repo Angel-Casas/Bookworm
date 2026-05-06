@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { NotebookRow } from './NotebookRow';
-import { BookId, BookmarkId, HighlightId, IsoTimestamp, NoteId } from '@/domain';
+import {
+  BookId,
+  BookmarkId,
+  ChatMessageId,
+  ChatThreadId,
+  HighlightId,
+  IsoTimestamp,
+  NoteId,
+  SavedAnswerId,
+} from '@/domain';
+import type { ContextRef, SavedAnswer } from '@/domain';
 import type { NotebookEntry } from './types';
 
 afterEach(cleanup);
@@ -157,5 +167,96 @@ describe('NotebookRow — highlight', () => {
     setup(entry, { onJumpToAnchor });
     fireEvent.click(screen.getByRole('button', { name: /p7/ }));
     expect(onJumpToAnchor).toHaveBeenCalledWith({ kind: 'pdf', page: 7 });
+  });
+});
+
+describe('NotebookRow — savedAnswer Jump-to-passage (Phase 4.4)', () => {
+  function savedAnswer(contextRefs: readonly ContextRef[]): SavedAnswer {
+    return {
+      id: SavedAnswerId('sa-1'),
+      bookId: BookId('b1'),
+      threadId: ChatThreadId('t-1'),
+      messageId: ChatMessageId('m-1'),
+      modelId: 'gpt-x',
+      mode: contextRefs.some((r) => r.kind === 'passage') ? 'passage' : 'open',
+      content: 'The narrator argues that...',
+      question: 'What is happening?',
+      contextRefs,
+      createdAt: IsoTimestamp(new Date(NOW).toISOString()),
+    };
+  }
+
+  function answerEntry(refs: readonly ContextRef[]): NotebookEntry {
+    return { kind: 'savedAnswer', savedAnswer: savedAnswer(refs) };
+  }
+
+  const passageAnchor = { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/2)' };
+
+  it('renders Jump-to-passage button when contextRefs has a passage with anchor', () => {
+    setup(
+      answerEntry([
+        {
+          kind: 'passage',
+          text: 'sel',
+          anchor: passageAnchor,
+        },
+      ]),
+    );
+    expect(
+      screen.getByRole('button', { name: /jump to passage in book/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not render the button for 4.3 saved answers (no passage refs)', () => {
+    setup(answerEntry([]));
+    expect(screen.queryByRole('button', { name: /jump to passage/i })).toBeNull();
+  });
+
+  it('clicking the button calls onJumpToAnchor with the projected LocationAnchor', () => {
+    const onJumpToAnchor = vi.fn();
+    setup(
+      answerEntry([
+        { kind: 'passage', text: 'sel', anchor: passageAnchor },
+      ]),
+      { onJumpToAnchor },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /jump to passage in book/i }));
+    expect(onJumpToAnchor).toHaveBeenCalledWith({
+      kind: 'epub-cfi',
+      cfi: 'epubcfi(/6/4!/4/2)',
+    });
+  });
+
+  it('PDF passage anchor projects to {kind:"pdf", page} (drops rects)', () => {
+    const onJumpToAnchor = vi.fn();
+    setup(
+      answerEntry([
+        {
+          kind: 'passage',
+          text: 'sel',
+          anchor: {
+            kind: 'pdf',
+            page: 12,
+            rects: [{ x: 1, y: 2, width: 3, height: 4 }],
+          },
+        },
+      ]),
+      { onJumpToAnchor },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /jump to passage in book/i }));
+    expect(onJumpToAnchor).toHaveBeenCalledWith({ kind: 'pdf', page: 12 });
+  });
+
+  // Locks the .find() pattern — Phase 5+ multi-source mode mixes ref kinds.
+  it('uses .find() — works when passage is not the first contextRef', () => {
+    setup(
+      answerEntry([
+        { kind: 'highlight', highlightId: HighlightId('h1') },
+        { kind: 'passage', text: 'sel', anchor: passageAnchor },
+      ]),
+    );
+    expect(
+      screen.getByRole('button', { name: /jump to passage in book/i }),
+    ).toBeInTheDocument();
   });
 });
