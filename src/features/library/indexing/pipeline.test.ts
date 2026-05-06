@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runIndexing } from './pipeline';
-import { BookId, IsoTimestamp, SectionId, type Book } from '@/domain';
+import {
+  BookId,
+  ChunkId,
+  IsoTimestamp,
+  SectionId,
+  type Book,
+  type BookEmbedding,
+  type TextChunk,
+} from '@/domain';
+import type { EmbedClient } from './embeddings/types';
 
 function makeBook(overrides: Partial<Book> = {}): Book {
   return {
@@ -40,7 +49,7 @@ function makeStubExtractor(sections: { id: string; title: string }[]) {
     streamParagraphs: vi.fn(async function* () {
       await Promise.resolve();
       yield {
-        text: 'Hello',
+        text: 'Hello world this is content',
         locationAnchor: { kind: 'epub-cfi' as const, cfi: '/abc' },
       };
     }),
@@ -62,31 +71,82 @@ function makeStubBookRepo(book: Book) {
   };
 }
 
-function makeStubChunksRepo() {
-  const stored: Record<string, unknown[]> = {};
+function makeStubChunksRepo(seedChunks: TextChunk[] = []) {
+  const stored: Record<string, TextChunk[]> = {};
+  const allChunks: TextChunk[] = [...seedChunks];
+  for (const c of seedChunks) {
+    stored[c.sectionId] = stored[c.sectionId] ?? [];
+    stored[c.sectionId]!.push(c);
+  }
   return {
-    upsertMany: vi.fn((chunks: readonly unknown[]) => {
+    upsertMany: vi.fn((chunks: readonly TextChunk[]) => {
       for (const c of chunks) {
-        const k = (c as { sectionId: string }).sectionId;
-        stored[k] = stored[k] ?? [];
-        stored[k].push(c);
+        stored[c.sectionId] = stored[c.sectionId] ?? [];
+        stored[c.sectionId]!.push(c);
+        allChunks.push(c);
       }
       return Promise.resolve();
     }),
-    hasChunksFor: vi.fn((_bookId: BookId, sectionId: SectionId) => {
-      return Promise.resolve((stored[sectionId]?.length ?? 0) > 0);
-    }),
+    hasChunksFor: vi.fn((_bookId: BookId, sectionId: SectionId) =>
+      Promise.resolve((stored[sectionId]?.length ?? 0) > 0),
+    ),
     deleteByBook: vi.fn(() => Promise.resolve()),
-    countByBook: vi.fn(() => Promise.resolve(0)),
+    countByBook: vi.fn(() => Promise.resolve(allChunks.length)),
     countStaleVersions: vi.fn(() => Promise.resolve([])),
-    listByBook: vi.fn(() => Promise.resolve([])),
+    listByBook: vi.fn(() => Promise.resolve([...allChunks])),
     listBySection: vi.fn(() => Promise.resolve([])),
     deleteBySection: vi.fn(() => Promise.resolve()),
   };
 }
 
-describe('runIndexing', () => {
-  it('happy path: writes pending → chunking{...} → ready and persists chunks per section', async () => {
+function makeStubEmbeddingsRepo() {
+  const records = new Map<string, BookEmbedding>();
+  return {
+    upsertMany: vi.fn((recs: readonly BookEmbedding[]) => {
+      for (const r of recs) records.set(r.id, r);
+      return Promise.resolve();
+    }),
+    listByBook: vi.fn((bookId: BookId) =>
+      Promise.resolve(
+        [...records.values()].filter((r) => r.bookId === bookId),
+      ),
+    ),
+    deleteByBook: vi.fn((bookId: BookId) => {
+      for (const [k, v] of records) if (v.bookId === bookId) records.delete(k);
+      return Promise.resolve();
+    }),
+    countByBook: vi.fn((bookId: BookId) =>
+      Promise.resolve([...records.values()].filter((r) => r.bookId === bookId).length),
+    ),
+    hasEmbeddingFor: vi.fn((chunkId: ChunkId) => Promise.resolve(records.has(chunkId))),
+    countStaleVersions: vi.fn(() => Promise.resolve([] as BookId[])),
+    deleteOrphans: vi.fn(() => Promise.resolve(0)),
+  };
+}
+
+function makeStubEmbedClient(behavior?: {
+  throwOnCall?: number;
+  throwError?: Error;
+}): EmbedClient {
+  let calls = 0;
+  return {
+    embed: vi.fn((req: { modelId: string; inputs: readonly string[] }) => {
+      calls += 1;
+      if (behavior?.throwOnCall === calls) {
+        return Promise.reject(behavior.throwError ?? new Error('embed boom'));
+      }
+      const vectors = req.inputs.map(() => {
+        const v = new Float32Array(1536);
+        for (let k = 0; k < 1536; k += 1) v[k] = (k % 7) / 7;
+        return v;
+      });
+      return Promise.resolve({ vectors, usage: { prompt: req.inputs.length * 5 } });
+    }),
+  };
+}
+
+describe('runIndexing — chunking stage', () => {
+  it('happy path: writes pending → chunking{...} → embedding{...} → ready and persists chunks per section', async () => {
     const book = makeBook();
     const booksRepo = makeStubBookRepo(book);
     const chunksRepo = makeStubChunksRepo();
@@ -99,8 +159,10 @@ describe('runIndexing', () => {
     await runIndexing(book, ctrl.signal, {
       booksRepo,
       chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
       epubExtractor: extractor,
       pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
     });
 
     expect(chunksRepo.upsertMany).toHaveBeenCalledTimes(2);
@@ -123,8 +185,10 @@ describe('runIndexing', () => {
     await runIndexing(book, ctrl.signal, {
       booksRepo,
       chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
       epubExtractor: extractor,
       pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
     });
 
     expect(chunksRepo.upsertMany).toHaveBeenCalledTimes(1);
@@ -140,8 +204,10 @@ describe('runIndexing', () => {
     await runIndexing(book, ctrl.signal, {
       booksRepo,
       chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
       epubExtractor: extractor,
       pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
     });
 
     expect(booksRepo.current().indexingStatus).toEqual({
@@ -163,8 +229,10 @@ describe('runIndexing', () => {
     await runIndexing(book, ctrl.signal, {
       booksRepo,
       chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
       epubExtractor: extractor,
       pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
     });
 
     expect(booksRepo.current().indexingStatus).toEqual({
@@ -187,10 +255,104 @@ describe('runIndexing', () => {
     await runIndexing(book, ctrl.signal, {
       booksRepo,
       chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
       epubExtractor: extractor,
       pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
     });
 
     expect(booksRepo.current().indexingStatus.kind).not.toBe('failed');
+  });
+});
+
+function makeChunk(idx: number): TextChunk {
+  return {
+    id: ChunkId(`chunk-b1-s1-${String(idx)}`),
+    bookId: BookId('b1'),
+    sectionId: SectionId('s1'),
+    sectionTitle: 'Ch 1',
+    text: `chunk ${String(idx)}`,
+    normalizedText: `chunk ${String(idx)}`,
+    tokenEstimate: 3,
+    locationAnchor: { kind: 'epub-cfi', cfi: '/6/4!/4/2' },
+    checksum: 'cs',
+    chunkerVersion: 1,
+  };
+}
+
+describe('runIndexing — embedding stage (Phase 5.2)', () => {
+  it('writes embedding records and reaches ready', async () => {
+    const book = makeBook();
+    const booksRepo = makeStubBookRepo(book);
+    const chunksRepo = makeStubChunksRepo([makeChunk(0), makeChunk(1)]);
+    chunksRepo.hasChunksFor = vi.fn(() => Promise.resolve(true));
+    const embeddingsRepo = makeStubEmbeddingsRepo();
+    const embedClient = makeStubEmbedClient();
+
+    await runIndexing(book, new AbortController().signal, {
+      booksRepo,
+      chunksRepo,
+      embeddingsRepo,
+      epubExtractor: makeStubExtractor([{ id: 's1', title: 'Ch 1' }]),
+      pdfExtractor: {} as never,
+      embedClient,
+    });
+
+    expect(booksRepo.current().indexingStatus).toEqual({ kind: 'ready' });
+    expect(embeddingsRepo.upsertMany).toHaveBeenCalled();
+    expect(await embeddingsRepo.countByBook(BookId('b1'))).toBe(2);
+  });
+
+  it('skips chunks that already have embeddings (per-chunk idempotent resume)', async () => {
+    const book = makeBook();
+    const booksRepo = makeStubBookRepo(book);
+    const chunksRepo = makeStubChunksRepo([makeChunk(0), makeChunk(1)]);
+    chunksRepo.hasChunksFor = vi.fn(() => Promise.resolve(true));
+    const embeddingsRepo = makeStubEmbeddingsRepo();
+    embeddingsRepo.hasEmbeddingFor = vi.fn((id: ChunkId) =>
+      Promise.resolve(id === ChunkId('chunk-b1-s1-0')),
+    );
+    const embedClient = makeStubEmbedClient();
+
+    await runIndexing(book, new AbortController().signal, {
+      booksRepo,
+      chunksRepo,
+      embeddingsRepo,
+      epubExtractor: makeStubExtractor([{ id: 's1', title: 'Ch 1' }]),
+      pdfExtractor: {} as never,
+      embedClient,
+    });
+
+    // Only one chunk needs embedding → embed called with 1 input.
+    const embedCalls = (embedClient.embed as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(embedCalls).toHaveLength(1);
+    expect((embedCalls[0]?.[0] as { inputs: unknown[] }).inputs).toHaveLength(1);
+  });
+
+  it('writes failed{embedding-failed} when embedClient throws non-rate-limit', async () => {
+    const book = makeBook();
+    const booksRepo = makeStubBookRepo(book);
+    const chunksRepo = makeStubChunksRepo([makeChunk(0)]);
+    chunksRepo.hasChunksFor = vi.fn(() => Promise.resolve(true));
+    const embedClient = makeStubEmbedClient({
+      throwOnCall: 1,
+      throwError: Object.assign(new Error('embed: invalid-key'), {
+        failure: { reason: 'invalid-key', status: 401 },
+      }),
+    });
+
+    await runIndexing(book, new AbortController().signal, {
+      booksRepo,
+      chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
+      epubExtractor: makeStubExtractor([{ id: 's1', title: 'Ch 1' }]),
+      pdfExtractor: {} as never,
+      embedClient,
+    });
+
+    expect(booksRepo.current().indexingStatus).toEqual({
+      kind: 'failed',
+      reason: 'embedding-failed',
+    });
   });
 });

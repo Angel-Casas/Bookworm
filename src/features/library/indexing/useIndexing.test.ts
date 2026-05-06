@@ -22,6 +22,15 @@ function makeStubs() {
       listBySection: vi.fn(() => Promise.resolve([])),
       deleteBySection: vi.fn(() => Promise.resolve()),
     },
+    embeddingsRepo: {
+      upsertMany: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => Promise.resolve([])),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+      countByBook: vi.fn(() => Promise.resolve(0)),
+      hasEmbeddingFor: vi.fn(() => Promise.resolve(false)),
+      countStaleVersions: vi.fn(() => Promise.resolve([])),
+      deleteOrphans: vi.fn(() => Promise.resolve(0)),
+    },
     epubExtractor: {
       listSections: vi.fn(() => Promise.resolve([])),
       // eslint-disable-next-line require-yield
@@ -37,6 +46,13 @@ function makeStubs() {
         await Promise.resolve();
         return;
       }),
+    },
+    embedClient: {
+      embed: vi.fn(({ inputs }: { inputs: readonly string[] }) =>
+        Promise.resolve({
+          vectors: inputs.map(() => new Float32Array(1536)),
+        }),
+      ),
     },
   };
 }
