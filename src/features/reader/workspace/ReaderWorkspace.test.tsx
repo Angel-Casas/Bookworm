@@ -79,6 +79,25 @@ const baseProps = {
   apiKeyState: { kind: 'none' as const },
   getApiKey: () => null,
   selectedModelId: null,
+  bookChunksRepo: {
+    upsertMany: () => Promise.resolve(),
+    listByBook: () => Promise.resolve([]),
+    listBySection: () => Promise.resolve([]),
+    deleteByBook: () => Promise.resolve(),
+    deleteBySection: () => Promise.resolve(),
+    countByBook: () => Promise.resolve(0),
+    countStaleVersions: () => Promise.resolve([]),
+    hasChunksFor: () => Promise.resolve(false),
+  },
+  bookEmbeddingsRepo: {
+    upsertMany: () => Promise.resolve(),
+    listByBook: () => Promise.resolve([]),
+    deleteByBook: () => Promise.resolve(),
+    countByBook: () => Promise.resolve(0),
+    hasEmbeddingFor: () => Promise.resolve(false),
+    countStaleVersions: () => Promise.resolve([]),
+    deleteOrphans: () => Promise.resolve(0),
+  },
 };
 
 describe('ReaderWorkspace (smoke)', () => {

@@ -131,6 +131,15 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     embedClient,
   });
 
+  const retrievalDeps = useMemo(
+    () => ({
+      chunksRepo: wiring.bookChunksRepo,
+      embeddingsRepo: wiring.bookEmbeddingsRepo,
+      embedClient,
+    }),
+    [wiring.bookChunksRepo, wiring.bookEmbeddingsRepo, embedClient],
+  );
+
   // Wire the import → enqueue pipeline. wiring.persistBook calls a stored
   // callback on each successful import; useIndexing isn't available until
   // render time, so we set the callback in an effect.
@@ -274,6 +283,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           apiKeyState={apiKeyState}
           getApiKey={getApiKey}
           selectedModelId={selectedModelId}
+          retrievalDeps={retrievalDeps}
+          bookChunksRepo={wiring.bookChunksRepo}
+          bookEmbeddingsRepo={wiring.bookEmbeddingsRepo}
         />
       </div>
     );

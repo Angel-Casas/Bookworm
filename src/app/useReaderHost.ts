@@ -193,6 +193,8 @@ export function useReaderHost({
           await wiring.savedAnswersRepo.deleteByBook(BookId(book.id));
           // Phase 5.1: drop chunks last (no FKs reference them).
           await wiring.bookChunksRepo.deleteByBook(BookId(book.id));
+          // Phase 5.2: cascade embeddings.
+          await wiring.bookEmbeddingsRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
