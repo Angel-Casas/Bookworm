@@ -61,6 +61,8 @@ type UseReaderHostOptions = {
   readonly initialRightRailVisible: boolean;
   readonly initialChatPanelHintShown: boolean;
   readonly onBookRemovedFromActiveView?: () => void;
+  // Phase 5.1: cancel in-flight indexing when a book is removed.
+  readonly onBookRemovedCancelIndexing?: (bookId: BookId) => void;
 };
 
 export function useReaderHost({
@@ -72,6 +74,7 @@ export function useReaderHost({
   initialRightRailVisible,
   initialChatPanelHintShown,
   onBookRemovedFromActiveView,
+  onBookRemovedCancelIndexing,
 }: UseReaderHostOptions): ReaderHostHandle {
   const [hasShownFirstTimeHint, setHasShownFirstTimeHint] = useState(initialFocusModeHintShown);
   const [chatPanelHintShown, setChatPanelHintShown] = useState(initialChatPanelHintShown);
@@ -168,6 +171,10 @@ export function useReaderHost({
 
   const onRemoveBook = useCallback(
     (book: Book): void => {
+      // Phase 5.1: abort in-flight indexing FIRST (synchronously) so the
+      // pipeline can't write a 'failed' status to the about-to-be-deleted
+      // book record.
+      onBookRemovedCancelIndexing?.(BookId(book.id));
       void (async () => {
         libraryStore.getState().removeBook(book.id);
         try {
@@ -184,6 +191,8 @@ export function useReaderHost({
           }
           await wiring.chatThreadsRepo.deleteByBook(BookId(book.id));
           await wiring.savedAnswersRepo.deleteByBook(BookId(book.id));
+          // Phase 5.1: drop chunks last (no FKs reference them).
+          await wiring.bookChunksRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
@@ -195,7 +204,7 @@ export function useReaderHost({
         }
       })();
     },
-    [wiring, libraryStore, view, onBookRemovedFromActiveView],
+    [wiring, libraryStore, view, onBookRemovedFromActiveView, onBookRemovedCancelIndexing],
   );
 
   const findBook = useCallback(

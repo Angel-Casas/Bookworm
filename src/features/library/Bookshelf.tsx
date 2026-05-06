@@ -1,4 +1,4 @@
-import type { Book } from '@/domain';
+import type { Book, BookId } from '@/domain';
 import { BookCard } from './BookCard';
 import type { CoverCache } from './store/coverCache';
 import './bookshelf.css';
@@ -9,9 +9,19 @@ type Props = {
   readonly searchQuery: string;
   readonly onRemove: (book: Book) => void;
   readonly onOpenBook?: (book: Book) => void;
+  readonly onOpenInspector?: (bookId: BookId) => void;
+  readonly onRetryIndex?: (bookId: BookId) => void;
 };
 
-export function Bookshelf({ books, coverCache, searchQuery, onRemove, onOpenBook }: Props) {
+export function Bookshelf({
+  books,
+  coverCache,
+  searchQuery,
+  onRemove,
+  onOpenBook,
+  onOpenInspector,
+  onRetryIndex,
+}: Props) {
   const trimmed = searchQuery.trim();
   if (books.length === 0 && trimmed.length > 0) {
     return (
@@ -30,6 +40,8 @@ export function Bookshelf({ books, coverCache, searchQuery, onRemove, onOpenBook
               coverCache={coverCache}
               onRemove={onRemove}
               {...(onOpenBook && { onOpen: onOpenBook })}
+              {...(onOpenInspector && { onOpenInspector })}
+              {...(onRetryIndex && { onRetryIndex })}
             />
           </li>
         ))}

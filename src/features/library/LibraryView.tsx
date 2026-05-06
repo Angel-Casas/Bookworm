@@ -1,4 +1,4 @@
-import type { Book, SortKey } from '@/domain';
+import type { Book, BookId, SortKey } from '@/domain';
 import type { LibraryStore } from './store/libraryStore';
 import type { CoverCache } from './store/coverCache';
 import type { ImportStore } from './import/importStore';
@@ -15,6 +15,8 @@ type Props = {
   readonly onRemoveBook: (book: Book) => void;
   readonly onOpenBook?: (book: Book) => void;
   readonly onOpenSettings: () => void;
+  readonly onOpenInspector?: (bookId: BookId) => void;
+  readonly onRetryIndex?: (bookId: BookId) => void;
 };
 
 export function LibraryView(props: Props) {
@@ -35,6 +37,8 @@ export function LibraryView(props: Props) {
       onRemoveBook={props.onRemoveBook}
       onOpenSettings={props.onOpenSettings}
       {...(props.onOpenBook && { onOpenBook: props.onOpenBook })}
+      {...(props.onOpenInspector && { onOpenInspector: props.onOpenInspector })}
+      {...(props.onRetryIndex && { onRetryIndex: props.onRetryIndex })}
     />
   );
 }
