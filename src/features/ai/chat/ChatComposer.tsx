@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SendIcon, StopIcon } from '@/shared/icons';
+import { SearchIcon, SendIcon, StopIcon } from '@/shared/icons';
 import './chat-composer.css';
 
 const MAX_LINES = 6;
@@ -16,6 +16,9 @@ type Props = {
   // when the user clicks Ask AI; survives the desktop re-render and the
   // mobile sheet → chat-tab mount path.
   readonly focusRequest?: { current: boolean };
+  // Phase 5.2 retrieval mode toggle. Hidden when undefined.
+  readonly onToggleSearch?: () => void;
+  readonly retrievalAttached?: boolean;
 };
 
 function isMac(): boolean {
@@ -31,6 +34,8 @@ export function ChatComposer({
   onSend,
   onCancel,
   focusRequest,
+  onToggleSearch,
+  retrievalAttached,
 }: Props) {
   const [text, setText] = useState<string>('');
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -89,6 +94,21 @@ export function ChatComposer({
           }
         }}
       />
+      {onToggleSearch !== undefined ? (
+        <button
+          type="button"
+          className={
+            retrievalAttached
+              ? 'chat-composer__search-toggle chat-composer__search-toggle--active'
+              : 'chat-composer__search-toggle'
+          }
+          aria-label={retrievalAttached ? 'Cancel book search' : 'Search this book'}
+          aria-pressed={retrievalAttached === true}
+          onClick={onToggleSearch}
+        >
+          <SearchIcon size={14} />
+        </button>
+      ) : null}
       <button
         type={streaming ? 'button' : 'submit'}
         className="chat-composer__action"
