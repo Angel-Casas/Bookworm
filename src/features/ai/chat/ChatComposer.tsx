@@ -11,6 +11,11 @@ type Props = {
   readonly placeholder: string;
   readonly onSend: (text: string) => void;
   readonly onCancel: () => void;
+  // Phase 4.4: when this ref's .current becomes true, the composer focuses
+  // its textarea on the next render and clears the flag. Workspace sets it
+  // when the user clicks Ask AI; survives the desktop re-render and the
+  // mobile sheet → chat-tab mount path.
+  readonly focusRequest?: { current: boolean };
 };
 
 function isMac(): boolean {
@@ -19,7 +24,14 @@ function isMac(): boolean {
   return /Mac/i.test(navigator.userAgent);
 }
 
-export function ChatComposer({ disabled, streaming, placeholder, onSend, onCancel }: Props) {
+export function ChatComposer({
+  disabled,
+  streaming,
+  placeholder,
+  onSend,
+  onCancel,
+  focusRequest,
+}: Props) {
   const [text, setText] = useState<string>('');
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -32,6 +44,16 @@ export function ChatComposer({ disabled, streaming, placeholder, onSend, onCance
     const maxH = lineHeight * MAX_LINES;
     ta.style.height = `${String(Math.min(ta.scrollHeight, maxH))}px`;
   }, [text]);
+
+  // Drains a one-shot focus request set by the workspace's Ask AI handler.
+  // Runs on every render; the .current flag self-clears so it only fires once
+  // per request.
+  useEffect(() => {
+    if (focusRequest?.current === true) {
+      focusRequest.current = false;
+      taRef.current?.focus();
+    }
+  });
 
   const sendNow = (): void => {
     const trimmed = text.trim();

@@ -49,6 +49,9 @@ type Props = {
   // When provided, MessageBubble's source footer can navigate the reader to
   // a saved-passage anchor. Workspace passes its goToAnchor here.
   readonly onJumpToReaderAnchor?: (anchor: HighlightAnchor) => void;
+  // One-shot focus request: when .current === true, the composer textarea
+  // focuses on next render and the flag self-clears. Used by Ask AI.
+  readonly composerFocusRef?: { current: boolean };
 };
 
 const DRAFT_THREAD_ID = ChatThreadId('__draft__');
@@ -248,6 +251,7 @@ export function ChatPanel(props: Props) {
               handleSendNew(text);
             }}
             onCancel={send.cancel}
+            {...(props.composerFocusRef && { focusRequest: props.composerFocusRef })}
           />
         </>
       ) : null}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HighlightId} from '@/domain';
 import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
@@ -29,6 +29,7 @@ import { MobileSheet } from './MobileSheet';
 import { RightRail } from './RightRail';
 import { RightRailCollapsedTab } from './RightRailCollapsedTab';
 import { ChatPanel } from '@/features/ai/chat/ChatPanel';
+import type { AttachedPassage } from '@/features/ai/chat/useChatSend';
 import { useFocusMode } from './useFocusMode';
 import { useRightRailVisibility } from './useRightRailVisibility';
 import { useViewport } from './useViewport';
@@ -113,7 +114,7 @@ function SheetTabHeader({
 const FOCUS_HINT_TEXT =
   'Move the cursor to the top to bring the menu back · F or Esc to exit';
 
-type RailTabKey = 'contents' | 'bookmarks' | 'highlights';
+type RailTabKey = 'contents' | 'bookmarks' | 'highlights' | 'chat';
 
 type ActiveToolbar =
   | {
@@ -155,6 +156,19 @@ export function ReaderWorkspace(props: Props) {
       }
     | null
   >(null);
+  // Phase 4.4 passage mode. Sticky-until-dismissed across sends; cleared on
+  // thread switch (handled inside ChatPanel) or via the chip's ✕.
+  const [attachedPassage, setAttachedPassage] = useState<AttachedPassage | null>(null);
+  // One-shot focus signal for the chat composer after Ask AI. ChatComposer
+  // self-clears the flag once it has fired focus().
+  const composerFocusRef = useRef<boolean>(false);
+
+  // Ask-AI gate: AI is configured and a model is picked. Hidden entirely (not
+  // disabled) when false — matches the spec's "no half-disabled UI" rule.
+  const canAskAI =
+    (props.apiKeyState.kind === 'session' || props.apiKeyState.kind === 'unlocked') &&
+    props.selectedModelId !== null &&
+    props.selectedModelId !== '';
 
   const bookmarks = useBookmarks({
     bookId: BookId(props.bookId),
@@ -269,6 +283,59 @@ export function ReaderWorkspace(props: Props) {
     setActiveToolbar(null);
   }, []);
 
+  // Selection bridge for "Ask AI": materialize the selection as a chip,
+  // expose the right rail (desktop) or open the sheet on the chat tab
+  // (mobile), and queue composer focus. Toolbar dismissal is handled by
+  // HighlightToolbar before this fires.
+  const handleAskAI = useCallback(
+    (anchor: HighlightAnchor, selectedText: string): void => {
+      void (async () => {
+        let extracted: {
+          text: string;
+          windowBefore?: string;
+          windowAfter?: string;
+          sectionTitle?: string;
+        } = { text: '' };
+        if (readerState) {
+          try {
+            extracted = await readerState.getPassageContextAt(anchor);
+          } catch (err) {
+            console.warn(
+              '[passage-mode] context extraction failed; using selection only',
+              err,
+            );
+          }
+        }
+        const passage: AttachedPassage = {
+          anchor,
+          text: extracted.text.length > 0 ? extracted.text : selectedText,
+          ...(extracted.windowBefore !== undefined && {
+            windowBefore: extracted.windowBefore,
+          }),
+          ...(extracted.windowAfter !== undefined && {
+            windowAfter: extracted.windowAfter,
+          }),
+          ...(extracted.sectionTitle !== undefined && {
+            sectionTitle: extracted.sectionTitle,
+          }),
+        };
+        setAttachedPassage(passage);
+        if (viewport === 'desktop') {
+          if (!rightRail.visible) rightRail.set(true);
+        } else {
+          setActiveSheet('toc');
+          setActiveRailTab('chat');
+        }
+        composerFocusRef.current = true;
+      })();
+    },
+    [readerState, rightRail, viewport],
+  );
+
+  const handleClearAttachedPassage = useCallback((): void => {
+    setAttachedPassage(null);
+  }, []);
+
   const isDesktop = viewport === 'desktop';
 
   const tocPanelContent = readerState?.toc ? (
@@ -346,6 +413,7 @@ export function ReaderWorkspace(props: Props) {
     { key: 'contents', label: 'Contents' },
     { key: 'bookmarks', label: 'Bookmarks', badge: bookmarks.list.length },
     { key: 'highlights', label: 'Highlights', badge: highlights.list.length },
+    { key: 'chat', label: 'Chat' },
   ];
 
   return (
@@ -422,6 +490,17 @@ export function ReaderWorkspace(props: Props) {
               }}
               hintShown={props.initialChatPanelHintShown}
               onHintDismiss={props.onChatPanelHintDismiss}
+              attachedPassage={attachedPassage}
+              onClearAttachedPassage={handleClearAttachedPassage}
+              onJumpToReaderAnchor={(anchor) => {
+                if (!readerState) return;
+                const target: LocationAnchor =
+                  anchor.kind === 'epub-cfi'
+                    ? { kind: 'epub-cfi', cfi: anchor.cfi }
+                    : { kind: 'pdf', page: anchor.page };
+                readerState.goToAnchor(target);
+              }}
+              composerFocusRef={composerFocusRef}
             />
           </RightRail>
         ) : null}
@@ -494,6 +573,40 @@ export function ReaderWorkspace(props: Props) {
               }}
             />
           ) : null}
+          {activeRailTab === 'chat' ? (
+            <ChatPanel
+              bookId={props.bookId}
+              book={{
+                title: props.bookTitle,
+                ...(props.bookSubtitle !== undefined && { author: props.bookSubtitle }),
+                format: props.bookFormat,
+              }}
+              apiKeyState={props.apiKeyState}
+              getApiKey={props.getApiKey}
+              selectedModelId={props.selectedModelId}
+              threadsRepo={props.chatThreadsRepo}
+              messagesRepo={props.chatMessagesRepo}
+              savedAnswersRepo={props.savedAnswersRepo}
+              onOpenSettings={props.onOpenSettings}
+              onCollapse={() => {
+                setActiveSheet(null);
+              }}
+              hintShown={props.initialChatPanelHintShown}
+              onHintDismiss={props.onChatPanelHintDismiss}
+              attachedPassage={attachedPassage}
+              onClearAttachedPassage={handleClearAttachedPassage}
+              onJumpToReaderAnchor={(anchor) => {
+                if (!readerState) return;
+                const target: LocationAnchor =
+                  anchor.kind === 'epub-cfi'
+                    ? { kind: 'epub-cfi', cfi: anchor.cfi }
+                    : { kind: 'pdf', page: anchor.page };
+                readerState.goToAnchor(target);
+                setActiveSheet(null);
+              }}
+              composerFocusRef={composerFocusRef}
+            />
+          ) : null}
         </MobileSheet>
       ) : null}
 
@@ -524,6 +637,12 @@ export function ReaderWorkspace(props: Props) {
           onPickColor={handleCreatePick}
           onNote={handleCreateNote}
           onDismiss={dismissToolbar}
+          {...(canAskAI && {
+            canAskAI: true,
+            onAskAI: () => {
+              handleAskAI(activeToolbar.anchor, activeToolbar.selectedText);
+            },
+          })}
         />
       ) : null}
       {activeToolbar?.kind === 'edit' ? (
@@ -536,6 +655,15 @@ export function ReaderWorkspace(props: Props) {
           onNote={handleEditNote}
           hasNote={notes.byHighlightId.has(activeToolbar.highlight.id)}
           onDismiss={dismissToolbar}
+          {...(canAskAI && {
+            canAskAI: true,
+            onAskAI: () => {
+              handleAskAI(
+                activeToolbar.highlight.anchor,
+                activeToolbar.highlight.selectedText,
+              );
+            },
+          })}
         />
       ) : null}
       {activeNoteEditor !== null ? (
