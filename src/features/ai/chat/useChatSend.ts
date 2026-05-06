@@ -6,12 +6,25 @@ import {
   type BookFormat,
   type ChatMessage,
   type ChatThreadId,
+  type ContextRef,
 } from '@/domain';
-import { assembleOpenChatPrompt } from './promptAssembly';
+import type { HighlightAnchor } from '@/domain/annotations/types';
+import { assembleOpenChatPrompt, assemblePassageChatPrompt } from './promptAssembly';
 import { streamChatCompletion, type ChatCompletionFailure } from './nanogptChat';
 import { makeChatRequestMachine } from './chatRequestMachine';
 
 export type SendState = 'idle' | 'streaming' | 'error' | 'aborted';
+
+// Phase 4.4 passage mode. The chip's lifetime is owned by ChatPanel state
+// (sticky-until-dismissed-or-replaced); useChatSend just reads whatever is
+// currently attached at send-time.
+export type AttachedPassage = {
+  readonly anchor: HighlightAnchor;
+  readonly text: string;
+  readonly windowBefore?: string;
+  readonly windowAfter?: string;
+  readonly sectionTitle?: string;
+};
 
 type Args = {
   readonly threadId: ChatThreadId;
@@ -23,6 +36,7 @@ type Args = {
   readonly patch: (id: ChatMessageId, fields: Partial<ChatMessage>) => Promise<void>;
   readonly finalize: (id: ChatMessageId, fields: Partial<ChatMessage>) => Promise<void>;
   readonly streamFactory?: typeof streamChatCompletion;
+  readonly attachedPassage?: AttachedPassage | null;
 };
 
 export type UseChatSendHandle = {
@@ -74,12 +88,31 @@ export function useChatSend(args: Args): UseChatSendHandle {
     const now = IsoTimestamp(new Date().toISOString());
     const nowPlus = IsoTimestamp(new Date(Date.now() + 1).toISOString());
 
+    // Phase 4.4: passage mode triggers when a chip is attached at send-time.
+    // mode goes on BOTH user + assistant messages (keeps the soft-cap history
+    // scan symmetric); contextRefs goes on the assistant ONLY (it's the side
+    // with provenance — saves ~5KB of dead duplicate per question).
+    const passage = a.attachedPassage ?? null;
+    const isPassage = passage !== null;
+    const assistantContextRefs: readonly ContextRef[] = isPassage
+      ? [
+          {
+            kind: 'passage',
+            text: passage.text,
+            anchor: passage.anchor,
+            ...(passage.sectionTitle !== undefined && { sectionTitle: passage.sectionTitle }),
+            ...(passage.windowBefore !== undefined && { windowBefore: passage.windowBefore }),
+            ...(passage.windowAfter !== undefined && { windowAfter: passage.windowAfter }),
+          },
+        ]
+      : [];
+
     void a.append({
       id: userMsgId,
       threadId: a.threadId,
       role: 'user',
       content: userText,
-      mode: 'open',
+      mode: isPassage ? 'passage' : 'open',
       contextRefs: [],
       createdAt: now,
     });
@@ -88,17 +121,29 @@ export function useChatSend(args: Args): UseChatSendHandle {
       threadId: a.threadId,
       role: 'assistant',
       content: '',
-      mode: 'open',
-      contextRefs: [],
+      mode: isPassage ? 'passage' : 'open',
+      contextRefs: assistantContextRefs,
       streaming: true,
       createdAt: nowPlus,
     });
 
-    const assembled = assembleOpenChatPrompt({
-      book: a.book,
-      history: a.history,
-      newUserText: userText,
-    });
+    const assembled = isPassage
+      ? assemblePassageChatPrompt({
+          book: a.book,
+          history: a.history,
+          newUserText: userText,
+          passage: {
+            text: passage.text,
+            ...(passage.windowBefore !== undefined && { windowBefore: passage.windowBefore }),
+            ...(passage.windowAfter !== undefined && { windowAfter: passage.windowAfter }),
+            ...(passage.sectionTitle !== undefined && { sectionTitle: passage.sectionTitle }),
+          },
+        })
+      : assembleOpenChatPrompt({
+          book: a.book,
+          history: a.history,
+          newUserText: userText,
+        });
 
     const factory = a.streamFactory ?? streamChatCompletion;
 
