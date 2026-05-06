@@ -1,7 +1,8 @@
 import { ChatMessageId, ChatThreadId, IsoTimestamp } from '@/domain';
-import type { ChatMessage, ChatMode, ChatRole, ContextRef } from '@/domain';
+import type { ChatMessage, ChatMode, ChatRole } from '@/domain';
 import type { BookwormDB } from '../db/open';
 import { CHAT_MESSAGES_STORE } from '../db/schema';
+import { isValidContextRef } from './contextRefValidation';
 
 export type ChatMessagesRepository = {
   upsert(message: ChatMessage): Promise<void>;
@@ -30,6 +31,11 @@ function normalizeChatMessage(record: unknown): ChatMessage | null {
   if (typeof r.role !== 'string' || !ROLES.includes(r.role)) return null;
   if (typeof r.content !== 'string') return null;
   if (!Array.isArray(r.contextRefs)) return null;
+  // Per-element validation: drop malformed passage refs but keep the rest.
+  // Phase 4.4 added a required `anchor` to the passage variant; older bad
+  // records (none currently exist — pre-flight grep clean) would just lose
+  // the malformed ref while the message itself survives.
+  const contextRefs = r.contextRefs.filter(isValidContextRef);
   if (typeof r.createdAt !== 'string') return null;
   // mode is optional but if present must be a known value
   if (r.mode !== undefined && (typeof r.mode !== 'string' || !MODES.includes(r.mode))) {
@@ -46,7 +52,7 @@ function normalizeChatMessage(record: unknown): ChatMessage | null {
     threadId: ChatThreadId(r.threadId),
     role: r.role,
     content: r.content,
-    contextRefs: r.contextRefs as readonly ContextRef[],
+    contextRefs,
     createdAt: IsoTimestamp(r.createdAt),
     ...(r.mode !== undefined && { mode: r.mode }),
     ...(r.usage !== undefined && { usage: r.usage }),
