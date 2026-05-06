@@ -238,6 +238,7 @@ export function ChatPanel(props: Props) {
             book={props.book}
             modelId={props.selectedModelId ?? ''}
             historyCount={messages.list.length}
+            attachedPassage={attachedPassage}
           />
           <ChatComposer
             disabled={false}
