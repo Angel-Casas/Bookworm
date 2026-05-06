@@ -77,3 +77,42 @@ export type BookEmbedding = {
   readonly embeddingModelVersion: number;
   readonly embeddedAt: IsoTimestamp;
 };
+
+export type BookStructure = 'fiction' | 'nonfiction' | 'textbook' | 'reference';
+
+// 2-4 sentence summary, genre, structure-tag, themes (typically 3-8 strings),
+// and keyEntities split into characters / concepts / places. characters can
+// be empty for non-fiction.
+export type BookProfile = {
+  readonly summary: string;
+  readonly genre: string;
+  readonly structure: BookStructure;
+  readonly themes: readonly string[];
+  readonly keyEntities: {
+    readonly characters: readonly string[];
+    readonly concepts: readonly string[];
+    readonly places: readonly string[];
+  };
+};
+
+export type SuggestedPromptCategory =
+  | 'comprehension'
+  | 'analysis'
+  | 'structure'
+  | 'creative'
+  | 'study';
+
+export type SuggestedPrompt = {
+  readonly text: string;
+  readonly category: SuggestedPromptCategory;
+};
+
+// Per-book record persisted in book_profiles IDB store. profileSchemaVersion
+// enables future-phase migration; v1 ships at 1 with no app-open scan.
+export type BookProfileRecord = {
+  readonly bookId: BookId;
+  readonly profile: BookProfile;
+  readonly prompts: readonly SuggestedPrompt[];
+  readonly profileSchemaVersion: number;
+  readonly generatedAt: IsoTimestamp;
+};
