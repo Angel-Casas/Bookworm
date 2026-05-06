@@ -51,3 +51,33 @@ describe('PdfReaderAdapter.getSectionTitleAt fallback', () => {
     expect(adapter.getSectionTitleAt({ kind: 'epub-cfi', cfi: 'x' })).toBeNull();
   });
 });
+
+describe('PdfReaderAdapter.getPassageContextAt', () => {
+  it('returns {text: ""} for an EPUB anchor', async () => {
+    const adapter = new PdfReaderAdapter();
+    const result = await adapter.getPassageContextAt({
+      kind: 'epub-cfi',
+      cfi: 'epubcfi(/6/4)',
+    });
+    expect(result.text).toBe('');
+    expect(result.windowBefore).toBeUndefined();
+    adapter.destroy();
+  });
+
+  it('returns {text: ""} when not opened', async () => {
+    const adapter = new PdfReaderAdapter();
+    const result = await adapter.getPassageContextAt({
+      kind: 'pdf',
+      page: 1,
+      rects: [{ x: 0, y: 0, width: 10, height: 10 }],
+    });
+    expect(result.text).toBe('');
+    adapter.destroy();
+  });
+
+  // Real-fixture extraction is exercised in the E2E suite (see
+  // chat-passage-mode-desktop.spec.ts in Phase 4.4 Task 16).
+  // Pure indexing/windowing logic is covered by pdfPassageWindows.test.ts —
+  // including the documented first-match-wins limitation when the selection
+  // text appears multiple times on the page.
+});

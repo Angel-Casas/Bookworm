@@ -21,6 +21,7 @@ import type {
 import type { PageViewport } from 'pdfjs-dist';
 import { PdfPageView } from './PdfPageView';
 import { PdfNavStrip } from './PdfNavStrip';
+import { extractPassageWindows } from './pdfPassageWindows';
 
 interface OutlineNode {
   readonly title: string;
@@ -63,6 +64,10 @@ export class PdfReaderAdapter implements BookReader {
   private highlightLayerByPage = new Map<number, HTMLDivElement>();
   private highlightViewportByPage = new Map<number, PageViewport>();
   private selectionListeners = new Set<SelectionListener>();
+  // Phase 4.4 passage mode: cache the most recent non-empty selection so
+  // getPassageContextAt(anchor) can string-match it against the page's text
+  // content for window extraction.
+  private lastPassageSelection: { page: number; selectedText: string } | null = null;
   private highlightTapListeners = new Set<HighlightTapListener>();
   private selectionDebounceTimer: number | undefined;
   private documentSelectionHandler: (() => void) | null = null;
@@ -220,19 +225,40 @@ export class PdfReaderAdapter implements BookReader {
     return `Page ${String(anchor.page)}`;
   }
 
-  // Phase 4.4 passage mode. Real implementation lands in Task 3 (PDF
-  // first-match-wins window extraction with documented limitation). This stub
-  // returns text-only so the BookReader contract is satisfied; callers fall
-  // back to their own selectedText.
-  getPassageContextAt(
-    _anchor: HighlightAnchor,
+  // Phase 4.4 passage mode. PDF text-layer items are absolutely positioned
+  // (not in reading order via DOM order), so we extract windows by string-
+  // matching the user's selection against the page's joined text content
+  // from PDF.js's getTextContent(). Documented limitation — first-match-
+  // wins: when the selected text appears multiple times on the page, the
+  // first match's surrounding text is returned. The anchor (and therefore
+  // jump-back) is unaffected. See spec §5.3 / TODO(passage-y-bias).
+  async getPassageContextAt(
+    anchor: HighlightAnchor,
   ): Promise<{
     text: string;
     windowBefore?: string;
     windowAfter?: string;
     sectionTitle?: string;
   }> {
-    return Promise.resolve({ text: '' });
+    if (anchor.kind !== 'pdf') return { text: '' };
+    if (!this.pdfDoc) return { text: '' };
+    if (anchor.page < 1 || anchor.page > this.pageCount) return { text: '' };
+    const cached = this.lastPassageSelection;
+    if (cached?.page !== anchor.page) return { text: '' };
+    try {
+      const page = await this.pdfDoc.getPage(anchor.page);
+      const textContent = await page.getTextContent();
+      const items = textContent.items as { str?: string }[];
+      const joined = items
+        .map((i) => i.str ?? '')
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return extractPassageWindows(joined, cached.selectedText, 400);
+    } catch (err) {
+      console.warn('[passage-mode] PDF extraction failed; returning text-only', err);
+      return { text: '' };
+    }
   }
 
   loadHighlights(highlights: readonly Highlight[]): void {
@@ -384,6 +410,7 @@ export class PdfReaderAdapter implements BookReader {
         selectedText: text,
         screenRect: { x: r.left, y: r.top, width: r.width, height: r.height },
       };
+      this.lastPassageSelection = { page: pageNumber, selectedText: text };
       for (const fn of this.selectionListeners) fn(info);
     }, 100);
   }
@@ -410,6 +437,7 @@ export class PdfReaderAdapter implements BookReader {
     this.highlightViewportByPage.clear();
     this.selectionListeners.clear();
     this.highlightTapListeners.clear();
+    this.lastPassageSelection = null;
     if (this.selectionDebounceTimer !== undefined) {
       window.clearTimeout(this.selectionDebounceTimer);
       this.selectionDebounceTimer = undefined;
