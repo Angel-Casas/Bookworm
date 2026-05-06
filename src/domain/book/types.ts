@@ -56,9 +56,11 @@ export type TextChunk = {
   readonly id: ChunkId;
   readonly bookId: BookId;
   readonly sectionId: SectionId;
+  readonly sectionTitle: string;
   readonly text: string;
   readonly normalizedText: string;
   readonly tokenEstimate: number;
   readonly locationAnchor: LocationAnchor;
   readonly checksum: string;
+  readonly chunkerVersion: number;
 };
