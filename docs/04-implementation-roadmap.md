@@ -9,6 +9,7 @@
 - Phase 4.2 — complete (2026-05-04)
 - Phase 4.3 — complete (2026-05-05)
 - Phase 4.4 — complete (2026-05-06)
+- Phase 5.1 — complete (2026-05-06)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
@@ -293,7 +294,32 @@ Introduce AI carefully, starting with transparent, bounded workflows.
 Make "ask the book" genuinely useful.
 
 ### Tasks
-#### Task 5.1 — Text normalization and chunking
+#### Task 5.1 — Text normalization and chunking (complete 2026-05-06)
+
+Per-book chunking pipeline runs at import time on the main thread with
+yielded scheduling. Format-specific extractors (`EpubChunkExtractor`
+reuses foliate-js headlessly via a dynamic-imported zip loader;
+`PdfChunkExtractor` uses pdfjs-dist with paragraph-reconstruction
+heuristics + boilerplate filter) feed a shared pure
+`paragraphsToChunks` packer (paragraph-bounded, ~400-token cap, never
+splits paragraphs except in single-paragraph-overflow cases). Chunks
+persist per-section atomically in `book_chunks` (IDB schema v7);
+idempotent resume on app open via per-section `hasChunksFor`. Chunker
+is versioned (`CHUNKER_VERSION = 1`); stale-version chunks are dropped
+and rebuilt automatically. Inspector UI lives on the library card
+(status indicator) + a modal listing chunks with previews and a
+Rebuild button. Cascade extends `useReaderHost.onRemoveBook` with
+synchronous indexing-cancel + chunk-deletion.
+
+**Deferred:**
+- Embeddings / vector storage (Phase 5.2).
+- Retrieval / ranking / chunk scoring (Phase 5.2).
+- Suggested prompts derived from chunks (Phase 5.3).
+- Chapter-mode prompt assembly using chunks (Phase 5.4).
+- Web Worker promotion of the chunker (pure refactor when profiling justifies).
+- OCR for image-only PDFs (Phase 6+).
+- Multi-column PDF column detection (best-effort in v1).
+
 **Acceptance criteria**
 - sections and chunks are generated reliably
 - chunking rules are deterministic

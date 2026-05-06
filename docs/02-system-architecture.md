@@ -309,6 +309,77 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-06 — Phase 5.1 text chunking
+
+- **Pipeline timing — on import, background, main-thread yielded.**
+  Reading isn't blocked. The pre-designed
+  `IndexingStatus.chunking{progressPercent}` state is finally populated.
+  Web Worker promotion is a pure refactor if/when profiling shows
+  main-thread jank — not paid for upfront.
+- **Chunks are paragraph-bounded, ~400-token capped.** Greedy-pack
+  contiguous same-section paragraphs; never split a paragraph;
+  sentence-fallback only when a single paragraph alone exceeds the cap.
+  Each chunk is a self-contained semantic unit — better for retrieval
+  ranking than a sliding window cut mid-paragraph.
+- **Sections derive 1:1 from existing structure.** EPUB: each spine
+  entry is a section (`sectionId = 'spine:' + href`). PDF: each TOC
+  entry's page-range is a section
+  (`sectionId = 'pdf:' + page + ':' + slugify(title)`). Books without
+  TOC get a synthetic `'__whole_book__'` single section. No
+  `book_sections` IDB store — section info derives from `Book.toc` +
+  format-specific spine/outline data at runtime.
+- **Token estimation: char/4 heuristic.** Free, deterministic, no
+  deps. NanoGPT proxies many providers (Claude, Gemini, etc.); picking
+  a specific tokenizer (tiktoken, o200k) is already a guess. Phase 5.2
+  retrieval-budget assembly will self-calibrate against actual
+  completion usage data.
+- **Idempotent resume by section.** Chunks persist atomically per
+  section. The pipeline's outer loop checks
+  `chunksRepo.hasChunksFor(bookId, sectionId)` before chunking each
+  section; the resume scan on app open re-runs the pipeline against
+  partially-indexed books and the per-section short-circuit picks up
+  at the next un-chunked section. No persisted resume state needed.
+- **Chunker version constant + auto-rebuild on stale.**
+  `CHUNKER_VERSION = 1` baked into the chunker; each chunk record
+  stores the version it was generated with. On app open, scan for
+  chunks below the current version; drop, mark book pending, eager
+  resume re-indexes. Future chunker changes are a one-line bump.
+- **EPUB extraction reuses foliate-js headlessly.** Verified at
+  implementation time that the spec's assumed `EPUB.load(blob)` API
+  doesn't exist — the actual API is
+  `new EPUB(loader).init()` where loader is built from a dynamic-
+  imported `foliate-js/vendor/zip.js`. Same parser as the reader →
+  chunk paragraph boundaries match what the user sees. CFI generation:
+  `CFI.joinIndir(section.cfi, CFI.fromRange(range))`.
+- **PDF extraction uses heuristic reconstruction.**
+  `getTextContent()` → y-position line grouping → gap/indent paragraph
+  breaks → boilerplate filter (page numbers, > 50%-of-pages running
+  headers/footers) → de-hyphenation. Multi-column layouts are
+  documented as best-effort.
+- **Inspector lives on the library card, not the rail.** The right
+  rail is already 4 tabs (Contents/Bookmarks/Highlights/Chat as of
+  4.4); adding a 5th would crowd the reading surface. Library card is
+  low-traffic — the right place for a per-book index inspector.
+- **Sequential queue, single-flight per book.** Avoids saturating the
+  main thread on multi-import. Reading isn't blocked. Phase 5.2's
+  embedding pipeline may revisit if throughput hurts.
+- **Cancellation cleanly integrated into the cascade.**
+  `useReaderHost.onRemoveBook` calls `indexing.cancel(bookId)`
+  synchronously at the top of the cascade, so the pipeline aborts
+  before its catch can write `failed` to a deleted book. No orphaned
+  status, no leaked chunks. The wiring's `setOnBookImported` callback
+  ref solves the chicken-and-egg of wiring being constructed at boot
+  but useIndexing only existing at render time.
+- **TypeScript foliate-js boundary.** foliate-js ships untyped JS; the
+  package's `exports` field maps `./*.js` → `./*.js`, which under
+  `moduleResolution: bundler` + `noImplicitAny: true` rejects clean
+  static imports. Settled on dynamic imports with a path-string
+  `as any` cast and typed-result casts (`as ZipModule` etc.) at the
+  use site — eyesore at the import sites, type-safe at use sites.
+  The contract types live in EpubChunkExtractor.ts itself, not in the
+  d.ts file (the d.ts approach was shadowed by the package's own
+  resolution).
+
 ### 2026-05-06 — Phase 4.4 passage mode
 
 - **`ContextRef.passage` extended** with required `anchor: HighlightAnchor`
