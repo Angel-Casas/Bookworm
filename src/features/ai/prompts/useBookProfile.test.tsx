@@ -1,3 +1,4 @@
+import { StrictMode, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useBookProfile } from './useBookProfile';
@@ -251,6 +252,28 @@ describe('useBookProfile', () => {
       expect(result.current.status).toBe('ready');
     });
     expect(callCount).toBe(2);
+  });
+
+  it('reaches ready under StrictMode double-invoke (regression: inFlightRef deadlock)', async () => {
+    const deps = makeDeps({ cached: null });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <StrictMode>{children}</StrictMode>
+    );
+    const { result } = renderHook(
+      () =>
+        useBookProfile({
+          book: sampleBook,
+          modelId: 'gpt-4o-mini',
+          enabled: true,
+          deps,
+        }),
+      { wrapper },
+    );
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+    // The structured request must fire at most once even under double-mount.
+    expect(deps.putSpy).toHaveBeenCalledTimes(1);
   });
 
   it('modelId === null keeps state in idle (waits for model selection)', async () => {
