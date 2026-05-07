@@ -23,15 +23,22 @@
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
+.suggested-prompts__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
 .suggested-prompts__category {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-muted);
-  flex-shrink: 0;
-  padding-top: 2px;
 }
-.suggested-prompts__text { flex: 1; }
+.suggested-prompts__text {
+  word-break: break-word;
+}
 .suggested-prompts__edit {
   background: none;
   border: none;
