@@ -37,7 +37,7 @@ export type ContextRef =
     }
   | { readonly kind: 'highlight'; readonly highlightId: HighlightId }
   | { readonly kind: 'chunk'; readonly chunkId: ChunkId }
-  | { readonly kind: 'section'; readonly sectionId: SectionId };
+  | { readonly kind: 'section'; readonly sectionId: SectionId; readonly sectionTitle?: string };
 
 export type TokenUsage = {
   readonly promptTokens: number;
