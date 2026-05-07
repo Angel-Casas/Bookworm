@@ -309,6 +309,54 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-07 — Phase 5.4 chapter mode
+
+- **Composer-toolbar trigger.** Chapter-mode is invoked via a 📖
+  toggle button next to the existing search-mode toggle, mirroring
+  Phase 5.2's retrieval-mode UX rather than Phase 4.4's highlight-
+  toolbar passage-mode UX. Reasoning: chapter mode doesn't depend on
+  a text selection, so the composer is the natural action surface;
+  the reader chrome is already crowded.
+- **Chip pattern, mutually exclusive with passage and retrieval.**
+  Three attachment kinds — passage, retrieval, chapter — are mutually
+  exclusive in render and in dispatch priority (retrieval > chapter >
+  passage). A single `setActiveAttachment(kind, payload)` reducer in
+  `ReaderWorkspace` owns the three-way state transition.
+- **Snapshot semantics.** Clicking the toolbar button takes a snapshot
+  of `{sectionId, sectionTitle, chunks, highlights, notes}` at click
+  time. Subsequent reader navigation does not silently re-target the
+  attached chapter — chip stays visible with the original chapter
+  title until dismissed. Matches Phase 4.4 passage-mode semantics.
+- **TOC-href → chunks resolution.** `resolveCurrentChapter` strips
+  the URI fragment from `currentEntryId`, prefixes `spine:` (matching
+  `EpubChunkExtractor.listSections` id format), and filters chunks by
+  sectionId equality. Multi-chapter HTML (where two TOC entries share
+  a spine entry) maps both TOC entries to the same chunk set — chip
+  title disambiguates visually but payload overlaps. Documented v1
+  trade-off; precise per-anchor matching deferred.
+- **`sectionTitle`-match for highlight/note filtering.** Highlights
+  carry a `sectionTitle: string | null` captured at creation via
+  `readerState.getSectionTitleAt(...)`. `filterAnnotationsForChapter`
+  matches on equality. Cleaner than CFI-parsing the highlight anchor
+  for v1; trade-off is that highlights with null `sectionTitle`
+  (created before the TOC was loaded) are silently excluded — a
+  follow-up could backfill `sectionTitle` on existing records.
+- **Highlight-anchored notes only.** Notes have two anchor variants:
+  `{kind: 'highlight'}` and `{kind: 'location'}`. v1 includes only
+  highlight-anchored notes (filtered transitively via the matched
+  highlight set). Location-anchored notes would require CFI-to-section
+  resolution; deferred.
+- **Token budget = 6500 internal tokens.** Consistent with
+  EMBED_TOKEN_BUDGET from Phase 5.2. CHAPTER_BUDGET_RESERVE_FOR_PROMPT
+  = 400 reserved for the system prompt + structural framing in the
+  user message. Chunks fill the remainder; even-stride sample with a
+  floor of 1 chunk if they exceed budget.
+- **`ContextRef.section` extended with optional `sectionTitle`.**
+  Backward-compatible field addition lets the assistant message's
+  source footer render the chapter title without a separate TOC
+  lookup. The new chapter branch in `useChatSend` populates it; older
+  records have undefined and continue to render as before.
+
 ### 2026-05-07 — Phase 5.3 post-merge hardening
 
 A live-testing session immediately after Phase 5.3 shipped surfaced a
