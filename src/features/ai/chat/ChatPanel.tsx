@@ -22,11 +22,13 @@ import {
   useChatSend,
   type AttachedPassage,
   type AttachedRetrieval,
+  type AttachedChapter,
 } from './useChatSend';
 import type { HighlightAnchor } from '@/domain/annotations/types';
 import type { ChunkId, LocationAnchor } from '@/domain';
 import type { RetrievalDeps } from '@/features/ai/retrieval/runRetrieval';
 import { RetrievalChip } from './RetrievalChip';
+import { ChapterChip } from './ChapterChip';
 import { useSavedAnswers } from './useSavedAnswers';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
@@ -63,6 +65,13 @@ type Props = {
   readonly attachedRetrieval?: AttachedRetrieval | null;
   readonly onClearAttachedRetrieval?: () => void;
   readonly onToggleSearch?: () => void;
+  // Phase 5.4 chapter mode. Mutually exclusive with passage and retrieval
+  // (priority in render: retrieval > chapter > passage).
+  readonly attachedChapter?: AttachedChapter | null;
+  readonly onClearAttachedChapter?: () => void;
+  readonly onToggleChapter?: () => void;
+  readonly chapterAttached?: boolean;
+  readonly chapterAttachable?: boolean;
   readonly retrievalDeps?: RetrievalDeps;
   readonly profileDeps?: ProfileGenerationDeps;
   readonly resolveChunkAnchor?: (chunkId: ChunkId) => Promise<LocationAnchor | null>;
@@ -111,6 +120,7 @@ export function ChatPanel(props: Props) {
 
   const attachedPassage = props.attachedPassage ?? null;
   const attachedRetrieval = props.attachedRetrieval ?? null;
+  const attachedChapter = props.attachedChapter ?? null;
 
   const send = useChatSend({
     threadId: activeThreadId,
@@ -123,6 +133,7 @@ export function ChatPanel(props: Props) {
     finalize: messages.finalize,
     attachedPassage,
     attachedRetrieval,
+    attachedChapter,
     ...(props.retrievalDeps !== undefined && { retrievalDeps: props.retrievalDeps }),
   });
 
@@ -312,6 +323,14 @@ export function ChatPanel(props: Props) {
         <>
           {attachedRetrieval !== null && props.onClearAttachedRetrieval ? (
             <RetrievalChip onDismiss={props.onClearAttachedRetrieval} />
+          ) : attachedChapter !== null && props.onClearAttachedChapter ? (
+            <ChapterChip
+              sectionTitle={attachedChapter.sectionTitle}
+              chunkCount={attachedChapter.chunks.length}
+              highlightCount={attachedChapter.highlights.length}
+              noteCount={attachedChapter.notes.length}
+              onDismiss={props.onClearAttachedChapter}
+            />
           ) : attachedPassage !== null && props.onClearAttachedPassage ? (
             <PassageChip
               text={attachedPassage.text}
@@ -348,6 +367,15 @@ export function ChatPanel(props: Props) {
               onToggleSearch: props.onToggleSearch,
             })}
             retrievalAttached={attachedRetrieval !== null}
+            {...(props.onToggleChapter !== undefined && {
+              onToggleChapter: props.onToggleChapter,
+            })}
+            {...(props.chapterAttached !== undefined && {
+              chapterAttached: props.chapterAttached,
+            })}
+            {...(props.chapterAttachable !== undefined && {
+              chapterAttachable: props.chapterAttachable,
+            })}
           />
         </>
       ) : null}

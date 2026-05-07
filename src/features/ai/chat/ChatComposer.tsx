@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SearchIcon, SendIcon, StopIcon } from '@/shared/icons';
+import { BookOpenIcon, SearchIcon, SendIcon, StopIcon } from '@/shared/icons';
 import './chat-composer.css';
 
 const MAX_LINES = 6;
@@ -23,6 +23,13 @@ type Props = {
   // it into the textarea on next render and clears the ref. Used by the
   // suggested-prompts ✎ icon to fill-without-sending.
   readonly initialTextRef?: { current: string | null };
+  // Phase 5.4 chapter-mode toggle. Hidden when undefined (matches the
+  // search-toggle pattern). The parent owns the boolean state and fires
+  // the handler with no args; we rely on the parent's reducer to flip
+  // and clear other attachments.
+  readonly onToggleChapter?: () => void;
+  readonly chapterAttached?: boolean;
+  readonly chapterAttachable?: boolean;
 };
 
 function isMac(): boolean {
@@ -41,6 +48,9 @@ export function ChatComposer({
   onToggleSearch,
   retrievalAttached,
   initialTextRef,
+  onToggleChapter,
+  chapterAttached,
+  chapterAttachable,
 }: Props) {
   const [text, setText] = useState<string>('');
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -116,6 +126,26 @@ export function ChatComposer({
           onClick={onToggleSearch}
         >
           <SearchIcon size={14} />
+        </button>
+      ) : null}
+      {onToggleChapter !== undefined ? (
+        <button
+          type="button"
+          className={
+            chapterAttached === true
+              ? 'chat-composer__chapter-toggle chat-composer__chapter-toggle--active'
+              : 'chat-composer__chapter-toggle'
+          }
+          aria-label={
+            chapterAttached === true
+              ? 'Clear chapter context'
+              : 'Ask about this chapter'
+          }
+          aria-pressed={chapterAttached === true}
+          disabled={chapterAttachable === false}
+          onClick={onToggleChapter}
+        >
+          <BookOpenIcon size={14} />
         </button>
       ) : null}
       <button

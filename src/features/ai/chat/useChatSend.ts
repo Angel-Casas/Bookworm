@@ -8,13 +8,20 @@ import {
   type ChatMessage,
   type ChatThreadId,
   type ContextRef,
+  type SectionId,
+  type TextChunk,
 } from '@/domain';
-import type { HighlightAnchor } from '@/domain/annotations/types';
+import type {
+  Highlight,
+  HighlightAnchor,
+  Note,
+} from '@/domain/annotations/types';
 import {
   assembleOpenChatPrompt,
   assemblePassageChatPrompt,
   assembleRetrievalChatPrompt,
 } from './promptAssembly';
+import { assembleChapterPrompt } from '@/features/ai/prompts/assembleChapterPrompt';
 import { streamChatCompletion, type ChatCompletionFailure } from './nanogptChat';
 import { makeChatRequestMachine } from './chatRequestMachine';
 import {
@@ -39,6 +46,17 @@ export type AttachedRetrieval = {
   readonly bookId: BookId;
 };
 
+// Phase 5.4 chapter mode. Snapshot taken at chapter-button click time;
+// chip persists until dismissed. Each send re-includes the snapshot
+// content as context.
+export type AttachedChapter = {
+  readonly sectionId: SectionId;
+  readonly sectionTitle: string;
+  readonly chunks: readonly TextChunk[];
+  readonly highlights: readonly Highlight[];
+  readonly notes: readonly Note[];
+};
+
 type Args = {
   readonly threadId: ChatThreadId;
   readonly modelId: string;
@@ -51,6 +69,7 @@ type Args = {
   readonly streamFactory?: typeof streamChatCompletion;
   readonly attachedPassage?: AttachedPassage | null;
   readonly attachedRetrieval?: AttachedRetrieval | null;
+  readonly attachedChapter?: AttachedChapter | null;
   readonly retrievalDeps?: RetrievalDeps;
   readonly retrievalRunner?: (input: {
     bookId: BookId;
@@ -118,8 +137,105 @@ export function useChatSend(args: Args): UseChatSendHandle {
 
     const retrieval = a.attachedRetrieval ?? null;
     const passage = a.attachedPassage ?? null;
+    const chapter = a.attachedChapter ?? null;
     const isRetrieval = retrieval !== null;
-    const isPassage = !isRetrieval && passage !== null;
+    const isChapter = !isRetrieval && chapter !== null;
+    const isPassage = !isRetrieval && !isChapter && passage !== null;
+
+    // Chapter branch — assembles {chunks + highlights + notes} from the
+    // snapshot taken at chapter-button click time. Mutually exclusive with
+    // retrieval and passage (priority: retrieval > chapter > passage).
+    if (isChapter) {
+      const c = chapter;
+      const chapterRef: ContextRef = {
+        kind: 'section',
+        sectionId: c.sectionId,
+        sectionTitle: c.sectionTitle,
+      };
+      void a.append({
+        id: userMsgId,
+        threadId,
+        role: 'user',
+        content: userText,
+        mode: 'chapter',
+        contextRefs: [chapterRef],
+        createdAt: now,
+      });
+      void a.append({
+        id: assistantMsgId,
+        threadId,
+        role: 'assistant',
+        content: '',
+        mode: 'chapter',
+        contextRefs: [chapterRef],
+        streaming: true,
+        createdAt: nowPlus,
+      });
+
+      const chapterMessages = assembleChapterPrompt({
+        book: { title: a.book.title, ...(a.book.author !== undefined ? { author: a.book.author } : {}) },
+        sectionTitle: c.sectionTitle,
+        chunks: c.chunks,
+        highlights: c.highlights,
+        notes: c.notes,
+      });
+      const historyMsgs = a.history
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+      const assembled = {
+        messages: [
+          ...chapterMessages,
+          ...historyMsgs,
+          { role: 'user' as const, content: userText },
+        ],
+        historyDropped: 0,
+      };
+
+      const factory = a.streamFactory ?? streamChatCompletion;
+      const machine = makeChatRequestMachine({
+        streamFactory: (assembled2, modelId, signal) =>
+          factory({ apiKey, modelId, messages: assembled2.messages, signal }),
+        onDelta: async (id, fields) => {
+          setPartial(fields.content);
+          await a.patch(id, fields);
+        },
+        finalize: async (id, fields) => {
+          await a.finalize(id, fields);
+        },
+      });
+      actorRef.current?.stop();
+      const actor = createActor(machine, {
+        input: {
+          threadId,
+          pendingUserMessageId: userMsgId,
+          pendingAssistantMessageId: assistantMsgId,
+          modelId: a.modelId,
+          assembled,
+        },
+      });
+      actor.subscribe((snap) => {
+        if (snap.status === 'done') {
+          if (snap.value === 'failed') {
+            const ctxFailure = (snap.context as { failure?: ChatCompletionFailure }).failure;
+            if (ctxFailure) setFailure(ctxFailure);
+            setState('error');
+          } else if (snap.value === 'aborted') {
+            setState('aborted');
+          } else {
+            setState('idle');
+          }
+        }
+      });
+      actorRef.current = actor;
+      setState('streaming');
+      setPartial('');
+      setFailure(null);
+      actor.start();
+      return;
+    }
 
     // Retrieval branch — needs an async runRetrieval before assembly.
     if (isRetrieval) {
