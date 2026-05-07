@@ -309,6 +309,139 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-07 — Phase 5.3 post-merge hardening
+
+A live-testing session immediately after Phase 5.3 shipped surfaced a
+cluster of cross-cutting bugs whose root causes had escaped CI by hiding
+behind unit-only coverage or pre-existing UX blind spots. PRs #16-27
+landed in a single bug-hunt afternoon. Captured here because the patterns
+matter beyond the specific fixes — future hooks, clients, and indexing
+code should follow the same shapes.
+
+- **`useBookProfile` deadlocked under `<StrictMode>` double-mount (#16).**
+  The hook used a boolean `inFlightRef` for single-flight dedup. In dev,
+  React's StrictMode fires mount → cleanup → mount synchronously; the
+  first mount set the flag → true, cleanup aborted its signal but the
+  flag stayed true through the async unwind, the second mount saw the
+  flag and returned early, nothing re-fired. Fix: drop the boolean
+  entirely. The `AbortSignal` is the only source of truth for cancellation
+  — mount #1's `run` hits its first `signal.aborted` check post-await and
+  bails before any `setState`; mount #2's `run` proceeds. Worst case is
+  one extra cached-profile read per mount pair (cheap IDB lookup); the
+  expensive structured request still fires at most once. **Pattern for
+  future hooks with async work:** never combine "boolean is-running" flags
+  with abort-signal cancellation — they race.
+
+- **EpubChunkExtractor produced zero chunks for Project-Gutenberg-style
+  EPUBs (#17).** `PARAGRAPH_TAGS` held only uppercase entries (`'P'`,
+  `'LI'`, …). EPUB content documents are XHTML and `Element.tagName` is
+  case-preserving for XHTML, typically lowercase. The set lookup
+  `PARAGRAPH_TAGS.has('p')` failed and every paragraph was silently
+  skipped. The pipeline still marked the book `'ready'` because
+  `runEmbeddingStage` early-returns `'ok'` on empty `allChunks`. The
+  test suite uses jsdom, which parses as HTML and uppercases `tagName`,
+  so unit tests passed. Fix: normalize via `tagName.toUpperCase()` before
+  lookup. **Pattern for future DOM-walking code:** treat tagName as
+  case-preserving; rely only on `.toUpperCase()`/`.toLowerCase()`
+  comparisons. Prefer `Playwright` e2e for any extractor that depends on
+  real-browser DOM semantics.
+
+- **Pipeline marked `'ready'` with zero chunks (#18).** Defense-in-depth
+  follow-up to #17. The chunking loop completed without errors but
+  produced no chunks (because of the silent tagName mismatch); embedding
+  stage early-returned `'ok'`; status flipped to `'ready'`. Fix: add a
+  guard between chunking and embedding — if `chunksRepo.countByBook` ===
+  0, set status to `failed{reason: 'no-text-extracted'}` and return.
+  Distinct from `'no-text-found'` (sections list empty); these are
+  separate user-facing scenarios. **Pattern:** never declare success on
+  an empty result set in a multi-stage pipeline; require an explicit
+  positive count from the prior stage.
+
+- **EmbedError lost the server's response body (#19).** `classifyHttpFailure`
+  looked only at `res.status`; the body, where NanoGPT puts the specific
+  error message, was discarded. So a 400 mapped to `'model-unavailable'`
+  regardless of the actual cause. Fix: read `response.text()` before
+  throwing on `!res.ok` and attach to `EmbedError.serverMessage` (typed)
+  and the `Error.message` tail (visible in `console.warn`). Body
+  truncated to 500 chars. **Pattern:** every fetch wrapper in
+  `features/ai/chat/*` should preserve the server body on failure;
+  status code alone routinely lies about cause.
+
+- **OpenAI `text-embedding-3-small` 8191-token cap (#20).** Fixed-count
+  batching of 32 chunks × 400-token cap = up to 12,800 internal tokens
+  per request, ~9,500 server-counted (their tokenizer counts ~25-30%
+  fewer than ours). NanoGPT/OpenAI rejects requests over 8191 with
+  `code: context_length_exceeded`. Fix: token-aware batching via
+  `pipeline.batchByTokenBudget` — packs items up to a 6500-internal-token
+  budget (≈4800 server-counted, comfortable headroom under 8191), with a
+  hard 32-count cap to avoid pathological 1000-item batches when chunks
+  are tiny. **Pattern:** any future change to `MAX_CHUNK_TOKENS` or
+  `EMBED_TOKEN_BUDGET` must preserve worst-case batch totals well under
+  8191; the regression test in `pipeline.test.ts` enforces this.
+
+- **Pipeline → libraryStore live updates (#21).** The pipeline wrote
+  every status transition to `booksRepo` but had no path back to the
+  React `libraryStore`. The store's only write site was the `importStore`
+  subscriber in `App.tsx`, which fires once on import completion with
+  `pending`. After that, IDB and store drifted apart for the entire
+  indexing duration — the library card stayed at "Queued for indexing"
+  until a full page reload. Fix: thread an optional `onBookStatusChange`
+  callback through `PipelineDeps → IndexingQueueDeps → UseIndexingDeps`.
+  `App.tsx` wires it to `libraryStore.upsertBook`. **Pattern for any
+  long-running side-effect chain:** if a non-React layer mutates state
+  the React layer reads, expose an optional callback for live propagation
+  rather than relying on next-mount rehydration. Direction stays
+  pipeline-to-callback (no upward dependency on the store).
+
+- **Locked apiKey masquerades as 402 (#22).** `getApiKeyForEmbed` returns
+  `''` when the apiKeyStore is locked. The clients sent
+  `Authorization: Bearer ` to NanoGPT; the server treated the request
+  as anonymous and returned 402 `insufficient_quota`. Users with
+  topped-up accounts saw a misleading "Insufficient balance" error.
+  Fix: `embed()` and `complete()` short-circuit with
+  `{reason: 'invalid-key', status: 0}` when `apiKey === ''`. Status 0
+  marks the local-detection variant; 401/403 still signal server-side
+  rejection. Also added `402 → 'insufficient-balance'` to both clients'
+  failure unions for the real low-balance case. **Pattern for any new
+  nanogpt-* client:** mirror the same empty-key short-circuit; don't
+  trust the server's HTTP code to be semantic for auth.
+
+- **Suggested prompts re-tuned for beginner-friendliness (#23).** The
+  original prompt instructed the LLM to avoid generic questions and to
+  include "relationship-arc" / "claim-mapping" framings. Result:
+  graduate-seminar reading-guide questions. Product intent is the
+  opposite — these prompts are an onboarding surface for a reader who
+  has just opened the book. New prompt biases hard toward
+  `comprehension`-tagged gateway questions ("What is this book about?",
+  "Who are the main characters?") with concrete good/avoid examples in
+  the system message. PROFILE_SCHEMA_VERSION unchanged (cached profiles
+  must be cleared manually to pick up the new style).
+
+- **Library card actionable failures (#24).** `classifyEmbeddingError`
+  collapsed every non-rate-limit failure to `'embedding-failed'`. The
+  card showed a generic "Couldn't index" with the actionable cause
+  buried in a tooltip. Fix: split into `'embedding-no-key'`,
+  `'embedding-insufficient-balance'`, `'embedding-rate-limited'`,
+  `'embedding-failed'`. The card renders specific copy and an "Open
+  Settings" affordance for the no-key case. `onOpenSettings` threaded
+  through `LibraryWorkspace → Bookshelf → BookCard → BookCardIndexingStatus`.
+
+- **Draft messages no longer orphan under `'__draft__'` (#25).**
+  `ChatPanel.handleSendNew` called `threads.persistDraft(thread)` and
+  `send.send(text)` in the same async callback. Between those lines,
+  `persistDraft` schedules `setActiveId(realId)` — but React hasn't
+  re-rendered yet, and `useChatSend`'s `argsRef` only refreshes after
+  the next commit. So `send.send` read `a.threadId` from `argsRef` and
+  persisted with `threadId='__draft__'`. The thread row existed at the
+  real id with zero messages; the messages lived at the sentinel.
+  Subsequent drafts loaded all prior orphans. Fix: `send.send` now
+  accepts an optional `threadIdOverride`; `handleSendNew` passes the
+  freshly-created id explicitly. One-time mount cleanup deletes
+  pre-fix orphans. **Pattern:** when a value created in a callback
+  needs to flow into a co-bound function (here `send`), pass it
+  explicitly — don't rely on the next React commit to refresh
+  closure-captured args.
+
 ### 2026-05-07 — Phase 5.3 suggested prompts
 
 - **Profile-first generation.** A categorized BookProfile (`{summary,

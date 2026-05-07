@@ -24,14 +24,15 @@ function fakeEmbeddingResponse(inputs: string[]): Response {
   );
 }
 
-// The embedding stage runs only when an API key is configured (the embed
-// client returns invalid-key otherwise → pipeline marks failed). Without a
-// key configured, the pipeline reaches 'failed' instead of 'ready' for the
-// embedding stage. This test verifies the observable progression from
-// chunking → failed (when no key), since the no-key state is the default
-// e2e fixture setup. The full happy-path is covered by the desktop spec
-// once an API key has been configured.
-test('library card progresses through chunking after import', async ({ page }) => {
+// The embedding stage runs only when an API key is configured. e2e runs
+// without a key by default — embed() short-circuits with 'invalid-key'
+// (PR #22) and the pipeline marks the book failed{embedding-no-key}.
+// PR #24 surfaces that as actionable copy on the card: "API key required"
+// + an Open Settings button. This test verifies the no-crash,
+// observable-terminal-state path; the route mock below is defensive for
+// the case where a future fixture sets a key (would let the embedding
+// stage complete and the card transition through to "Indexed").
+test('library card progresses to a stable terminal state after import', async ({ page }) => {
   await page.route('https://nano-gpt.com/api/v1/embeddings', async (route: Route) => {
     const body = JSON.parse(route.request().postData() ?? '{}') as { input: string[] };
     await route.fulfill({
@@ -44,10 +45,15 @@ test('library card progresses through chunking after import', async ({ page }) =
   await page.goto('/');
   await importFixture(page);
 
-  // The status indicator should at least visit chunking. Without a configured
-  // key the pipeline likely fails on the embedding stage; the test mainly
-  // exercises the no-crash, status-text-rendering path.
+  // Either the chunking-phase progress text flashes by, or the pipeline
+  // settles at the no-key terminal state (post-PR #24 actionable copy),
+  // or the full happy-path completes if a key is somehow configured.
+  // Any of these counts as the card rendering correctly.
   await expect(
-    page.getByText(/chunking|preparing for ai|indexed|embedding/i).first(),
+    page
+      .getByText(
+        /chunking|preparing for ai|indexed|embedding|api key required|couldn't index/i,
+      )
+      .first(),
   ).toBeVisible({ timeout: 30_000 });
 });
