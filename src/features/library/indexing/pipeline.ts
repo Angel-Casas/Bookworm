@@ -30,6 +30,12 @@ export type PipelineDeps = {
   readonly epubExtractor: ChunkExtractor;
   readonly pdfExtractor: ChunkExtractor;
   readonly embedClient: EmbedClient;
+  // Optional notification fired after each successful booksRepo.put on a
+  // status transition. Used by App.tsx to push live updates into the React
+  // libraryStore so the library card reflects pipeline progress without
+  // requiring a full page reload. Best-effort: pipeline correctness does not
+  // depend on the callback completing.
+  readonly onBookStatusChange?: (book: Book) => void;
 };
 
 // OpenAI / NanoGPT cap text-embedding-3-small at 8191 tokens per *request*
@@ -51,14 +57,17 @@ async function setStatus(
   bookId: BookId,
   status: IndexingStatus,
   booksRepo: BookRepository,
+  onChange?: (book: Book) => void,
 ): Promise<void> {
   const book = await booksRepo.getById(bookId);
   if (book === undefined) return;
-  await booksRepo.put({
+  const updated: Book = {
     ...book,
     indexingStatus: status,
     updatedAt: IsoTimestamp(new Date().toISOString()),
-  });
+  };
+  await booksRepo.put(updated);
+  onChange?.(updated);
 }
 
 // Pack chunks into batches respecting both the per-request token budget and
@@ -115,7 +124,12 @@ export async function runIndexing(
 ): Promise<void> {
   const extractor = book.format === 'epub' ? deps.epubExtractor : deps.pdfExtractor;
   try {
-    await setStatus(book.id, { kind: 'chunking', progressPercent: 0 }, deps.booksRepo);
+    await setStatus(
+      book.id,
+      { kind: 'chunking', progressPercent: 0 },
+      deps.booksRepo,
+      deps.onBookStatusChange,
+    );
 
     const sections = await extractor.listSections(book);
     if (sections.length === 0) {
@@ -124,6 +138,7 @@ export async function runIndexing(
         book.id,
         { kind: 'failed', reason: 'no-text-found' },
         deps.booksRepo,
+        deps.onBookStatusChange,
       );
       return;
     }
@@ -153,6 +168,7 @@ export async function runIndexing(
         book.id,
         { kind: 'chunking', progressPercent },
         deps.booksRepo,
+        deps.onBookStatusChange,
       );
       await yieldToBrowser();
     }
@@ -171,6 +187,7 @@ export async function runIndexing(
         book.id,
         { kind: 'failed', reason: 'no-text-extracted' },
         deps.booksRepo,
+        deps.onBookStatusChange,
       );
       return;
     }
@@ -178,7 +195,7 @@ export async function runIndexing(
     const outcome = await runEmbeddingStage(book, signal, deps);
     if (outcome === 'aborted' || outcome === 'failed') return;
 
-    await setStatus(book.id, { kind: 'ready' }, deps.booksRepo);
+    await setStatus(book.id, { kind: 'ready' }, deps.booksRepo, deps.onBookStatusChange);
   } catch (err) {
     if (signal.aborted) return;
     console.warn('[indexing]', err);
@@ -186,6 +203,7 @@ export async function runIndexing(
       book.id,
       { kind: 'failed', reason: classifyError(err) },
       deps.booksRepo,
+      deps.onBookStatusChange,
     );
   }
 }
@@ -197,7 +215,12 @@ async function runEmbeddingStage(
   signal: AbortSignal,
   deps: PipelineDeps,
 ): Promise<EmbeddingStageOutcome> {
-  await setStatus(book.id, { kind: 'embedding', progressPercent: 0 }, deps.booksRepo);
+  await setStatus(
+    book.id,
+    { kind: 'embedding', progressPercent: 0 },
+    deps.booksRepo,
+    deps.onBookStatusChange,
+  );
   const allChunks = await deps.chunksRepo.listByBook(book.id);
   if (allChunks.length === 0) return 'ok';
 
@@ -226,6 +249,7 @@ async function runEmbeddingStage(
         book.id,
         { kind: 'failed', reason: classifyEmbeddingError(err) },
         deps.booksRepo,
+        deps.onBookStatusChange,
       );
       return 'failed';
     }
@@ -251,7 +275,12 @@ async function runEmbeddingStage(
 
     processed += batch.length;
     const progressPercent = Math.round((processed / allChunks.length) * 100);
-    await setStatus(book.id, { kind: 'embedding', progressPercent }, deps.booksRepo);
+    await setStatus(
+      book.id,
+      { kind: 'embedding', progressPercent },
+      deps.booksRepo,
+      deps.onBookStatusChange,
+    );
     await yieldToBrowser();
   }
   return 'ok';

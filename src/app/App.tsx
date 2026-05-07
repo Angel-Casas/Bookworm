@@ -132,6 +132,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     epubExtractor,
     pdfExtractor,
     embedClient,
+    onBookStatusChange: (book) => {
+      libraryStore.getState().upsertBook(book);
+    },
   });
 
   const retrievalDeps = useMemo(

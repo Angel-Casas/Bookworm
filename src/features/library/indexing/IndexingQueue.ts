@@ -1,4 +1,4 @@
-import { IsoTimestamp, type BookId } from '@/domain';
+import { IsoTimestamp, type Book, type BookId } from '@/domain';
 import type {
   BookChunksRepository,
   BookEmbeddingsRepository,
@@ -17,6 +17,10 @@ export type IndexingQueueDeps = {
   readonly epubExtractor: ChunkExtractor;
   readonly pdfExtractor: ChunkExtractor;
   readonly embedClient: EmbedClient;
+  // Threaded through to the pipeline so each setStatus update fires a
+  // notification callback. App.tsx wires this to libraryStore.upsertBook,
+  // giving the library card live updates without requiring a page reload.
+  readonly onBookStatusChange?: (book: Book) => void;
 };
 
 export class IndexingQueue {
@@ -75,11 +79,13 @@ export class IndexingQueue {
   private async markPending(id: BookId): Promise<void> {
     const book = await this.deps.booksRepo.getById(id);
     if (book === undefined) return;
-    await this.deps.booksRepo.put({
+    const updated: Book = {
       ...book,
       indexingStatus: { kind: 'pending' },
       updatedAt: IsoTimestamp(new Date().toISOString()),
-    });
+    };
+    await this.deps.booksRepo.put(updated);
+    this.deps.onBookStatusChange?.(updated);
   }
 
   private async drain(): Promise<void> {
@@ -102,6 +108,9 @@ export class IndexingQueue {
             epubExtractor: this.deps.epubExtractor,
             pdfExtractor: this.deps.pdfExtractor,
             embedClient: this.deps.embedClient,
+            ...(this.deps.onBookStatusChange !== undefined && {
+              onBookStatusChange: this.deps.onBookStatusChange,
+            }),
           };
           await runIndexing(book, ctrl.signal, pipelineDeps);
         }

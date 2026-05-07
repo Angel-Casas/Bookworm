@@ -169,6 +169,48 @@ describe('runIndexing — chunking stage', () => {
     expect(booksRepo.current().indexingStatus).toEqual({ kind: 'ready' });
   });
 
+  it('fires onBookStatusChange for every status transition with the updated book', async () => {
+    // Regression: pipeline writes status updates to booksRepo but had no way
+    // to notify the React libraryStore. Result: library card stayed on the
+    // status it loaded at boot ("Queued for indexing") even though IDB was
+    // already 'ready'. App.tsx wires onBookStatusChange to upsertBook so the
+    // card reflects pipeline progress live.
+    const book = makeBook();
+    const booksRepo = makeStubBookRepo(book);
+    const chunksRepo = makeStubChunksRepo();
+    const extractor = makeStubExtractor([
+      { id: 's1', title: 'Chapter 1' },
+      { id: 's2', title: 'Chapter 2' },
+    ]);
+    const onBookStatusChange = vi.fn();
+
+    await runIndexing(book, new AbortController().signal, {
+      booksRepo,
+      chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
+      epubExtractor: extractor,
+      pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
+      onBookStatusChange,
+    });
+
+    // Every callback invocation must carry the freshly-updated Book
+    // including the latest indexingStatus, so the store gets the same
+    // payload IDB was just written with.
+    expect(onBookStatusChange).toHaveBeenCalled();
+    const calls = onBookStatusChange.mock.calls;
+    const statusKinds = calls.map(
+      (c: unknown[]) => (c[0] as { indexingStatus: { kind: string } }).indexingStatus.kind,
+    );
+    // chunking (initial) → chunking (per-section progress) ×2 → embedding(s) → ready
+    expect(statusKinds[0]).toBe('chunking');
+    expect(statusKinds[statusKinds.length - 1]).toBe('ready');
+    // The book.id on every callback payload must match the indexed book.
+    for (const call of calls) {
+      expect((call[0] as { id: string }).id).toBe(book.id);
+    }
+  });
+
   it('idempotent resume: skips sections that already have chunks', async () => {
     const book = makeBook();
     const booksRepo = makeStubBookRepo(book);

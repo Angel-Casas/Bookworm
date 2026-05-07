@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { BookId } from '@/domain';
+import type { Book, BookId } from '@/domain';
 import type {
   BookChunksRepository,
   BookEmbeddingsRepository,
@@ -16,6 +16,10 @@ export type UseIndexingDeps = {
   readonly epubExtractor: ChunkExtractor;
   readonly pdfExtractor: ChunkExtractor;
   readonly embedClient: EmbedClient;
+  // Fired after each pipeline status transition (chunking %, embedding %,
+  // ready, failed). App.tsx wires this to libraryStore.upsertBook so the
+  // library card reflects live indexing progress without a page reload.
+  readonly onBookStatusChange?: (book: Book) => void;
 };
 
 export type UseIndexingHandle = {
