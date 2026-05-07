@@ -15,9 +15,13 @@ export type EmbedResult = {
 };
 
 export type EmbedFailure =
-  | { readonly reason: 'invalid-key'; readonly status: 401 | 403 }
+  // 'invalid-key' covers both 401/403 from the server and locally-detected
+  // empty-string keys (apiKeyStore is locked or unconfigured). Status 0 is
+  // used for the local-detection variant since no HTTP request was made.
+  | { readonly reason: 'invalid-key'; readonly status: 0 | 401 | 403 }
   | { readonly reason: 'rate-limit'; readonly status: 429; readonly retryAfterSeconds?: number }
   | { readonly reason: 'model-unavailable'; readonly status: 404 | 400 }
+  | { readonly reason: 'insufficient-balance'; readonly status: 402 }
   | { readonly reason: 'server'; readonly status: number }
   | { readonly reason: 'network' }
   | { readonly reason: 'aborted' }
@@ -46,6 +50,7 @@ export class EmbedError extends Error {
 function classifyHttpFailure(res: Response): EmbedFailure {
   const status = res.status;
   if (status === 401 || status === 403) return { reason: 'invalid-key', status };
+  if (status === 402) return { reason: 'insufficient-balance', status };
   if (status === 429) {
     const ra = res.headers.get('Retry-After');
     const parsed = ra !== null ? Number.parseInt(ra, 10) : Number.NaN;
@@ -69,6 +74,16 @@ type RawResponse = {
 };
 
 export async function embed(req: EmbedRequest): Promise<EmbedResult> {
+  // Fail fast when no key is available — App.tsx returns '' from
+  // getApiKeyForEmbed when the apiKeyStore is locked or unconfigured.
+  // Without this guard, NanoGPT receives 'Authorization: Bearer ' and
+  // returns 402 ('insufficient-balance' for an anonymous request) instead
+  // of a useful auth error, leaving the user wondering why a topped-up
+  // account hits a payment wall.
+  if (req.apiKey === '') {
+    throw new EmbedError({ reason: 'invalid-key', status: 0 });
+  }
+
   let res: Response;
   try {
     res = await fetch(`${NANOGPT_BASE_URL}/embeddings`, {

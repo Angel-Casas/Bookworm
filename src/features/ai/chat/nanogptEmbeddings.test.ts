@@ -138,6 +138,33 @@ describe('nanogptEmbeddings.embed', () => {
     }
   });
 
+  it('short-circuits with invalid-key (status 0) when apiKey is empty — no fetch fired', async () => {
+    // Regression: an empty apiKey (apiKeyStore locked or unconfigured)
+    // previously sent 'Authorization: Bearer ' to NanoGPT, which returned
+    // 402 'insufficient_quota' for the implicit anonymous account. Users
+    // with a topped-up account saw a misleading 'insufficient-balance'
+    // error. We now fail fast before the network call.
+    let fetchCalled = false;
+    mockFetch(() => {
+      fetchCalled = true;
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+    await expect(
+      embed({ apiKey: '', modelId: 'text-embedding-3-small', inputs: ['x'] }),
+    ).rejects.toMatchObject({ failure: { reason: 'invalid-key', status: 0 } });
+    expect(fetchCalled).toBe(false);
+  });
+
+  it('throws insufficient-balance on 402 (real low-balance case)', async () => {
+    const body = JSON.stringify({
+      error: { message: 'Insufficient balance.', type: 'insufficient_quota', code: 'insufficient_quota' },
+    });
+    mockFetch(() => Promise.resolve(new Response(body, { status: 402 })));
+    await expect(
+      embed({ apiKey: 'KEY', modelId: 'text-embedding-3-small', inputs: ['x'] }),
+    ).rejects.toMatchObject({ failure: { reason: 'insufficient-balance', status: 402 } });
+  });
+
   it('throws server on 500', async () => {
     mockFetch(() => Promise.resolve(new Response('', { status: 500 })));
     await expect(

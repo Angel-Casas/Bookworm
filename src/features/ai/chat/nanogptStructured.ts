@@ -22,9 +22,11 @@ export type StructuredResult<T> = {
 };
 
 export type StructuredFailure =
-  | { readonly reason: 'invalid-key'; readonly status: 401 | 403 }
+  // Status 0 is the local empty-key short-circuit (no HTTP request fired).
+  | { readonly reason: 'invalid-key'; readonly status: 0 | 401 | 403 }
   | { readonly reason: 'rate-limit'; readonly status: 429; readonly retryAfterSeconds?: number }
   | { readonly reason: 'model-unavailable'; readonly status: 404 | 400 }
+  | { readonly reason: 'insufficient-balance'; readonly status: 402 }
   | { readonly reason: 'server'; readonly status: number }
   | { readonly reason: 'network' }
   | { readonly reason: 'aborted' }
@@ -49,6 +51,7 @@ export type StructuredClient = {
 function classifyHttpFailure(res: Response): StructuredFailure {
   const status = res.status;
   if (status === 401 || status === 403) return { reason: 'invalid-key', status };
+  if (status === 402) return { reason: 'insufficient-balance', status };
   if (status === 429) {
     const ra = res.headers.get('Retry-After');
     const parsed = ra !== null ? Number.parseInt(ra, 10) : Number.NaN;
@@ -70,6 +73,13 @@ type RawChatResponse = {
 };
 
 export async function complete<T>(req: StructuredRequest): Promise<StructuredResult<T>> {
+  // Fail fast on locked/unconfigured key — see nanogptEmbeddings.embed for
+  // the same pattern and rationale (NanoGPT returns 402 not 401 for an empty
+  // bearer, which masquerades as 'insufficient-balance').
+  if (req.apiKey === '') {
+    throw new StructuredError({ reason: 'invalid-key', status: 0 });
+  }
+
   let res: Response;
   try {
     res = await fetch(`${NANOGPT_BASE_URL}/chat/completions`, {
