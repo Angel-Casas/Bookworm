@@ -7,7 +7,10 @@ afterEach(() => {
 });
 
 describe('SuggestedPromptItem', () => {
-  it('renders prompt text and category badge', () => {
+  it('renders prompt text and does not render the category label', () => {
+    // Per product decision: the category is metadata for the LLM grounding
+    // pass and isn't useful to the reader; rows show only the prompt text.
+    // Category remains on the SuggestedPrompt type and in the schema.
     const { container } = render(
       <SuggestedPromptItem
         prompt={{ text: 'Track motives.', category: 'analysis' }}
@@ -16,7 +19,7 @@ describe('SuggestedPromptItem', () => {
       />,
     );
     expect(container.textContent).toContain('Track motives.');
-    expect(container.textContent.toLowerCase()).toContain('analysis');
+    expect(container.textContent.toLowerCase()).not.toContain('analysis');
   });
 
   it('clicking the row fires onSelect with the prompt text', () => {

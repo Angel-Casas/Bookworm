@@ -17,10 +17,7 @@ export function SuggestedPromptItem({ prompt, onSelect, onEdit }: Props) {
         onSelect(prompt.text);
       }}
     >
-      <span className="suggested-prompts__main">
-        <span className="suggested-prompts__category">{prompt.category}</span>
-        <span className="suggested-prompts__text">{prompt.text}</span>
-      </span>
+      <span className="suggested-prompts__text">{prompt.text}</span>
       <span
         className="suggested-prompts__edit"
         role="button"
