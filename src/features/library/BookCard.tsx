@@ -12,6 +12,7 @@ type Props = {
   readonly onOpen?: (book: Book) => void;
   readonly onOpenInspector?: (bookId: BookId) => void;
   readonly onRetryIndex?: (bookId: BookId) => void;
+  readonly onOpenSettings?: () => void;
 };
 
 export function BookCard({
@@ -21,6 +22,7 @@ export function BookCard({
   onOpen,
   onOpenInspector,
   onRetryIndex,
+  onOpenSettings,
 }: Props) {
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -61,6 +63,7 @@ export function BookCard({
           onRetry={() => {
             onRetryIndex(book.id);
           }}
+          {...(onOpenSettings && { onOpenSettings })}
         />
       ) : null}
       <BookCardMenu
