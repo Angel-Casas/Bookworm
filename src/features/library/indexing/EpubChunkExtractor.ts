@@ -188,7 +188,12 @@ export class EpubChunkExtractor implements ChunkExtractor {
     let current: Node | null =
       walker.currentNode === doc.body ? walker.nextNode() : walker.currentNode;
     while (current !== null) {
-      if (current instanceof Element && PARAGRAPH_TAGS.has(current.tagName)) {
+      // tagName is uppercase for HTML documents but case-preserving for
+      // XHTML — and EPUB content documents are XHTML, served with lowercase
+      // tags. Normalize before the set lookup so we match in both cases
+      // (jsdom in unit tests parses as HTML → uppercase; foliate-js in real
+      // browsers parses as XHTML → lowercase).
+      if (current instanceof Element && PARAGRAPH_TAGS.has(current.tagName.toUpperCase())) {
         const text = current.textContent;
         if (text.trim().length > 0) {
           const range = doc.createRange();
