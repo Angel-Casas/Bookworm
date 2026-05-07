@@ -16,7 +16,12 @@ import type { ApiKeyState } from '@/features/ai/key/apiKeyStore';
 import type { ChunkId } from '@/domain';
 import type { RetrievalDeps } from '@/features/ai/retrieval/runRetrieval';
 import type { BookChunksRepository, BookEmbeddingsRepository } from '@/storage';
-import type { AttachedRetrieval } from '@/features/ai/chat/useChatSend';
+import type {
+  AttachedChapter,
+  AttachedRetrieval,
+} from '@/features/ai/chat/useChatSend';
+import { resolveCurrentChapter } from '@/features/ai/prompts/resolveCurrentChapter';
+import { filterAnnotationsForChapter } from '@/features/ai/prompts/filterAnnotationsForChapter';
 import type {
   Highlight,
   HighlightAnchor,
@@ -173,6 +178,39 @@ export function ReaderWorkspace(props: Props) {
   // Phase 5.2 retrieval mode. One-shot per send (chip clears on send-success
   // inside useChatSend). Mutually exclusive with passage chip.
   const [attachedRetrieval, setAttachedRetrieval] = useState<AttachedRetrieval | null>(null);
+  // Phase 5.4 chapter mode. Snapshot at click time, sticky across sends,
+  // cleared via the chip's ✕ or by activating another attachment kind.
+  const [attachedChapter, setAttachedChapter] = useState<AttachedChapter | null>(null);
+
+  // Phase 5.4: single reducer that owns the three-way (passage/retrieval/
+  // chapter) mutual-exclusion rule. All component-level setters route here
+  // so the rule lives in one place and can't drift across call sites.
+  type AttachmentKind = 'none' | 'passage' | 'retrieval' | 'chapter';
+  const setActiveAttachment = useCallback(
+    (
+      kind: AttachmentKind,
+      payload?: AttachedPassage | AttachedRetrieval | AttachedChapter | null,
+    ): void => {
+      if (kind === 'passage') {
+        setAttachedPassage((payload ?? null) as AttachedPassage | null);
+        setAttachedRetrieval(null);
+        setAttachedChapter(null);
+      } else if (kind === 'retrieval') {
+        setAttachedRetrieval((payload ?? null) as AttachedRetrieval | null);
+        setAttachedPassage(null);
+        setAttachedChapter(null);
+      } else if (kind === 'chapter') {
+        setAttachedChapter((payload ?? null) as AttachedChapter | null);
+        setAttachedPassage(null);
+        setAttachedRetrieval(null);
+      } else {
+        setAttachedPassage(null);
+        setAttachedRetrieval(null);
+        setAttachedChapter(null);
+      }
+    },
+    [],
+  );
   // One-shot focus signal for the chat composer after Ask AI. ChatComposer
   // self-clears the flag once it has fired focus().
   const composerFocusRef = useRef<boolean>(false);
@@ -337,7 +375,7 @@ export function ReaderWorkspace(props: Props) {
             sectionTitle: extracted.sectionTitle,
           }),
         };
-        setAttachedPassage(passage);
+        setActiveAttachment('passage', passage);
         if (viewport === 'desktop') {
           if (!rightRail.visible) rightRail.set(true);
         } else {
@@ -347,25 +385,73 @@ export function ReaderWorkspace(props: Props) {
         composerFocusRef.current = true;
       })();
     },
-    [readerState, rightRail, viewport],
+    [readerState, rightRail, viewport, setActiveAttachment],
   );
 
   const handleClearAttachedPassage = useCallback((): void => {
-    setAttachedPassage(null);
-  }, []);
+    setActiveAttachment('none');
+  }, [setActiveAttachment]);
 
   const handleToggleSearch = useCallback((): void => {
-    setAttachedRetrieval((cur) => {
-      if (cur !== null) return null;
-      // Mutual exclusivity: clear passage chip when activating retrieval.
-      setAttachedPassage(null);
-      return { bookId: BookId(props.bookId) };
-    });
-  }, [props.bookId]);
+    if (attachedRetrieval !== null) {
+      setActiveAttachment('none');
+    } else {
+      setActiveAttachment('retrieval', { bookId: BookId(props.bookId) });
+    }
+  }, [attachedRetrieval, props.bookId, setActiveAttachment]);
 
   const handleClearAttachedRetrieval = useCallback((): void => {
-    setAttachedRetrieval(null);
-  }, []);
+    setActiveAttachment('none');
+  }, [setActiveAttachment]);
+
+  // Phase 5.4: derive the chapter snapshot on demand at click time. We
+  // don't pre-resolve on every render to avoid eager IDB reads; the
+  // 'attachable' boolean below is a synchronous best-effort signal for
+  // the toolbar button's disabled state.
+  const buildChapterSnapshot =
+    useCallback(async (): Promise<AttachedChapter | null> => {
+      if (readerState === null) return null;
+      const allChunks = await props.bookChunksRepo.listByBook(BookId(props.bookId));
+      const resolved = resolveCurrentChapter(
+        readerState.currentEntryId,
+        allChunks,
+        readerState.toc ?? [],
+      );
+      if (resolved === null) return null;
+      // Notes hook exposes a Map<HighlightId, Note> rather than a flat list;
+      // unwrap the Map values for the filter helper, which is list-shaped.
+      const allNotes = Array.from(notes.byHighlightId.values());
+      const annotations = filterAnnotationsForChapter(
+        highlights.list,
+        allNotes,
+        resolved.sectionTitle,
+      );
+      return {
+        sectionId: resolved.sectionId,
+        sectionTitle: resolved.sectionTitle,
+        chunks: resolved.chunks,
+        highlights: annotations.highlights,
+        notes: annotations.notes,
+      };
+    }, [readerState, props.bookChunksRepo, props.bookId, highlights.list, notes.byHighlightId]);
+
+  const chapterAttachable = readerState?.currentEntryId !== undefined;
+
+  const handleToggleChapter = useCallback((): void => {
+    void (async () => {
+      if (attachedChapter !== null) {
+        setActiveAttachment('none');
+        return;
+      }
+      const snapshot = await buildChapterSnapshot();
+      if (snapshot === null) return;
+      setActiveAttachment('chapter', snapshot);
+    })();
+  }, [attachedChapter, buildChapterSnapshot, setActiveAttachment]);
+
+  const handleClearAttachedChapter = useCallback((): void => {
+    setActiveAttachment('none');
+  }, [setActiveAttachment]);
 
   const resolveChunkAnchor = useCallback(
     async (chunkId: ChunkId): Promise<LocationAnchor | null> => {
@@ -536,6 +622,11 @@ export function ReaderWorkspace(props: Props) {
               attachedRetrieval={attachedRetrieval}
               onClearAttachedRetrieval={handleClearAttachedRetrieval}
               onToggleSearch={handleToggleSearch}
+              attachedChapter={attachedChapter}
+              onClearAttachedChapter={handleClearAttachedChapter}
+              onToggleChapter={handleToggleChapter}
+              chapterAttached={attachedChapter !== null}
+              chapterAttachable={chapterAttachable}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
@@ -651,6 +742,11 @@ export function ReaderWorkspace(props: Props) {
               attachedRetrieval={attachedRetrieval}
               onClearAttachedRetrieval={handleClearAttachedRetrieval}
               onToggleSearch={handleToggleSearch}
+              attachedChapter={attachedChapter}
+              onClearAttachedChapter={handleClearAttachedChapter}
+              onToggleChapter={handleToggleChapter}
+              chapterAttached={attachedChapter !== null}
+              chapterAttachable={chapterAttachable}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
