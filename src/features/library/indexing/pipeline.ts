@@ -32,7 +32,16 @@ export type PipelineDeps = {
   readonly embedClient: EmbedClient;
 };
 
-const EMBED_BATCH_SIZE = 32;
+// OpenAI / NanoGPT cap text-embedding-3-small at 8191 tokens per *request*
+// (sum of all input array items). Our internal tokenEstimate is conservative
+// vs. the server's tokenizer (typically over-counts by ~25-30%), so target a
+// budget well below the cap to leave headroom under both. Empirically a
+// 32-chunk batch with our 400-token-per-chunk cap can hit 9500+ tokens by
+// the server's count, blowing the 8191 limit.
+const EMBED_TOKEN_BUDGET = 6500;
+// Hard cap on batch count even when chunks are tiny, to keep request shapes
+// predictable and avoid pathological 1000-chunk single requests.
+const EMBED_MAX_BATCH_COUNT = 32;
 const EMBED_RETRY_ATTEMPTS = 3;
 
 export const yieldToBrowser = (): Promise<void> =>
@@ -52,12 +61,32 @@ async function setStatus(
   });
 }
 
-function chunkArray<T>(arr: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    out.push(arr.slice(i, i + size));
+// Pack chunks into batches respecting both the per-request token budget and
+// the max-count cap. Single chunks exceeding the budget are sent alone (the
+// server may still accept; if not, the embedding stage surfaces the failure
+// with the actual error from EmbedError.serverMessage).
+export function batchByTokenBudget<T extends { tokenEstimate: number }>(
+  items: readonly T[],
+  tokenBudget: number = EMBED_TOKEN_BUDGET,
+  maxCount: number = EMBED_MAX_BATCH_COUNT,
+): T[][] {
+  const batches: T[][] = [];
+  let current: T[] = [];
+  let currentTokens = 0;
+  for (const item of items) {
+    const t = item.tokenEstimate;
+    const wouldOverflowTokens = currentTokens + t > tokenBudget;
+    const wouldOverflowCount = current.length >= maxCount;
+    if (current.length > 0 && (wouldOverflowTokens || wouldOverflowCount)) {
+      batches.push(current);
+      current = [];
+      currentTokens = 0;
+    }
+    current.push(item);
+    currentTokens += t;
   }
-  return out;
+  if (current.length > 0) batches.push(current);
+  return batches;
 }
 
 async function embedWithRetry(
@@ -179,7 +208,7 @@ async function runEmbeddingStage(
   }
 
   let processed = allChunks.length - toEmbed.length;
-  for (const batch of chunkArray(toEmbed, EMBED_BATCH_SIZE)) {
+  for (const batch of batchByTokenBudget(toEmbed)) {
     if (signal.aborted) return 'aborted';
 
     let result: EmbedResult;

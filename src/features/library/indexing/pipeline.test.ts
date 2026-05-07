@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runIndexing } from './pipeline';
+import { runIndexing, batchByTokenBudget } from './pipeline';
 import {
   BookId,
   ChunkId,
@@ -406,5 +406,59 @@ describe('runIndexing — embedding stage (Phase 5.2)', () => {
       kind: 'failed',
       reason: 'embedding-failed',
     });
+  });
+});
+
+describe('batchByTokenBudget', () => {
+  // Regression: NanoGPT/OpenAI's text-embedding-3-small caps at 8191 tokens
+  // per request (sum of all input array items). With our prior fixed-count
+  // batch of 32 chunks × 400 tokens, requests blew the limit at ~9500
+  // server-counted tokens. The token-aware batcher must keep batches under
+  // a safe budget below 8191.
+  it('packs items up to but not over the token budget', () => {
+    const items = [
+      { tokenEstimate: 400 },
+      { tokenEstimate: 400 },
+      { tokenEstimate: 400 },
+      { tokenEstimate: 400 },
+    ];
+    const batches = batchByTokenBudget(items, 1000);
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toHaveLength(2); // 800 ≤ 1000
+    expect(batches[1]).toHaveLength(2); // remainder
+  });
+
+  it('respects the max-count cap even when token budget allows more', () => {
+    const items = Array.from({ length: 50 }, () => ({ tokenEstimate: 10 }));
+    const batches = batchByTokenBudget(items, 10_000, 32);
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toHaveLength(32);
+    expect(batches[1]).toHaveLength(18);
+  });
+
+  it('emits a single-item batch when one item alone exceeds the budget', () => {
+    const items = [
+      { tokenEstimate: 100 },
+      { tokenEstimate: 5000 }, // alone exceeds budget
+      { tokenEstimate: 100 },
+    ];
+    const batches = batchByTokenBudget(items, 1000);
+    expect(batches).toHaveLength(3);
+    expect(batches[0]?.[0]?.tokenEstimate).toBe(100);
+    expect(batches[1]?.[0]?.tokenEstimate).toBe(5000);
+    expect(batches[2]?.[0]?.tokenEstimate).toBe(100);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(batchByTokenBudget([])).toEqual([]);
+  });
+
+  it('regression: 32 chunks × 400 tokens stays under 8191 (defaults)', () => {
+    const items = Array.from({ length: 32 }, () => ({ tokenEstimate: 400 }));
+    const batches = batchByTokenBudget(items);
+    for (const batch of batches) {
+      const total = batch.reduce((sum, c) => sum + c.tokenEstimate, 0);
+      expect(total).toBeLessThanOrEqual(8191);
+    }
   });
 });
