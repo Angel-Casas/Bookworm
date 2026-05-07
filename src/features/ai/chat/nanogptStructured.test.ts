@@ -103,6 +103,30 @@ describe('nanogptStructured.complete', () => {
     ).rejects.toMatchObject({ failure: { reason: 'model-unavailable', status: 404 } });
   });
 
+  it('short-circuits with invalid-key (status 0) when apiKey is empty — no fetch fired', async () => {
+    // See nanogptEmbeddings.test.ts for the rationale (locked apiKeyStore →
+    // empty bearer → NanoGPT returns misleading 402 instead of auth error).
+    let fetchCalled = false;
+    mockFetch(() => {
+      fetchCalled = true;
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+    await expect(
+      complete({ apiKey: '', modelId: 'gpt-4o-mini', messages: [], schema: PROBE_SCHEMA }),
+    ).rejects.toMatchObject({ failure: { reason: 'invalid-key', status: 0 } });
+    expect(fetchCalled).toBe(false);
+  });
+
+  it('throws insufficient-balance on 402 (real low-balance case)', async () => {
+    const body = JSON.stringify({
+      error: { message: 'Insufficient balance.', type: 'insufficient_quota', code: 'insufficient_quota' },
+    });
+    mockFetch(() => Promise.resolve(new Response(body, { status: 402 })));
+    await expect(
+      complete({ apiKey: 'KEY', modelId: 'gpt-4o-mini', messages: [], schema: PROBE_SCHEMA }),
+    ).rejects.toMatchObject({ failure: { reason: 'insufficient-balance', status: 402 } });
+  });
+
   it('throws server on 500', async () => {
     mockFetch(() => Promise.resolve(new Response('', { status: 500 })));
     await expect(
