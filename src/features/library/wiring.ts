@@ -13,6 +13,7 @@ import {
   createSavedAnswersRepository,
   createBookChunksRepository,
   createBookEmbeddingsRepository,
+  createBookProfilesRepository,
   type OpfsAdapter,
   type BookRepository,
   type SettingsRepository,
@@ -26,6 +27,7 @@ import {
   type SavedAnswersRepository,
   type BookChunksRepository,
   type BookEmbeddingsRepository,
+  type BookProfilesRepository,
 } from '@/storage';
 import { BookId, IsoTimestamp, type Book, type ParsedMetadata } from '@/domain';
 import type { ImportInput } from './import/importMachine';
@@ -58,6 +60,7 @@ export type Wiring = {
   readonly savedAnswersRepo: SavedAnswersRepository;
   readonly bookChunksRepo: BookChunksRepository;
   readonly bookEmbeddingsRepo: BookEmbeddingsRepository;
+  readonly bookProfilesRepo: BookProfilesRepository;
   readonly importDeps: Omit<ImportInput, 'file'>;
   persistFirstQuotaRequest(): Promise<void>;
   // Phase 5.1: registers a callback fired immediately after a fresh book
@@ -80,6 +83,7 @@ export function createWiring(db: BookwormDB): Wiring {
   const savedAnswersRepo = createSavedAnswersRepository(db);
   const bookChunksRepo = createBookChunksRepository(db);
   const bookEmbeddingsRepo = createBookEmbeddingsRepository(db);
+  const bookProfilesRepo = createBookProfilesRepository(db);
 
   let onBookImportedRef: ((id: BookId) => void) | null = null;
 
@@ -198,6 +202,7 @@ export function createWiring(db: BookwormDB): Wiring {
     savedAnswersRepo,
     bookChunksRepo,
     bookEmbeddingsRepo,
+    bookProfilesRepo,
     importDeps,
     persistFirstQuotaRequest,
     setOnBookImported(callback) {

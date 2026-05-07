@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   BookId,
   ChatThreadId,
@@ -7,7 +7,9 @@ import {
   type ChatMessage,
   type ChatMessageId,
   type ChatThread,
+  type TocEntry,
 } from '@/domain';
+import { useBookProfile, type ProfileGenerationDeps } from '@/features/ai/prompts';
 import type { ApiKeyState } from '@/features/ai/key/apiKeyStore';
 import type {
   ChatMessagesRepository,
@@ -38,7 +40,12 @@ import './chat-panel.css';
 
 type Props = {
   readonly bookId: string;
-  readonly book: { readonly title: string; readonly author?: string; readonly format: BookFormat };
+  readonly book: {
+    readonly title: string;
+    readonly author?: string;
+    readonly format: BookFormat;
+    readonly toc: readonly TocEntry[];
+  };
   readonly apiKeyState: ApiKeyState;
   readonly getApiKey: () => string | null;
   readonly selectedModelId: string | null;
@@ -57,6 +64,7 @@ type Props = {
   readonly onClearAttachedRetrieval?: () => void;
   readonly onToggleSearch?: () => void;
   readonly retrievalDeps?: RetrievalDeps;
+  readonly profileDeps?: ProfileGenerationDeps;
   readonly resolveChunkAnchor?: (chunkId: ChunkId) => Promise<LocationAnchor | null>;
   // When provided, MessageBubble's source footer can navigate the reader to
   // a saved-passage anchor. Workspace passes its goToAnchor here.
@@ -64,6 +72,10 @@ type Props = {
   // One-shot focus request: when .current === true, the composer textarea
   // focuses on next render and the flag self-clears. Used by Ask AI.
   readonly composerFocusRef?: { current: boolean };
+  // One-shot prefill ref drained by ChatComposer on next render. When omitted,
+  // ChatPanel falls back to a local ref so the component is usable in
+  // isolation (e.g., unit tests). Used by suggested-prompts ✎ icon.
+  readonly composerInitialTextRef?: { current: string | null };
 };
 
 const DRAFT_THREAD_ID = ChatThreadId('__draft__');
@@ -152,6 +164,38 @@ export function ChatPanel(props: Props) {
     return 'ready';
   }, [props.apiKeyState.kind, props.selectedModelId, threads.list.length, threads.draft]);
 
+  const localComposerInitialTextRef = useRef<string | null>(null);
+  const composerInitialTextRef = props.composerInitialTextRef ?? localComposerInitialTextRef;
+
+  const profile = useBookProfile({
+    book: {
+      id: bookIdBranded,
+      title: props.book.title,
+      ...(props.book.author !== undefined ? { author: props.book.author } : {}),
+      toc: props.book.toc,
+    },
+    modelId: props.selectedModelId,
+    enabled: variant === 'no-threads' && props.profileDeps !== undefined,
+    deps: props.profileDeps ?? {
+      // No-op deps used only when enabled=false; useBookProfile early-returns
+      // before touching them. Keeps profileDeps optional at the prop boundary.
+      chunksRepo: {} as never,
+      profilesRepo: {} as never,
+      structuredClient: { complete: () => Promise.reject(new Error('no profileDeps')) },
+    },
+  });
+
+  const composerFocusRef = props.composerFocusRef;
+  const handleFillComposer = useCallback(
+    (text: string): void => {
+      composerInitialTextRef.current = text;
+      if (composerFocusRef !== undefined) {
+        composerFocusRef.current = true;
+      }
+    },
+    [composerFocusRef],
+  );
+
   const targetMessage =
     savingMessageId !== null ? messages.list.find((m) => m.id === savingMessageId) : undefined;
   const targetUserMessage =
@@ -208,6 +252,9 @@ export function ChatPanel(props: Props) {
               threads.startDraft(props.selectedModelId ?? '');
             }}
             bookTitle={props.book.title}
+            promptsState={profile}
+            onSelectPrompt={handleSendNew}
+            onEditPrompt={handleFillComposer}
           />
         ) : (
           <MessageList
@@ -277,6 +324,7 @@ export function ChatPanel(props: Props) {
               handleSendNew(text);
             }}
             onCancel={send.cancel}
+            initialTextRef={composerInitialTextRef}
             {...(props.composerFocusRef && { focusRequest: props.composerFocusRef })}
             {...(props.onToggleSearch !== undefined && {
               onToggleSearch: props.onToggleSearch,

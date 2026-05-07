@@ -136,6 +136,12 @@ function fakeWiring(): Wiring {
       countStaleVersions: vi.fn(() => Promise.resolve([])),
       deleteOrphans: vi.fn(() => Promise.resolve(0)),
     },
+    bookProfilesRepo: {
+      get: vi.fn(() => Promise.resolve(null)),
+      put: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+      countStaleVersions: vi.fn(() => Promise.resolve([])),
+    },
     importDeps: {} as never,
     persistFirstQuotaRequest: vi.fn(() => Promise.resolve()),
     setOnBookImported: vi.fn(),

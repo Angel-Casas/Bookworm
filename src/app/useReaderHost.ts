@@ -195,6 +195,8 @@ export function useReaderHost({
           await wiring.bookChunksRepo.deleteByBook(BookId(book.id));
           // Phase 5.2: cascade embeddings.
           await wiring.bookEmbeddingsRepo.deleteByBook(BookId(book.id));
+          // Phase 5.3: cascade book profile.
+          await wiring.bookProfilesRepo.deleteByBook(BookId(book.id));
         } catch (err) {
           console.warn('Remove failed:', err);
         }
