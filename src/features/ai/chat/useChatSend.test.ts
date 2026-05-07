@@ -118,6 +118,62 @@ describe('useChatSend', () => {
     }
   });
 
+  it('chapter branch persists user message with mode chapter and section contextRef', async () => {
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'delta', text: 'answer' }, { kind: 'done' }]);
+    const chunks = [
+      {
+        id: 'chunk-b1-s1-0' as never,
+        bookId: 'b1' as never,
+        sectionId: 'spine:OEBPS/foo.html' as never,
+        sectionTitle: 'Chapter VII',
+        text: 'Chapter content',
+        normalizedText: 'Chapter content',
+        tokenEstimate: 50,
+        locationAnchor: { kind: 'epub-cfi' as const, cfi: '/' },
+        checksum: 'cs',
+        chunkerVersion: 1,
+      },
+    ];
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('t-1'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'Pride and Prejudice', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+        attachedChapter: {
+          sectionId: 'spine:OEBPS/foo.html' as never,
+          sectionTitle: 'Chapter VII',
+          chunks,
+          highlights: [],
+          notes: [],
+        },
+      }),
+    );
+    act(() => {
+      result.current.send('summarize this chapter');
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    const userCall = (append.mock.calls as unknown as unknown[][])[0];
+    const userMsg = userCall?.[0] as {
+      mode?: string;
+      contextRefs?: { kind: string; sectionTitle?: string }[];
+    };
+    expect(userMsg.mode).toBe('chapter');
+    expect(userMsg.contextRefs?.[0]?.kind).toBe('section');
+    expect(userMsg.contextRefs?.[0]?.sectionTitle).toBe('Chapter VII');
+  });
+
   it('cancel mid-stream transitions to aborted', async () => {
     const append = vi.fn(() => Promise.resolve(undefined));
     const patch = vi.fn(() => Promise.resolve(undefined));
