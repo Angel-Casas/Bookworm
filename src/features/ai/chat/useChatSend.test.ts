@@ -44,6 +44,80 @@ describe('useChatSend', () => {
     expect(result.current.state).toBe('idle');
   });
 
+  it('threadId override pins persisted messages to the override id, not args.threadId', async () => {
+    // Regression: ChatPanel.handleSendNew creates a real thread via
+    // persistDraft() and immediately calls send.send() in the same callback.
+    // Without an override, send reads args.threadId (still the draft
+    // sentinel) because React hasn't re-rendered yet. Result: every first
+    // message of a new thread persists under '__draft__' and orphans.
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'delta', text: 'ok' }, { kind: 'done' }]);
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('__draft__'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'X', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+      }),
+    );
+    const realId = ChatThreadId('t-real-1');
+    act(() => {
+      result.current.send('hello', realId);
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    // Both the user message append and the assistant placeholder append
+    // must use the override id. Neither should leak under '__draft__'.
+    for (const call of append.mock.calls) {
+      const arg = (call as unknown as unknown[])[0] as { threadId: string };
+      expect(arg.threadId).toBe('t-real-1');
+      expect(arg.threadId).not.toBe('__draft__');
+    }
+    // finalize is called with (messageId, patch); messageId encodes nothing
+    // about the thread, but the placeholder append above already pinned it
+    // to the override, so the finalize patch lands on the right thread.
+  });
+
+  it('without override, falls back to args.threadId (existing-thread sends unchanged)', async () => {
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'done' }]);
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('t-2'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'X', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+      }),
+    );
+    act(() => {
+      result.current.send('hello');
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    for (const call of append.mock.calls) {
+      const arg = (call as unknown as unknown[])[0] as { threadId: string };
+      expect(arg.threadId).toBe('t-2');
+    }
+  });
+
   it('cancel mid-stream transitions to aborted', async () => {
     const append = vi.fn(() => Promise.resolve(undefined));
     const patch = vi.fn(() => Promise.resolve(undefined));

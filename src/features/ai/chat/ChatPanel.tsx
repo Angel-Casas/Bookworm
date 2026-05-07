@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookId,
   ChatThreadId,
@@ -149,12 +149,30 @@ export function ChatPanel(props: Props) {
             updatedAt: now,
           };
           await threads.persistDraft(thread);
+          // Pass the freshly-created id explicitly. `send.send` reads
+          // args.threadId via argsRef, but argsRef hasn't been updated yet —
+          // React schedules a re-render on persistDraft's setActiveId(id),
+          // and our useEffect that refreshes argsRef only fires after that
+          // commit. Without the override, every first message of a new
+          // thread persists under the draft sentinel and orphans there.
+          send.send(text, id);
+          return;
         }
         send.send(text);
       })();
     },
     [threads, bookIdBranded, send, props.selectedModelId],
   );
+
+  // One-time cleanup of pre-fix orphan messages persisted under the draft
+  // sentinel. After this PR ships, no new messages should ever land under
+  // DRAFT_THREAD_ID — handleSendNew always passes the real id explicitly.
+  // So any rows that exist under the sentinel are stale and safe to remove.
+  // Best-effort: if the delete fails, the orphans simply remain hidden
+  // because no real thread points at the sentinel.
+  useEffect(() => {
+    void props.messagesRepo.deleteByThread(DRAFT_THREAD_ID).catch(() => undefined);
+  }, [props.messagesRepo]);
 
   type Variant = 'no-key' | 'no-model' | 'no-threads' | 'ready';
   const variant: Variant = useMemo(() => {
