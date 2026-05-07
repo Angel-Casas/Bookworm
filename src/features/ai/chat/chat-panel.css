@@ -57,6 +57,14 @@
   outline-offset: 2px;
 }
 
+.chat-empty__action--secondary {
+  background: transparent;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  margin-top: var(--space-2);
+}
+.chat-empty__action--secondary:hover { color: var(--color-text); }
+
 .privacy-preview {
   padding: var(--space-2) var(--space-4);
   border-block-start: 1px solid var(--color-border-subtle);
