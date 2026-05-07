@@ -41,10 +41,25 @@ describe('assembleProfilePrompt', () => {
     expect(messages[1]?.role).toBe('user');
   });
 
-  it('system prompt mentions schema, categories, and specificity demand', () => {
+  it('system prompt mentions schema and categories', () => {
     expect(BOOK_PROFILE_SYSTEM_PROMPT).toMatch(/JSON/);
     expect(BOOK_PROFILE_SYSTEM_PROMPT).toMatch(/comprehension/);
-    expect(BOOK_PROFILE_SYSTEM_PROMPT).toMatch(/specific/);
+  });
+
+  it('system prompt biases toward beginner-friendly starter questions, not deep analysis', () => {
+    // Regression: the original prompt instructed the LLM to "Avoid generic
+    // prompts like 'What is this book about?'", which produced multi-clause
+    // analytical questions that overwhelmed first-time readers. The product
+    // intent is exactly the opposite — generic gateway questions are good.
+    const lower = BOOK_PROFILE_SYSTEM_PROMPT.toLowerCase();
+    // Positive signals: the prompt should explicitly bless gateway questions.
+    expect(lower).toMatch(/beginner|starter|gateway|simple/);
+    expect(BOOK_PROFILE_SYSTEM_PROMPT).toContain('What is this book about?');
+    // Negative signals: the prompt should not still be steering toward
+    // graduate-seminar-style framings.
+    expect(lower).not.toMatch(/relationship-arc/);
+    expect(lower).not.toMatch(/motive-tracking/);
+    expect(lower).not.toMatch(/claim-mapping/);
   });
 
   it('user message contains title, author, and TOC', () => {
