@@ -29,6 +29,9 @@ import { EpubChunkExtractor } from '@/features/library/indexing/EpubChunkExtract
 import { PdfChunkExtractor } from '@/features/library/indexing/PdfChunkExtractor';
 import { IndexInspectorModal } from '@/features/library/indexing/IndexInspectorModal';
 import { embed as nanogptEmbed } from '@/features/ai/chat/nanogptEmbeddings';
+import { complete as nanogptComplete } from '@/features/ai/chat/nanogptStructured';
+import type { StructuredClient } from '@/features/ai/chat/nanogptStructured';
+import type { ProfileGenerationDeps } from '@/features/ai/prompts';
 import type { EmbedClient } from '@/features/library/indexing/embeddings/types';
 import { LIBRARY_VIEW, type AppView } from '@/app/view';
 import type { FocusMode } from '@/domain/reader';
@@ -138,6 +141,29 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
       embedClient,
     }),
     [wiring.bookChunksRepo, wiring.bookEmbeddingsRepo, embedClient],
+  );
+
+  const structuredClient = useMemo<StructuredClient>(
+    () => ({
+      complete: (req) =>
+        nanogptComplete({
+          apiKey: getApiKeyForEmbed(),
+          modelId: req.modelId,
+          messages: req.messages,
+          schema: req.schema,
+          ...(req.signal !== undefined ? { signal: req.signal } : {}),
+        }),
+    }),
+    [getApiKeyForEmbed],
+  );
+
+  const profileDeps = useMemo<ProfileGenerationDeps>(
+    () => ({
+      chunksRepo: wiring.bookChunksRepo,
+      profilesRepo: wiring.bookProfilesRepo,
+      structuredClient,
+    }),
+    [wiring.bookChunksRepo, wiring.bookProfilesRepo, structuredClient],
   );
 
   // Wire the import → enqueue pipeline. wiring.persistBook calls a stored
@@ -286,6 +312,8 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           retrievalDeps={retrievalDeps}
           bookChunksRepo={wiring.bookChunksRepo}
           bookEmbeddingsRepo={wiring.bookEmbeddingsRepo}
+          bookToc={book.toc}
+          profileDeps={profileDeps}
         />
       </div>
     );

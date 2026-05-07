@@ -79,6 +79,7 @@ const baseProps = {
   apiKeyState: { kind: 'none' as const },
   getApiKey: () => null,
   selectedModelId: null,
+  bookToc: [],
   bookChunksRepo: {
     upsertMany: () => Promise.resolve(),
     listByBook: () => Promise.resolve([]),

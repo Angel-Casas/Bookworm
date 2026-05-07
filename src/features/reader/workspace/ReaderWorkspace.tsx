@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HighlightId} from '@/domain';
 import { BookId, type BookFormat, type LocationAnchor } from '@/domain';
+import type { Book } from '@/domain';
+import type { ProfileGenerationDeps } from '@/features/ai/prompts';
 import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
 import type {
   BookmarksRepository,
@@ -78,6 +80,8 @@ type Props = {
   readonly retrievalDeps?: RetrievalDeps;
   readonly bookChunksRepo: BookChunksRepository;
   readonly bookEmbeddingsRepo: BookEmbeddingsRepository;
+  readonly profileDeps?: ProfileGenerationDeps;
+  readonly bookToc: Book['toc'];
 };
 
 type SheetTab = { key: string; label: string; badge?: number };
@@ -172,6 +176,10 @@ export function ReaderWorkspace(props: Props) {
   // One-shot focus signal for the chat composer after Ask AI. ChatComposer
   // self-clears the flag once it has fired focus().
   const composerFocusRef = useRef<boolean>(false);
+  // One-shot prefill ref drained by ChatComposer on next render — used by the
+  // suggested-prompts ✎ icon. Owned here so desktop and mobile-sheet ChatPanel
+  // instances share the same prefill semantics across remounts.
+  const composerInitialTextRef = useRef<string | null>(null);
 
   // Ask-AI gate: AI is configured and a model is picked. Hidden entirely (not
   // disabled) when false — matches the spec's "no half-disabled UI" rule.
@@ -509,6 +517,7 @@ export function ReaderWorkspace(props: Props) {
                 title: props.bookTitle,
                 ...(props.bookSubtitle !== undefined && { author: props.bookSubtitle }),
                 format: props.bookFormat,
+                toc: props.bookToc,
               }}
               apiKeyState={props.apiKeyState}
               getApiKey={props.getApiKey}
@@ -530,6 +539,9 @@ export function ReaderWorkspace(props: Props) {
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
+              {...(props.profileDeps !== undefined && {
+                profileDeps: props.profileDeps,
+              })}
               resolveChunkAnchor={resolveChunkAnchor}
               onJumpToReaderAnchor={(anchor) => {
                 if (!readerState) return;
@@ -540,6 +552,7 @@ export function ReaderWorkspace(props: Props) {
                 readerState.goToAnchor(target);
               }}
               composerFocusRef={composerFocusRef}
+              composerInitialTextRef={composerInitialTextRef}
             />
           </RightRail>
         ) : null}
@@ -619,6 +632,7 @@ export function ReaderWorkspace(props: Props) {
                 title: props.bookTitle,
                 ...(props.bookSubtitle !== undefined && { author: props.bookSubtitle }),
                 format: props.bookFormat,
+                toc: props.bookToc,
               }}
               apiKeyState={props.apiKeyState}
               getApiKey={props.getApiKey}
@@ -640,6 +654,9 @@ export function ReaderWorkspace(props: Props) {
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
+              {...(props.profileDeps !== undefined && {
+                profileDeps: props.profileDeps,
+              })}
               resolveChunkAnchor={resolveChunkAnchor}
               onJumpToReaderAnchor={(anchor) => {
                 if (!readerState) return;
@@ -651,6 +668,7 @@ export function ReaderWorkspace(props: Props) {
                 setActiveSheet(null);
               }}
               composerFocusRef={composerFocusRef}
+              composerInitialTextRef={composerInitialTextRef}
             />
           ) : null}
         </MobileSheet>

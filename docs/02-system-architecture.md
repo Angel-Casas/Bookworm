@@ -309,6 +309,61 @@ Modern, OPFS-capable browsers only:
 No fallback path for older browsers in v1. May be revisited later.
 
 ## Decision history
+### 2026-05-07 — Phase 5.3 suggested prompts
+
+- **Profile-first generation.** A categorized BookProfile (`{summary,
+  genre, structure, themes, keyEntities}`) is generated on first
+  chat-panel open per book and persisted in a new `book_profiles` IDB
+  store (v8 → v9 additive migration). The profile is load-bearing for
+  Phase 5.4 (chapter mode prompts) and Phase 6 (prompt-cache stable
+  prefix); generating it now means downstream phases skip re-engineering.
+- **Lazy timing — chat-panel open == implicit consent.** Embeddings
+  (Phase 5.2) were eager because retrieval is a critical path; profiles
+  are a delight surface, so they're generated only when the user shows
+  interest by opening the chat panel. Books the user only reads incur no
+  AI cost.
+- **Categorized profile schema.** `structure: 'fiction' | 'nonfiction' |
+  'textbook' | 'reference'` discriminates prompt categories at LLM time
+  (relationship maps for fiction, claim maps for nonfiction). Typed
+  entity buckets (`characters/concepts/places`) ground prompts in
+  specifics.
+- **Prompt schema = `{text, category}`.** Five-category union
+  (`comprehension/analysis/structure/creative/study`) matches engine doc
+  §"Suggested prompts system". UI groups/badges deferred to Phase 6
+  polish; v1 renders flat.
+- **Display = no-threads empty state only.** Suggestions are an
+  onboarding surface, not always-visible chrome. Once any thread exists,
+  prompts are out of view; matches ChatGPT/Claude convention. The
+  `'no-threads'` variant of `ChatEmptyState` extends with optional
+  `promptsState`, `onSelectPrompt`, `onEditPrompt`.
+- **Click sends; ✎ icon fills composer.** Pre-vetted LLM-generated
+  prompts shouldn't need editing by default → primary path is
+  zero-friction. The ✎ icon offers an opt-in tweak path. The ✎ uses a
+  `<span role="button" tabIndex={0}>` because nested `<button>` is
+  invalid HTML; equivalent keyboard semantics via Enter/Space handlers.
+- **Network module: `nanogptStructured.ts`.** Reuses
+  `/v1/chat/completions` with `response_format: { type: 'json_schema',
+  json_schema }`. Failure taxonomy mirrors `nanogptChat` plus a new
+  `'schema-violation'` reserved for orchestrator-level
+  `validateProfile` rejections. Implementation-time probe verified
+  NanoGPT supports the `json_schema` shape per OpenAI spec.
+- **Defensive validation.** `validateProfile` re-checks the shape of the
+  LLM's response despite `strict: true` because providers don't always
+  honor strict; trims `prompts` to `≤8`. The schema literal is the
+  single source of truth for both request-time `response_format` and
+  post-response validation.
+- **Even-stride sampling under a 3000-token budget.** Defends against
+  first-chapter bias; deterministic (same book → same prompt every
+  time). Stride = `ceil(sections.length / desiredSamples)`.
+- **Cascade extension.**
+  `useReaderHost.onRemoveBook` adds `bookProfilesRepo.deleteByBook` to
+  the existing `messages → threads → savedAnswers → chunks → embeddings`
+  cascade.
+- **`profileSchemaVersion` reserved for forward-compat.**
+  `BookProfilesRepository.countStaleVersions` is wired but no app-open
+  scan runs against it in v1; auto-invalidation on schema bumps lands in
+  Phase 6+ when warranted.
+
 ### 2026-05-06 — Phase 5.2 retrieval baseline
 
 - **Embeddings storage in a new `book_embeddings` IDB store (v7 → v8).**

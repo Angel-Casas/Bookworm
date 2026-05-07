@@ -46,4 +46,8 @@ export {
   createBookEmbeddingsRepository,
   type BookEmbeddingsRepository,
 } from './repositories/bookEmbeddings';
+export {
+  createBookProfilesRepository,
+  type BookProfilesRepository,
+} from './repositories/bookProfiles';
 export type { AppView } from './db/schema';
