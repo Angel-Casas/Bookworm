@@ -19,6 +19,10 @@ type Props = {
   // Phase 5.2 retrieval mode toggle. Hidden when undefined.
   readonly onToggleSearch?: () => void;
   readonly retrievalAttached?: boolean;
+  // Phase 5.3: when this ref's .current is non-null, the composer drains
+  // it into the textarea on next render and clears the ref. Used by the
+  // suggested-prompts ✎ icon to fill-without-sending.
+  readonly initialTextRef?: { current: string | null };
 };
 
 function isMac(): boolean {
@@ -36,6 +40,7 @@ export function ChatComposer({
   focusRequest,
   onToggleSearch,
   retrievalAttached,
+  initialTextRef,
 }: Props) {
   const [text, setText] = useState<string>('');
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -50,10 +55,14 @@ export function ChatComposer({
     ta.style.height = `${String(Math.min(ta.scrollHeight, maxH))}px`;
   }, [text]);
 
-  // Drains a one-shot focus request set by the workspace's Ask AI handler.
-  // Runs on every render; the .current flag self-clears so it only fires once
-  // per request.
+  // Drains one-shot signals set by the workspace (Ask AI for focus, suggested
+  // prompts ✎ for fill-then-focus). Both refs self-clear so each fires once
+  // per assignment.
   useEffect(() => {
+    if (initialTextRef?.current !== null && initialTextRef?.current !== undefined) {
+      setText(initialTextRef.current);
+      initialTextRef.current = null;
+    }
     if (focusRequest?.current === true) {
       focusRequest.current = false;
       taRef.current?.focus();
