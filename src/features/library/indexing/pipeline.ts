@@ -130,6 +130,22 @@ export async function runIndexing(
 
     if (signal.aborted) return;
 
+    // The chunking loop completed but may have produced zero chunks (e.g.,
+    // a book with sections but no paragraph-tag content, or an extractor
+    // bug that silently yields nothing). Refuse to mark such a book 'ready'
+    // — without chunks, retrieval and profile generation can never work,
+    // and the chat panel would be permanently stuck on 'still preparing'.
+    // 'failed' surfaces the issue and exposes a Retry affordance.
+    const chunkCount = await deps.chunksRepo.countByBook(book.id);
+    if (chunkCount === 0) {
+      await setStatus(
+        book.id,
+        { kind: 'failed', reason: 'no-text-extracted' },
+        deps.booksRepo,
+      );
+      return;
+    }
+
     const outcome = await runEmbeddingStage(book, signal, deps);
     if (outcome === 'aborted' || outcome === 'failed') return;
 

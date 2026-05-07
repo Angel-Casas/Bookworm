@@ -216,6 +216,58 @@ describe('runIndexing — chunking stage', () => {
     });
   });
 
+  it('writes failed{no-text-extracted} when sections exist but every section yields zero paragraphs', async () => {
+    // Regression: the EPUB chunker can silently yield zero paragraphs across
+    // every section (e.g., XHTML lowercase tagName mismatch with the
+    // PARAGRAPH_TAGS set, or a structurally weird EPUB). Before this guard,
+    // the pipeline marked the book 'ready' anyway because runEmbeddingStage
+    // early-returns 'ok' on empty allChunks. Result: indexingStatus 'ready'
+    // with zero chunks → chat panel permanently stuck on 'still preparing'.
+    const book = makeBook();
+    const booksRepo = makeStubBookRepo(book);
+    const chunksRepo = makeStubChunksRepo();
+    // Sections exist (so the sections-empty path doesn't fire), but the
+    // extractor yields nothing for any of them.
+    const emptyExtractor = {
+      listSections: vi.fn(() =>
+        Promise.resolve([
+          {
+            id: SectionId('s1'),
+            title: 'Ch 1',
+            range: { kind: 'epub' as const, spineIndex: 0 },
+          },
+          {
+            id: SectionId('s2'),
+            title: 'Ch 2',
+            range: { kind: 'epub' as const, spineIndex: 1 },
+          },
+        ]),
+      ),
+      // eslint-disable-next-line require-yield
+      streamParagraphs: vi.fn(async function* () {
+        await Promise.resolve();
+      }),
+    };
+    const ctrl = new AbortController();
+
+    await runIndexing(book, ctrl.signal, {
+      booksRepo,
+      chunksRepo,
+      embeddingsRepo: makeStubEmbeddingsRepo(),
+      epubExtractor: emptyExtractor,
+      pdfExtractor: {} as never,
+      embedClient: makeStubEmbedClient(),
+    });
+
+    expect(booksRepo.current().indexingStatus).toEqual({
+      kind: 'failed',
+      reason: 'no-text-extracted',
+    });
+    expect(chunksRepo.upsertMany).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.anything()]),
+    );
+  });
+
   it('writes failed{...} on extractor error with classified reason', async () => {
     const book = makeBook();
     const booksRepo = makeStubBookRepo(book);
