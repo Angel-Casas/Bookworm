@@ -93,4 +93,92 @@ describe('ChatComposer', () => {
     fireEvent.click(screen.getByLabelText('Stop'));
     expect(onCancel).toHaveBeenCalled();
   });
+
+  describe('chapter-mode toggle', () => {
+    it('hides the chapter button when onToggleChapter is undefined', () => {
+      const { container } = render(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+        />,
+      );
+      expect(container.querySelector('.chat-composer__chapter-toggle')).toBeNull();
+    });
+
+    it('shows the button when onToggleChapter is provided; default disabled=false', () => {
+      const { container } = render(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+          onToggleChapter={() => undefined}
+        />,
+      );
+      const btn = container.querySelector('.chat-composer__chapter-toggle');
+      expect(btn).not.toBeNull();
+      expect((btn as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('disables the button when chapterAttachable is false', () => {
+      const { container } = render(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+          onToggleChapter={() => undefined}
+          chapterAttachable={false}
+        />,
+      );
+      const btn = container.querySelector<HTMLButtonElement>('.chat-composer__chapter-toggle')!;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it('aria-pressed reflects chapterAttached', () => {
+      const { container, rerender } = render(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+          onToggleChapter={() => undefined}
+          chapterAttached={false}
+        />,
+      );
+      let btn = container.querySelector<HTMLButtonElement>('.chat-composer__chapter-toggle')!;
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+
+      rerender(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+          onToggleChapter={() => undefined}
+          chapterAttached={true}
+        />,
+      );
+      btn = container.querySelector<HTMLButtonElement>('.chat-composer__chapter-toggle')!;
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('clicking the button fires onToggleChapter', () => {
+      const onToggleChapter = vi.fn();
+      const { container } = render(
+        <ChatComposer
+          streaming={false}
+          placeholder="Ask"
+          onSend={() => undefined}
+          onCancel={() => undefined}
+          onToggleChapter={onToggleChapter}
+        />,
+      );
+      const btn = container.querySelector<HTMLButtonElement>('.chat-composer__chapter-toggle')!;
+      fireEvent.click(btn);
+      expect(onToggleChapter).toHaveBeenCalledOnce();
+    });
+  });
 });
