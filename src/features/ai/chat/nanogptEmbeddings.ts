@@ -26,10 +26,20 @@ export type EmbedFailure =
 
 export class EmbedError extends Error {
   readonly failure: EmbedFailure;
-  constructor(failure: EmbedFailure) {
-    super(`embed failed: ${failure.reason}`);
+  // Server-supplied error body, captured for HTTP failures to aid debugging.
+  // Most NanoGPT errors include a JSON `error.message` describing the
+  // specific cause (e.g., model-not-found, batch-too-large, malformed
+  // input). Without this, callers see only our coarse failure.reason.
+  readonly serverMessage?: string;
+  constructor(failure: EmbedFailure, serverMessage?: string) {
+    const tail =
+      serverMessage !== undefined && serverMessage.length > 0
+        ? ` — ${serverMessage}`
+        : '';
+    super(`embed failed: ${failure.reason}${tail}`);
     this.name = 'EmbedError';
     this.failure = failure;
+    if (serverMessage !== undefined) this.serverMessage = serverMessage;
   }
 }
 
@@ -75,7 +85,15 @@ export async function embed(req: EmbedRequest): Promise<EmbedResult> {
     throw new EmbedError({ reason: 'network' });
   }
 
-  if (!res.ok) throw new EmbedError(classifyHttpFailure(res));
+  if (!res.ok) {
+    // Read the server's error body before throwing — NanoGPT typically
+    // returns { error: { message, type, code } } with the specific cause.
+    // Truncate to keep error messages bounded; full body still available
+    // via err.serverMessage for callers that want it.
+    const bodyText = await res.text().catch(() => '');
+    const trimmed = bodyText.length > 500 ? `${bodyText.slice(0, 500)}…` : bodyText;
+    throw new EmbedError(classifyHttpFailure(res), trimmed);
+  }
 
   let payload: RawResponse;
   try {

@@ -107,6 +107,37 @@ describe('nanogptEmbeddings.embed', () => {
     ).rejects.toMatchObject({ failure: { reason: 'model-unavailable', status: 404 } });
   });
 
+  it('captures server error body in serverMessage and error message', async () => {
+    const errBody = JSON.stringify({
+      error: { message: 'input array length exceeds limit', type: 'bad_request' },
+    });
+    mockFetch(() => Promise.resolve(new Response(errBody, { status: 400 })));
+    try {
+      await embed({ apiKey: 'KEY', modelId: 'text-embedding-3-small', inputs: ['x'] });
+      throw new Error('expected embed to throw');
+    } catch (err) {
+      // Type narrowing: we assert structurally.
+      expect(err).toMatchObject({
+        failure: { reason: 'model-unavailable', status: 400 },
+        serverMessage: errBody,
+      });
+      expect((err as Error).message).toContain('input array length exceeds limit');
+    }
+  });
+
+  it('truncates very large server bodies to 500 chars', async () => {
+    const big = `x`.repeat(2000);
+    mockFetch(() => Promise.resolve(new Response(big, { status: 400 })));
+    try {
+      await embed({ apiKey: 'KEY', modelId: 'text-embedding-3-small', inputs: ['x'] });
+      throw new Error('expected embed to throw');
+    } catch (err) {
+      const msg = (err as { serverMessage?: string }).serverMessage ?? '';
+      expect(msg.length).toBeLessThanOrEqual(501); // 500 + ellipsis
+      expect(msg.endsWith('…')).toBe(true);
+    }
+  });
+
   it('throws server on 500', async () => {
     mockFetch(() => Promise.resolve(new Response('', { status: 500 })));
     await expect(
