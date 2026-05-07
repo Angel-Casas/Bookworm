@@ -5,9 +5,52 @@ type Props = {
   readonly book: Book;
   readonly onOpenInspector: () => void;
   readonly onRetry: () => void;
+  // When the failure is auth-related ('embedding-no-key'), the card surfaces
+  // an "Open Settings" affordance. Optional so callers without a settings
+  // navigation handler still get the generic Retry-only UI.
+  readonly onOpenSettings?: () => void;
 };
 
-export function BookCardIndexingStatus({ book, onOpenInspector, onRetry }: Props) {
+type FailedReasonCopy = {
+  readonly headline: string;
+  readonly tooltip: string;
+  readonly hint?: string;
+};
+
+function describeFailure(reason: string): FailedReasonCopy {
+  switch (reason) {
+    case 'embedding-no-key':
+      return {
+        headline: 'API key required',
+        tooltip: 'No API key configured, or your saved key is locked.',
+        hint: 'Add or unlock your key in Settings, then click Retry.',
+      };
+    case 'embedding-insufficient-balance':
+      return {
+        headline: 'Top up your account',
+        tooltip: 'Embedding requires a non-zero NanoGPT balance.',
+        hint: 'Add credit at nano-gpt.com, then click Retry.',
+      };
+    case 'embedding-rate-limited':
+      return {
+        headline: 'Rate limited',
+        tooltip: 'Too many requests in a short window.',
+        hint: 'Wait a moment, then click Retry.',
+      };
+    default:
+      return {
+        headline: "Couldn't index",
+        tooltip: reason,
+      };
+  }
+}
+
+export function BookCardIndexingStatus({
+  book,
+  onOpenInspector,
+  onRetry,
+  onOpenSettings,
+}: Props) {
   const status = book.indexingStatus;
   switch (status.kind) {
     case 'pending':
@@ -50,11 +93,23 @@ export function BookCardIndexingStatus({ book, onOpenInspector, onRetry }: Props
           </button>
         </div>
       );
-    case 'failed':
+    case 'failed': {
+      const copy = describeFailure(status.reason);
+      const showSettings =
+        status.reason === 'embedding-no-key' && onOpenSettings !== undefined;
       return (
         <div className="book-card-indexing-status">
           <span aria-hidden="true">⚠</span>
-          <span title={status.reason}>Couldn&apos;t index</span>
+          <span title={copy.tooltip}>{copy.headline}</span>
+          {showSettings ? (
+            <button
+              type="button"
+              className="book-card-indexing-status__action"
+              onClick={onOpenSettings}
+            >
+              Open Settings
+            </button>
+          ) : null}
           <button
             type="button"
             className="book-card-indexing-status__retry"
@@ -64,9 +119,10 @@ export function BookCardIndexingStatus({ book, onOpenInspector, onRetry }: Props
             Retry
           </button>
           <span id="retry-reason" className="visually-hidden">
-            Reason: {status.reason}
+            {copy.hint ?? `Reason: ${status.reason}`}
           </span>
         </div>
       );
+    }
   }
 }

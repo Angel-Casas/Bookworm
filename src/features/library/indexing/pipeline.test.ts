@@ -428,10 +428,14 @@ describe('runIndexing — embedding stage (Phase 5.2)', () => {
     const booksRepo = makeStubBookRepo(book);
     const chunksRepo = makeStubChunksRepo([makeChunk(0)]);
     chunksRepo.hasChunksFor = vi.fn(() => Promise.resolve(true));
+    // Use a generic 'network' EmbedFailure here — invalid-key now classifies
+    // as 'embedding-no-key' (covered by classifyEmbeddingError.test.ts and
+    // BookCardIndexingStatus.test.tsx). This test asserts the fallback path
+    // for unrecognized failures.
     const embedClient = makeStubEmbedClient({
       throwOnCall: 1,
-      throwError: Object.assign(new Error('embed: invalid-key'), {
-        failure: { reason: 'invalid-key', status: 401 },
+      throwError: Object.assign(new Error('embed: network'), {
+        failure: { reason: 'network' },
       }),
     });
 

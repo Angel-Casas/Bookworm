@@ -73,6 +73,7 @@ export function LibraryWorkspace({
         coverCache={coverCache}
         searchQuery={search}
         onRemove={onRemoveBook}
+        onOpenSettings={onOpenSettings}
         {...(onOpenBook && { onOpenBook })}
         {...(onOpenInspector && { onOpenInspector })}
         {...(onRetryIndex && { onRetryIndex })}

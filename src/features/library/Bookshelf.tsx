@@ -11,6 +11,7 @@ type Props = {
   readonly onOpenBook?: (book: Book) => void;
   readonly onOpenInspector?: (bookId: BookId) => void;
   readonly onRetryIndex?: (bookId: BookId) => void;
+  readonly onOpenSettings?: () => void;
 };
 
 export function Bookshelf({
@@ -21,6 +22,7 @@ export function Bookshelf({
   onOpenBook,
   onOpenInspector,
   onRetryIndex,
+  onOpenSettings,
 }: Props) {
   const trimmed = searchQuery.trim();
   if (books.length === 0 && trimmed.length > 0) {
@@ -42,6 +44,7 @@ export function Bookshelf({
               {...(onOpenBook && { onOpen: onOpenBook })}
               {...(onOpenInspector && { onOpenInspector })}
               {...(onRetryIndex && { onRetryIndex })}
+              {...(onOpenSettings && { onOpenSettings })}
             />
           </li>
         ))}
