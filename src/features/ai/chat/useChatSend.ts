@@ -64,7 +64,13 @@ export type UseChatSendHandle = {
   readonly state: SendState;
   readonly partial: string;
   readonly failure: ChatCompletionFailure | null;
-  readonly send: (userText: string) => void;
+  // `threadIdOverride` lets the caller pin the destination thread for this
+  // single send, regardless of args.threadId. Used by ChatPanel.handleSendNew
+  // to persist messages to a freshly-created thread within the same callback
+  // — without the override, the captured args.threadId is still the draft
+  // sentinel because React hasn't re-rendered with the new active id yet,
+  // leaking messages under '__draft__'.
+  readonly send: (userText: string, threadIdOverride?: ChatThreadId) => void;
   readonly cancel: () => void;
   readonly retry: () => void;
 };
@@ -95,8 +101,9 @@ export function useChatSend(args: Args): UseChatSendHandle {
     [],
   );
 
-  const send = useCallback((userText: string): void => {
+  const send = useCallback((userText: string, threadIdOverride?: ChatThreadId): void => {
     const a = argsRef.current;
+    const threadId = threadIdOverride ?? a.threadId;
     const apiKey = a.getApiKey();
     if (apiKey === null) {
       setFailure({ reason: 'invalid-key', status: 401 });
@@ -118,7 +125,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
     if (isRetrieval) {
       void a.append({
         id: userMsgId,
-        threadId: a.threadId,
+        threadId,
         role: 'user',
         content: userText,
         mode: 'retrieval',
@@ -127,7 +134,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
       });
       void a.append({
         id: assistantMsgId,
-        threadId: a.threadId,
+        threadId,
         role: 'assistant',
         content: '',
         mode: 'retrieval',
@@ -207,7 +214,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
         actorRef.current?.stop();
         const actor = createActor(machine, {
           input: {
-            threadId: a.threadId,
+            threadId,
             pendingUserMessageId: userMsgId,
             pendingAssistantMessageId: assistantMsgId,
             modelId: a.modelId,
@@ -252,7 +259,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
 
     void a.append({
       id: userMsgId,
-      threadId: a.threadId,
+      threadId,
       role: 'user',
       content: userText,
       mode: isPassage ? 'passage' : 'open',
@@ -261,7 +268,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
     });
     void a.append({
       id: assistantMsgId,
-      threadId: a.threadId,
+      threadId,
       role: 'assistant',
       content: '',
       mode: isPassage ? 'passage' : 'open',
@@ -310,7 +317,7 @@ export function useChatSend(args: Args): UseChatSendHandle {
     actorRef.current?.stop();
     const actor = createActor(machine, {
       input: {
-        threadId: a.threadId,
+        threadId,
         pendingUserMessageId: userMsgId,
         pendingAssistantMessageId: assistantMsgId,
         modelId: a.modelId,
