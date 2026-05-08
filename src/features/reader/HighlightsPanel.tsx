@@ -15,6 +15,12 @@ type Props = {
   readonly onChangeColor: (h: Highlight, color: HighlightColor) => void;
   readonly onSaveNote: (h: Highlight, content: string) => void;
   readonly nowMs?: number;
+  // Phase 5.5 multi-excerpt mode. All three must be supplied for the compare
+  // affordance to render; missing any of them hides it (e.g., panel mounted
+  // outside a tray-aware workspace).
+  readonly isHighlightInCompare?: (h: Highlight) => boolean;
+  readonly canAddMoreToCompare?: boolean;
+  readonly onToggleHighlightInCompare?: (h: Highlight) => void;
 };
 
 export function HighlightsPanel({
@@ -25,6 +31,9 @@ export function HighlightsPanel({
   onChangeColor,
   onSaveNote,
   nowMs,
+  isHighlightInCompare,
+  canAddMoreToCompare,
+  onToggleHighlightInCompare,
 }: Props) {
   const [editingNoteFor, setEditingNoteFor] = useState<HighlightId | null>(null);
 
@@ -142,6 +151,35 @@ export function HighlightsPanel({
                 >
                   <NoteIcon />
                 </button>
+                {!isEditing && onToggleHighlightInCompare && isHighlightInCompare
+                  ? (() => {
+                      const inTray = isHighlightInCompare(h);
+                      const ariaLabel = inTray
+                        ? 'Remove from compare'
+                        : canAddMoreToCompare === false
+                          ? 'Compare set full (6)'
+                          : 'Add to compare';
+                      const disabled = !inTray && canAddMoreToCompare === false;
+                      return (
+                        <button
+                          type="button"
+                          className={
+                            inTray
+                              ? 'highlights-panel__compare highlights-panel__compare--active'
+                              : 'highlights-panel__compare'
+                          }
+                          aria-label={ariaLabel}
+                          title={ariaLabel}
+                          disabled={disabled}
+                          onClick={() => {
+                            onToggleHighlightInCompare(h);
+                          }}
+                        >
+                          {inTray ? '✓' : '+'}
+                        </button>
+                      );
+                    })()
+                  : null}
                 {!isEditing ? (
                   <button
                     type="button"

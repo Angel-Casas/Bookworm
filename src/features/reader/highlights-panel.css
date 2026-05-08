@@ -124,6 +124,36 @@
   padding: 0 4px;
 }
 
+.highlights-panel__compare {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.highlights-panel__compare:hover:not(:disabled) {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+}
+.highlights-panel__compare:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.highlights-panel__compare--active {
+  color: var(--color-accent);
+}
+.highlights-panel__compare:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 .highlights-panel--empty {
   align-items: center;
   justify-content: center;

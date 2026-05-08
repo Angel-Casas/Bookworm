@@ -237,4 +237,72 @@ describe('HighlightsPanel — notes', () => {
     fireEvent.click(screen.getByRole('button', { name: /cancel note/i }));
     expect(screen.queryByRole('textbox')).toBeNull();
   });
+
+  describe('compare row affordance (Phase 5.5)', () => {
+    const sampleHighlight = h({ id: HighlightId('hl-compare-1') });
+    const baseProps = {
+      highlights: [sampleHighlight],
+      notesByHighlightId: EMPTY_NOTES,
+      onSelect: vi.fn(),
+      onDelete: vi.fn(),
+      onChangeColor: vi.fn(),
+      onSaveNote: vi.fn(),
+    };
+
+    it('renders nothing for compare when handlers missing', () => {
+      render(<HighlightsPanel {...baseProps} />);
+      expect(screen.queryByRole('button', { name: /add to compare/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /remove from compare/i })).toBeNull();
+    });
+
+    it('renders + button when not in tray and tray not full', () => {
+      render(
+        <HighlightsPanel
+          {...baseProps}
+          isHighlightInCompare={() => false}
+          canAddMoreToCompare={true}
+          onToggleHighlightInCompare={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /add to compare/i })).toBeInTheDocument();
+    });
+
+    it('renders ✓ button (Remove from compare) when highlight is in tray', () => {
+      render(
+        <HighlightsPanel
+          {...baseProps}
+          isHighlightInCompare={() => true}
+          canAddMoreToCompare={true}
+          onToggleHighlightInCompare={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /remove from compare/i })).toBeInTheDocument();
+    });
+
+    it('disables + button when tray is full and highlight not yet in tray', () => {
+      render(
+        <HighlightsPanel
+          {...baseProps}
+          isHighlightInCompare={() => false}
+          canAddMoreToCompare={false}
+          onToggleHighlightInCompare={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /compare set full/i })).toBeDisabled();
+    });
+
+    it('clicking the affordance calls onToggleHighlightInCompare with the highlight', () => {
+      const onToggle = vi.fn();
+      render(
+        <HighlightsPanel
+          {...baseProps}
+          isHighlightInCompare={() => false}
+          canAddMoreToCompare={true}
+          onToggleHighlightInCompare={onToggle}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /add to compare/i }));
+      expect(onToggle).toHaveBeenCalledWith(sampleHighlight);
+    });
+  });
 });
