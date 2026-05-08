@@ -742,9 +742,6 @@ export function ReaderWorkspace(props: Props) {
               messagesRepo={props.chatMessagesRepo}
               savedAnswersRepo={props.savedAnswersRepo}
               onOpenSettings={props.onOpenSettings}
-              onCollapse={() => {
-                rightRail.set(false);
-              }}
               hintShown={props.initialChatPanelHintShown}
               onHintDismiss={props.onChatPanelHintDismiss}
               attachedPassage={attachedPassage}
@@ -997,6 +994,11 @@ export function ReaderWorkspace(props: Props) {
 
 const EDITOR_HEIGHT_GUESS = 96;
 const EDITOR_GAP = 8;
+// Half-width assumed for clamping. The note-editor's max-width is 420px;
+// when the actual content is narrower the overlay will visually appear
+// further from the rails than necessary, but it stays inside the
+// reader-area which is the safety property we want.
+const EDITOR_HALF_WIDTH_GUESS = 210;
 
 function AnchoredNoteEditorOverlay({
   rect,
@@ -1016,8 +1018,30 @@ function AnchoredNoteEditorOverlay({
     ? rect.y + rect.height + EDITOR_GAP
     : rect.y - EDITOR_HEIGHT_GUESS - EDITOR_GAP;
   const top = Math.max(8, Math.min(vh - EDITOR_HEIGHT_GUESS - 8, rawTop));
+  // Compute the horizontal range the overlay can occupy without covering the
+  // desktop rail (left, when present) or the right rail (when present). The
+  // overlay uses translateX(-50%), so its center must sit at least half its
+  // width away from each forbidden edge. Without this, a selection at the
+  // first paginated column lands the overlay over the desktop-rail tabs and
+  // swallows clicks meant for navigation.
+  const desktopRail =
+    typeof document !== 'undefined' ? document.querySelector('aside.desktop-rail') : null;
+  const rightRail =
+    typeof document !== 'undefined' ? document.querySelector('aside.right-rail') : null;
+  const leftEdge = desktopRail
+    ? desktopRail.getBoundingClientRect().right + EDITOR_GAP
+    : 8;
+  const rightEdge = rightRail
+    ? rightRail.getBoundingClientRect().left - EDITOR_GAP
+    : vw - 8;
+  const minLeft = leftEdge + EDITOR_HALF_WIDTH_GUESS;
+  const maxLeft = rightEdge - EDITOR_HALF_WIDTH_GUESS;
   const rawLeft = rect.x + rect.width / 2;
-  const left = Math.max(140, Math.min(vw - 140, rawLeft));
+  // When the available reader area is too narrow to host the editor without
+  // overlap (minLeft > maxLeft), prefer the left edge — overlapping the right
+  // rail is the smaller UX harm than covering the rail tabs that drive
+  // navigation, and the right rail can be collapsed by the user.
+  const left = minLeft > maxLeft ? minLeft : Math.max(minLeft, Math.min(maxLeft, rawLeft));
 
   return (
     <div

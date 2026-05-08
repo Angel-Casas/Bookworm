@@ -10,7 +10,10 @@ type Props = {
   readonly onRenameThread: (id: ChatThreadId, title: string) => void;
   readonly onDeleteThread: (id: ChatThreadId) => void;
   readonly onStartDraft: () => void;
-  readonly onCollapse: () => void;
+  // When omitted, the collapse button is not rendered. Used in desktop
+  // contexts where the surrounding rail already provides a collapse
+  // affordance (avoids two visually adjacent buttons with the same role).
+  readonly onCollapse?: () => void;
 };
 
 export function ChatHeader({
@@ -44,9 +47,11 @@ export function ChatHeader({
         <button type="button" aria-label="New conversation" onClick={onStartDraft}>
           +
         </button>
-        <button type="button" aria-label="Collapse chat panel" onClick={onCollapse}>
-          ›
-        </button>
+        {onCollapse ? (
+          <button type="button" aria-label="Collapse chat panel" onClick={onCollapse}>
+            ›
+          </button>
+        ) : null}
       </div>
       {open ? (
         <ThreadList
