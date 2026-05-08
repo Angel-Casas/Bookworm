@@ -252,4 +252,63 @@ describe('HighlightToolbar — Ask AI button (Phase 4.4)', () => {
     expect(onAskAI).toHaveBeenCalledOnce();
     expect(onDismiss).toHaveBeenCalledOnce();
   });
+
+  it('renders the + Compare button when onAddToCompare and canAddToCompare === true', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onAddToCompare={vi.fn()}
+        canAddToCompare
+      />,
+    );
+    expect(screen.getByRole('button', { name: /add to compare/i })).toBeInTheDocument();
+  });
+
+  it('does not render + Compare when onAddToCompare is missing', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /add to compare/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /compare set full/i })).toBeNull();
+  });
+
+  it('disables + Compare when canAddToCompare is false', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+        onAddToCompare={vi.fn()}
+        canAddToCompare={false}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /compare set full/i })).toBeDisabled();
+  });
+
+  it('clicking + Compare dismisses the toolbar and invokes onAddToCompare', () => {
+    const onAddToCompare = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={onDismiss}
+        onAddToCompare={onAddToCompare}
+        canAddToCompare
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add to compare/i }));
+    expect(onDismiss).toHaveBeenCalledOnce();
+    expect(onAddToCompare).toHaveBeenCalledOnce();
+  });
 });
