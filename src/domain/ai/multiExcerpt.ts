@@ -1,5 +1,6 @@
 import type { HighlightAnchor } from '@/domain/annotations/types';
 import type { HighlightId, IsoTimestamp } from '@/domain/ids';
+import { compareAnchorsInBookOrder } from '@/domain/annotations/anchorOrder';
 
 export const MAX_EXCERPTS = 6;
 export const MAX_EXCERPT_CHARS = 4000;
@@ -19,6 +20,10 @@ export type AttachedExcerpt = {
 export type AttachedMultiExcerpt = {
   readonly excerpts: readonly AttachedExcerpt[];
 };
+
+export function compareExcerptOrder(a: AttachedExcerpt, b: AttachedExcerpt): number {
+  return compareAnchorsInBookOrder(a.anchor, b.anchor);
+}
 
 // Canonicalize a HighlightAnchor into a stable string for selection-kind
 // excerpt id derivation. Two distinct selections with identical canonical

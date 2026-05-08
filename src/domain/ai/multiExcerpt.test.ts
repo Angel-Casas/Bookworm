@@ -3,6 +3,7 @@ import { HighlightId, IsoTimestamp } from '@/domain/ids';
 import {
   MAX_EXCERPTS,
   MAX_EXCERPT_CHARS,
+  compareExcerptOrder,
   stableAnchorHash,
   type AttachedExcerpt,
 } from './multiExcerpt';
@@ -60,5 +61,27 @@ describe('AttachedExcerpt — shape', () => {
       addedAt: IsoTimestamp('2026-05-08T00:00:00.000Z'),
     };
     expect(e.id).toBe('h:abc');
+  });
+});
+
+describe('compareExcerptOrder', () => {
+  const baseTs = IsoTimestamp('2026-05-08T00:00:00.000Z');
+  const mk = (cfi: string, id?: string): AttachedExcerpt => {
+    const useId = id ?? `h:${cfi}`;
+    return {
+      id: useId,
+      sourceKind: 'highlight',
+      highlightId: HighlightId(useId),
+      anchor: { kind: 'epub-cfi', cfi },
+      sectionTitle: 'Ch',
+      text: 't',
+      addedAt: baseTs,
+    };
+  };
+  it('orders excerpts by their anchor (EPUB)', () => {
+    const a = mk('epubcfi(/6/4!/4/2)');
+    const b = mk('epubcfi(/6/4!/4/4)');
+    expect(compareExcerptOrder(a, b)).toBeLessThan(0);
+    expect(compareExcerptOrder(b, a)).toBeGreaterThan(0);
   });
 });
