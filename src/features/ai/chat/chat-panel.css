@@ -318,6 +318,121 @@
   outline-offset: 1px;
 }
 
+.multi-excerpt-chip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  margin: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-sm);
+}
+.multi-excerpt-chip__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.multi-excerpt-chip__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.multi-excerpt-chip__toggle:hover {
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+}
+.multi-excerpt-chip__toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.multi-excerpt-chip__clear {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.multi-excerpt-chip__clear:hover {
+  color: var(--color-text);
+}
+.multi-excerpt-chip__clear:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.multi-excerpt-chip__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.multi-excerpt-chip__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+}
+.multi-excerpt-chip__index {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  min-width: 1.5em;
+}
+.multi-excerpt-chip__section {
+  color: var(--color-text);
+  font-weight: 500;
+}
+.multi-excerpt-chip__separator {
+  color: var(--color-text-muted);
+}
+.multi-excerpt-chip__snippet {
+  color: var(--color-text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multi-excerpt-chip__jump,
+.multi-excerpt-chip__remove {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.multi-excerpt-chip__jump:hover,
+.multi-excerpt-chip__remove:hover {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+}
+.multi-excerpt-chip__jump:focus-visible,
+.multi-excerpt-chip__remove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 .message-bubble__multi-source {
   display: inline-flex;
   flex-wrap: wrap;
