@@ -42,9 +42,11 @@ describe('useMultiExcerptTray', () => {
     act(() => {
       result.current.add(mk(4));
     });
-    const lastCall = setActive.mock.calls[setActive.mock.calls.length - 1];
+    const lastCall = setActive.mock.calls[setActive.mock.calls.length - 1] as
+      | [unknown, AttachedMultiExcerpt | undefined]
+      | undefined;
     expect(lastCall?.[0]).toBe('multi-excerpt');
-    expect(lastCall?.[1].excerpts).toHaveLength(2);
+    expect(lastCall?.[1]?.excerpts).toHaveLength(2);
   });
 
   it('add returns "full" when at MAX_EXCERPTS', () => {
@@ -96,10 +98,12 @@ describe('useMultiExcerptTray', () => {
     act(() => {
       result.current.remove('h:2');
     });
-    const call = setActive.mock.calls[0];
+    const call = setActive.mock.calls[0] as
+      | [unknown, AttachedMultiExcerpt | undefined]
+      | undefined;
     expect(call?.[0]).toBe('multi-excerpt');
-    expect(call?.[1].excerpts).toHaveLength(1);
-    expect(call?.[1].excerpts[0].id).toBe('h:4');
+    expect(call?.[1]?.excerpts).toHaveLength(1);
+    expect(call?.[1]?.excerpts[0]?.id).toBe('h:4');
   });
 
   it('clear routes setActiveAttachment("none")', () => {

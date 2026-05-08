@@ -20,7 +20,15 @@ import type {
   AttachedChapter,
   AttachedRetrieval,
 } from '@/features/ai/chat/useChatSend';
-import type { AttachedMultiExcerpt } from '@/domain/ai/multiExcerpt';
+import {
+  MAX_EXCERPTS,
+  MAX_EXCERPT_CHARS,
+  stableAnchorHash,
+  type AttachedExcerpt,
+  type AttachedMultiExcerpt,
+} from '@/domain/ai/multiExcerpt';
+import { IsoTimestamp } from '@/domain/ids';
+import { useMultiExcerptTray } from './useMultiExcerptTray';
 import { resolveCurrentChapter } from '@/features/ai/prompts/resolveCurrentChapter';
 import { filterAnnotationsForChapter } from '@/features/ai/prompts/filterAnnotationsForChapter';
 import type {
@@ -472,6 +480,106 @@ export function ReaderWorkspace(props: Props) {
     setActiveAttachment('none');
   }, [setActiveAttachment]);
 
+  // Phase 5.5 multi-excerpt mode wiring.
+  const tray = useMultiExcerptTray({
+    tray: attachedMultiExcerpt,
+    setActiveAttachment: (kind, payload) => {
+      setActiveAttachment(kind, payload ?? null);
+    },
+  });
+
+  const canAddMoreToCompare =
+    (attachedMultiExcerpt?.excerpts.length ?? 0) < MAX_EXCERPTS;
+
+  const handleAddSelectionToCompare = useCallback(
+    (anchor: HighlightAnchor, selectedText: string): void => {
+      void (async () => {
+        let extracted: { text: string; sectionTitle?: string } = {
+          text: selectedText,
+        };
+        if (readerState) {
+          try {
+            const ctx = await readerState.getPassageContextAt(anchor);
+            extracted = {
+              text: ctx.text.length > 0 ? ctx.text : selectedText,
+              ...(ctx.sectionTitle !== undefined && { sectionTitle: ctx.sectionTitle }),
+            };
+          } catch (err) {
+            console.warn(
+              '[multi-excerpt] context extraction failed; using selection only',
+              err,
+            );
+          }
+        }
+        const excerpt: AttachedExcerpt = {
+          id: `sel:${stableAnchorHash(anchor)}`,
+          sourceKind: 'selection',
+          anchor,
+          sectionTitle: extracted.sectionTitle ?? '—',
+          text: extracted.text.slice(0, MAX_EXCERPT_CHARS),
+          addedAt: IsoTimestamp(new Date().toISOString()),
+        };
+        tray.add(excerpt);
+        if (viewport === 'desktop') {
+          if (!rightRail.visible) rightRail.set(true);
+        } else {
+          setActiveSheet('toc');
+          setActiveRailTab('chat');
+        }
+      })();
+    },
+    [readerState, tray, viewport, rightRail],
+  );
+
+  const handleToggleHighlightInCompare = useCallback(
+    (h: Highlight): void => {
+      const id = `h:${String(h.id)}`;
+      if (tray.contains(id)) {
+        tray.remove(id);
+        return;
+      }
+      const excerpt: AttachedExcerpt = {
+        id,
+        sourceKind: 'highlight',
+        highlightId: h.id,
+        anchor: h.anchor,
+        sectionTitle: h.sectionTitle ?? '—',
+        text: h.selectedText.slice(0, MAX_EXCERPT_CHARS),
+        addedAt: IsoTimestamp(new Date().toISOString()),
+      };
+      tray.add(excerpt);
+    },
+    [tray],
+  );
+
+  const isHighlightInCompare = useCallback(
+    (h: Highlight): boolean => tray.contains(`h:${String(h.id)}`),
+    [tray],
+  );
+
+  const handleRemoveExcerptFromCompare = useCallback(
+    (id: string): void => {
+      tray.remove(id);
+    },
+    [tray],
+  );
+
+  const handleClearAttachedMultiExcerpt = useCallback((): void => {
+    tray.clear();
+  }, [tray]);
+
+  const handleJumpToExcerpt = useCallback(
+    (anchor: HighlightAnchor): void => {
+      if (!readerState) return;
+      const target: LocationAnchor =
+        anchor.kind === 'epub-cfi'
+          ? { kind: 'epub-cfi', cfi: anchor.cfi }
+          : { kind: 'pdf', page: anchor.page };
+      readerState.goToAnchor(target);
+    },
+    [readerState],
+  );
+
   const resolveChunkAnchor = useCallback(
     async (chunkId: ChunkId): Promise<LocationAnchor | null> => {
       const allChunks = await props.bookChunksRepo.listByBook(BookId(props.bookId));
@@ -531,6 +639,9 @@ export function ReaderWorkspace(props: Props) {
       onSaveNote={(h, content) => {
         void notes.save(h.id, content);
       }}
+      isHighlightInCompare={isHighlightInCompare}
+      canAddMoreToCompare={canAddMoreToCompare}
+      onToggleHighlightInCompare={handleToggleHighlightInCompare}
     />
   );
 
@@ -647,6 +758,9 @@ export function ReaderWorkspace(props: Props) {
               chapterAttached={attachedChapter !== null}
               chapterAttachable={chapterAttachable}
               attachedMultiExcerpt={attachedMultiExcerpt}
+              onClearAttachedMultiExcerpt={handleClearAttachedMultiExcerpt}
+              onRemoveExcerptFromCompare={handleRemoveExcerptFromCompare}
+              onJumpToExcerpt={handleJumpToExcerpt}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
@@ -768,6 +882,9 @@ export function ReaderWorkspace(props: Props) {
               chapterAttached={attachedChapter !== null}
               chapterAttachable={chapterAttachable}
               attachedMultiExcerpt={attachedMultiExcerpt}
+              onClearAttachedMultiExcerpt={handleClearAttachedMultiExcerpt}
+              onRemoveExcerptFromCompare={handleRemoveExcerptFromCompare}
+              onJumpToExcerpt={handleJumpToExcerpt}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
@@ -824,6 +941,10 @@ export function ReaderWorkspace(props: Props) {
               handleAskAI(activeToolbar.anchor, activeToolbar.selectedText);
             },
           })}
+          onAddToCompare={() => {
+            handleAddSelectionToCompare(activeToolbar.anchor, activeToolbar.selectedText);
+          }}
+          canAddToCompare={canAddMoreToCompare}
         />
       ) : null}
       {activeToolbar?.kind === 'edit' ? (
@@ -845,6 +966,13 @@ export function ReaderWorkspace(props: Props) {
               );
             },
           })}
+          onAddToCompare={() => {
+            handleAddSelectionToCompare(
+              activeToolbar.highlight.anchor,
+              activeToolbar.highlight.selectedText,
+            );
+          }}
+          canAddToCompare={canAddMoreToCompare}
         />
       ) : null}
       {activeNoteEditor !== null ? (
