@@ -55,7 +55,9 @@ type Props = {
   readonly messagesRepo: ChatMessagesRepository;
   readonly savedAnswersRepo: SavedAnswersRepository;
   readonly onOpenSettings: () => void;
-  readonly onCollapse: () => void;
+  // When omitted, ChatHeader hides its own collapse button. Used in desktop
+  // contexts where the surrounding rail already provides one.
+  readonly onCollapse?: () => void;
   readonly hintShown: boolean;
   readonly onHintDismiss: () => void;
   // Phase 4.4 passage mode. Optional so non-passage surfaces can mount the
@@ -261,7 +263,7 @@ export function ChatPanel(props: Props) {
         onStartDraft={() => {
           threads.startDraft(props.selectedModelId ?? '');
         }}
-        onCollapse={props.onCollapse}
+        {...(props.onCollapse !== undefined && { onCollapse: props.onCollapse })}
       />
       <ChatFirstTimeHint
         visible={!props.hintShown && variant === 'ready'}
