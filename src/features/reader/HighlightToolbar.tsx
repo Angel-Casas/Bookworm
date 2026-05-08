@@ -74,8 +74,12 @@ export function HighlightToolbar({
     ? screenRect.y + screenRect.height + GAP
     : screenRect.y - TOOLBAR_HEIGHT - GAP;
   const top = Math.max(8, Math.min(vh - TOOLBAR_HEIGHT - 8, rawTop));
+  // The toolbar can host up to 4 color swatches + Note + Ask AI + + Compare
+  // + Delete; widest case is ~360px. Clamp center so the leftmost/rightmost
+  // button stays inside the viewport (transform: translateX(-50%) means
+  // center must be at least half the toolbar width from each edge).
   const rawLeft = screenRect.x + screenRect.width / 2;
-  const left = Math.max(80, Math.min(vw - 80, rawLeft));
+  const left = Math.max(180, Math.min(vw - 180, rawLeft));
 
   return (
     <div

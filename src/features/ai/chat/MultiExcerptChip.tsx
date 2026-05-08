@@ -29,7 +29,12 @@ export function MultiExcerptChip({
   const countLabel = `${String(excerpts.length)} excerpt${excerpts.length === 1 ? '' : 's'}`;
 
   return (
-    <div className="multi-excerpt-chip" role="status" aria-live="polite">
+    <div
+      className="multi-excerpt-chip"
+      role="status"
+      aria-live="polite"
+      aria-label={`Compare excerpts (${countLabel})`}
+    >
       <div className="multi-excerpt-chip__header">
         <button
           type="button"
