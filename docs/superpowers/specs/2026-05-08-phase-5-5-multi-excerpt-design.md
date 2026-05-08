@@ -22,12 +22,13 @@ Add a multi-excerpt chat affordance: the user builds a small ordered set (≤ 6)
     sourceKind: 'highlight' | 'selection';
     highlightId?: HighlightId;     // present iff sourceKind === 'highlight'
     anchor: HighlightAnchor;
-    sectionId: SectionId;
-    sectionTitle: string;          // resolved from TOC at add-time; falls back to "Page N" for PDF w/o TOC
+    sectionTitle: string;          // for highlights: from highlight.sectionTitle (with "Page N" fallback for PDF w/o TOC); for selections: resolved from current reader state at add-time
     text: string;                  // truncated to MAX_EXCERPT_CHARS (4000) at add-time
     addedAt: IsoTimestamp;
   }
   ```
+
+  No `sectionId`. Ordering uses the anchor directly: EPUB CFIs encode spine position; PDF anchors carry `page`. `Highlight` doesn't store `sectionId` — only `sectionTitle` — so requiring one would force a brittle resolution step for highlight-kind excerpts.
 - `AttachedMultiExcerpt`:
   ```ts
   { excerpts: readonly AttachedExcerpt[] }   // length 1..6, sorted by reading position
@@ -37,11 +38,11 @@ Add a multi-excerpt chat affordance: the user builds a small ordered set (≤ 6)
 
 **ContextRef strategy (no new variant):**
 
-Multi-excerpt sends emit `contextRefs: excerpts.map(e => ({ kind: 'passage', text, anchor, sectionTitle }))` — one `passage` ref per excerpt. The existing `MultiSourceFooter` (Phase 5.2) renders this as numbered citation chips. Numbers match the "Excerpt N" labels in the prompt by construction. No `ContextRef` union extension.
+Multi-excerpt sends emit `contextRefs: excerpts.map(e => ({ kind: 'passage', text: e.text, anchor: e.anchor, sectionTitle: e.sectionTitle }))` — one `passage` ref per excerpt. The existing `MultiSourceFooter` (Phase 5.2) renders this as numbered citation chips. Numbers match the "Excerpt N" labels in the prompt by construction. No `ContextRef` union extension.
 
 **Pure helpers:**
 
-- `compareExcerptOrder(a: AttachedExcerpt, b: AttachedExcerpt): number` — orders by `(spineIndex(sectionId), anchor offset within section)`. EPUB-CFI anchors compared via existing CFI primitives in `epub/`; PDF anchors compared by `(pageIndex, offset)`.
+- `compareExcerptOrder(a: AttachedExcerpt, b: AttachedExcerpt): number` — orders by anchor. EPUB anchors: CFI-string lex-compare via existing CFI primitives in `features/reader/epub/` (CFIs are designed to be ordering-stable when compared as parsed path tuples). PDF anchors: `(page, rects[0].y)` tuple. Cross-kind anchors (mixing EPUB and PDF) are not possible within one book.
 - `trayReduce(prev: AttachedMultiExcerpt | null, action: TrayAction): { tray: AttachedMultiExcerpt | null; result: 'ok' | 'full' | 'duplicate' | 'cleared' }` — pure reducer. `TrayAction = {type:'add', excerpt} | {type:'remove', id} | {type:'clear'}`. Dedupes by `id`, hard-caps at 6, auto-sorts via `compareExcerptOrder`. Lives in `domain/ai/multiExcerpt.ts`.
 - `assembleMultiExcerptPrompt({ book, excerpts }): ChatCompletionMessage[]` — pure builder, returns `[system, user]`. Lives in `features/ai/prompts/assembleMultiExcerptPrompt.ts`. Per-excerpt label = `Excerpt N — <sectionTitle>`. Per-excerpt soft-cap 800 tokens (truncate with `(truncated for AI)`); total bundle cap 5000 tokens with proportional-trim fallback (per-excerpt floor ~200 tokens).
 
@@ -203,7 +204,7 @@ src/
 ```
 HighlightToolbar "+ Compare" click
   → ReaderView.handleAddSelectionToCompare(currentSelection)
-      builds AttachedExcerpt { sourceKind: 'selection', id: 'sel:...', anchor, sectionId, sectionTitle, text }
+      builds AttachedExcerpt { sourceKind: 'selection', id: 'sel:...', anchor, sectionTitle, text }
   → ReaderWorkspace.addExcerpt(excerpt)
       → useMultiExcerptTray.add(excerpt)
           → setActiveAttachment('multi-excerpt', candidate)   // clears others when first item
@@ -211,7 +212,8 @@ HighlightToolbar "+ Compare" click
           → setAttachedMultiExcerpt(next)
 
 HighlightsPanel "+" click
-  → useHighlights row click handler builds AttachedExcerpt { sourceKind: 'highlight', id: 'h:<id>', highlightId, anchor, sectionId, sectionTitle, text }
+  → row handler builds AttachedExcerpt { sourceKind: 'highlight', id: 'h:<id>', highlightId, anchor, sectionTitle, text }
+    (sectionTitle from highlight.sectionTitle, falling back to "—" if null; selectedText for text)
   → same path as above
 ```
 
@@ -221,13 +223,12 @@ See §2 "Send" snippet. Existing `setActiveAttachment` priority: `retrieval > ch
 
 ### Ordering invariant
 
-`compareExcerptOrder(a, b)` orders by:
-1. `spineIndex(sectionId)` — section's position in the book's spine.
-2. Within a section: anchor offset.
-   - EPUB: parse CFI path tuple, lex-compare.
-   - PDF: `(pageIndex, offset)` tuple.
+`compareExcerptOrder(a, b)` orders by anchor:
+- EPUB (`kind: 'epub-cfi'`): parse CFI path tuple via existing CFI primitives in `features/reader/epub/` and lex-compare. CFIs are designed to be ordering-stable across the spine + intra-section paths.
+- PDF (`kind: 'pdf'`): compare `(page, rects[0].y)` tuples.
+- Mixed kinds within a book are not possible (a book is either EPUB or PDF), so the comparator can `if/else` on `a.anchor.kind` (asserting `b.anchor.kind` matches) without a fallback path.
 
-Helper lives in `domain/ai/multiExcerpt.ts`. Uses existing CFI primitives from `features/reader/epub/` and PDF anchor types — no reader-component dependency leakage.
+Helper lives in `domain/ai/multiExcerpt.ts`. Reuses existing CFI primitives — no reader-component dependency leakage.
 
 ### Dedupe rule (in `trayReduce`)
 
@@ -393,14 +394,29 @@ The hook reads `attachedMultiExcerpt` and `setActiveAttachment` from context (li
 
 ### E2E tests (Playwright, `e2e/chat-multi-excerpt-mode.spec.ts`)
 
-1. **Happy path — hybrid build.** Open EPUB. Highlight a sentence in Ch. II via the reader (creates a Highlight). Open HighlightsPanel, click `+` on that Ch. II highlight. Make a fresh selection in Ch. V, click `+ Compare` in the toolbar. Make a fresh selection in Ch. IX, click `+ Compare`. Expand the chip → expect 3 rows in reading order (Ch. II, Ch. V, Ch. IX). Type a question, send. Assistant message arrives with footer showing `[1] [2] [3]` chips, each clickable → reader navigates to the right anchor.
-2. **Mutual exclusion.** Build 2-item tray. Click chapter button → tray cleared, chapter chip visible. With chapter chip active, click `+ Compare` on a fresh selection → chapter chip cleared, tray has the new item. Repeat for retrieval and passage attachments.
-3. **Tray full.** Add 6 items. Toolbar `+ Compare` disabled with tooltip. Panel `+` on un-added highlights disabled with tooltip. Remove one → both re-enable.
-4. **Jump-back from footer.** Send a message with 3-excerpt tray. Click each footer chip → reader navigates to the right anchor each time.
-5. **Reload clears tray.** Build 3-item tray, reload page → tray empty, no chip shown. Existing chat thread + saved answers still present (regression for persistence boundary).
-6. **PDF fallback.** Open a PDF without TOC. Add 2 selections from different pages → labels render as "Page 12", "Page 47" (no "Chapter" prefix) in the chip and prompt.
-7. **Dedupe — highlight kind.** Add a highlight via panel `+`. Indicator switches to `✓`. The same row can no longer add (button is now a remove). Click `✓` → entry removed from tray, indicator returns to `+`.
-8. **Dedupe — selection kind.** Make a selection, click `+ Compare` (tray = 1 entry). Repeat the exact same selection (same range) and click `+ Compare` again → tray still 1 entry (anchor-hash dedupe wins).
+The project's existing e2e suite deliberately skips full send-and-stream flows because no SSE mock harness exists for `/api/v1/chat/completions` (see `e2e/chat-passage-mode-desktop.spec.ts`). Phase 5.5 follows the same pragmatic policy: e2e covers everything observable WITHOUT sending; streaming-dependent assertions are covered by unit tests instead.
+
+**E2E (no streaming required):**
+
+1. **Hybrid build.** Highlight text via the reader → panel `+` adds it. Make a fresh selection → toolbar `+ Compare` adds it. Open chat → multi-excerpt chip visible. Expand → 2 rows in reading order with the right section labels.
+2. **Mutual exclusion.** Build 2-item tray. Click chapter button → tray cleared, chapter chip visible. Click `+ Compare` on a fresh selection → chapter chip cleared, tray has the new item.
+3. **Tray full.** Add 6 items via repeated select + `+ Compare`. The 7th attempt: toolbar `+ Compare` disabled with "Compare set full" label. Panel `+` on un-added rows is also disabled.
+4. **Dedupe — highlight kind.** Add a highlight via panel `+`. Indicator switches to `✓`. Click `✓` → entry removed, indicator returns to `+`.
+5. **Dedupe — selection kind.** Make a selection, click `+ Compare`. Re-select the exact same range and click `+ Compare` again → tray still has 1 entry.
+6. **Clearing the tray.** Build 2-item tray. Click the wrapper `×` on the chip → chip removed.
+7. **Reload clears tray.** Build 2-item tray, reload → chip absent on next mount. Existing chat threads still present (regression for persistence boundary).
+
+**Covered by unit tests instead (streaming-dependent):**
+
+| Assertion | Unit test |
+|---|---|
+| Send emits N `kind: 'passage'` `ContextRef`s in order | `useChatSend.test.ts` |
+| Assistant message renders `[1] [2] [3]` chips for N passage refs | `MessageBubble.test.tsx` (Phase 5.2 — already covers arbitrary N) |
+| Click on `[N]` chip calls `onJumpToSource` with the right anchor | `MessageBubble.test.tsx` (Phase 5.2) |
+
+**Deferred (would need a new fixture):**
+
+- PDF without TOC e2e — prompt-side label rendering is covered by `assembleMultiExcerptPrompt.test.ts`; UI-side by `MultiExcerptChip.test.tsx`. A full e2e on a TOC-less PDF fixture is deferred until that fixture lands in `test-fixtures/`.
 
 ---
 
