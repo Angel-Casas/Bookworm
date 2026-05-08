@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { compareHighlightsInBookOrder } from './highlightSort';
+import { compareAnchorsInBookOrder, compareHighlightsInBookOrder } from './highlightSort';
 import { BookId, HighlightId, IsoTimestamp } from '@/domain';
-import type { Highlight } from '@/domain/annotations/types';
+import type { Highlight, HighlightAnchor } from '@/domain/annotations/types';
 
 function pdf(
   page: number,
@@ -68,5 +68,43 @@ describe('compareHighlightsInBookOrder', () => {
     ];
     list.sort(compareHighlightsInBookOrder);
     expect(list[0]?.anchor.kind).toBe('pdf');
+  });
+});
+
+describe('compareAnchorsInBookOrder', () => {
+  const cfiA: HighlightAnchor = { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/2)' };
+  const cfiB: HighlightAnchor = { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/4)' };
+  it('orders EPUB CFIs lexically', () => {
+    expect(compareAnchorsInBookOrder(cfiA, cfiB)).toBeLessThan(0);
+    expect(compareAnchorsInBookOrder(cfiB, cfiA)).toBeGreaterThan(0);
+    expect(compareAnchorsInBookOrder(cfiA, cfiA)).toBe(0);
+  });
+  it('orders PDF anchors by page then y then x', () => {
+    const p1: HighlightAnchor = {
+      kind: 'pdf',
+      page: 1,
+      rects: [{ x: 0, y: 0, width: 1, height: 1 }],
+    };
+    const p2: HighlightAnchor = {
+      kind: 'pdf',
+      page: 2,
+      rects: [{ x: 0, y: 0, width: 1, height: 1 }],
+    };
+    const p1Lower: HighlightAnchor = {
+      kind: 'pdf',
+      page: 1,
+      rects: [{ x: 0, y: 100, width: 1, height: 1 }],
+    };
+    expect(compareAnchorsInBookOrder(p1, p2)).toBeLessThan(0);
+    expect(compareAnchorsInBookOrder(p1, p1Lower)).toBeLessThan(0);
+  });
+  it('returns 0 for cross-kind anchors (defensive — impossible within one book)', () => {
+    const cfi: HighlightAnchor = { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/2)' };
+    const pdf: HighlightAnchor = {
+      kind: 'pdf',
+      page: 1,
+      rects: [{ x: 0, y: 0, width: 1, height: 1 }],
+    };
+    expect(compareAnchorsInBookOrder(cfi, pdf)).toBe(0);
   });
 });

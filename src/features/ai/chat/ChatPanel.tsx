@@ -29,6 +29,8 @@ import type { ChunkId, LocationAnchor } from '@/domain';
 import type { RetrievalDeps } from '@/features/ai/retrieval/runRetrieval';
 import { RetrievalChip } from './RetrievalChip';
 import { ChapterChip } from './ChapterChip';
+import { MultiExcerptChip } from './MultiExcerptChip';
+import type { AttachedMultiExcerpt } from '@/domain/ai/multiExcerpt';
 import { useSavedAnswers } from './useSavedAnswers';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
@@ -66,12 +68,18 @@ type Props = {
   readonly onClearAttachedRetrieval?: () => void;
   readonly onToggleSearch?: () => void;
   // Phase 5.4 chapter mode. Mutually exclusive with passage and retrieval
-  // (priority in render: retrieval > chapter > passage).
+  // (priority in render: retrieval > chapter > multi-excerpt > passage).
   readonly attachedChapter?: AttachedChapter | null;
   readonly onClearAttachedChapter?: () => void;
   readonly onToggleChapter?: () => void;
   readonly chapterAttached?: boolean;
   readonly chapterAttachable?: boolean;
+  // Phase 5.5 multi-excerpt mode. Sticky across sends like chapter; the
+  // tray builds via toolbar + Compare and per-row + on highlights.
+  readonly attachedMultiExcerpt?: AttachedMultiExcerpt | null;
+  readonly onClearAttachedMultiExcerpt?: () => void;
+  readonly onRemoveExcerptFromCompare?: (id: string) => void;
+  readonly onJumpToExcerpt?: (anchor: HighlightAnchor) => void;
   readonly retrievalDeps?: RetrievalDeps;
   readonly profileDeps?: ProfileGenerationDeps;
   readonly resolveChunkAnchor?: (chunkId: ChunkId) => Promise<LocationAnchor | null>;
@@ -121,6 +129,7 @@ export function ChatPanel(props: Props) {
   const attachedPassage = props.attachedPassage ?? null;
   const attachedRetrieval = props.attachedRetrieval ?? null;
   const attachedChapter = props.attachedChapter ?? null;
+  const attachedMultiExcerpt = props.attachedMultiExcerpt ?? null;
 
   const send = useChatSend({
     threadId: activeThreadId,
@@ -134,6 +143,7 @@ export function ChatPanel(props: Props) {
     attachedPassage,
     attachedRetrieval,
     attachedChapter,
+    attachedMultiExcerpt,
     ...(props.retrievalDeps !== undefined && { retrievalDeps: props.retrievalDeps }),
   });
 
@@ -330,6 +340,17 @@ export function ChatPanel(props: Props) {
               highlightCount={attachedChapter.highlights.length}
               noteCount={attachedChapter.notes.length}
               onDismiss={props.onClearAttachedChapter}
+            />
+          ) : attachedMultiExcerpt !== null &&
+            attachedMultiExcerpt.excerpts.length > 0 &&
+            props.onClearAttachedMultiExcerpt &&
+            props.onRemoveExcerptFromCompare &&
+            props.onJumpToExcerpt ? (
+            <MultiExcerptChip
+              excerpts={attachedMultiExcerpt.excerpts}
+              onClear={props.onClearAttachedMultiExcerpt}
+              onRemoveExcerpt={props.onRemoveExcerptFromCompare}
+              onJumpToExcerpt={props.onJumpToExcerpt}
             />
           ) : attachedPassage !== null && props.onClearAttachedPassage ? (
             <PassageChip

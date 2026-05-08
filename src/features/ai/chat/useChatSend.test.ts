@@ -407,4 +407,162 @@ describe('useChatSend', () => {
     expect(result.current.failure?.reason).toBe('invalid-key');
     expect(append).not.toHaveBeenCalled();
   });
+
+  it('multi-excerpt branch persists N passage contextRefs and mode multi-excerpt', async () => {
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'delta', text: 'compared' }, { kind: 'done' }]);
+    const tray = {
+      excerpts: [
+        {
+          id: 'h:1',
+          sourceKind: 'highlight' as const,
+          highlightId: 'hl-1' as never,
+          anchor: { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/2)' },
+          sectionTitle: 'Chapter II',
+          text: 'first excerpt text',
+          addedAt: '2026-05-08T00:00:00.000Z' as never,
+        },
+        {
+          id: 'sel:abc',
+          sourceKind: 'selection' as const,
+          anchor: { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/8)' },
+          sectionTitle: 'Chapter V',
+          text: 'second excerpt text',
+          addedAt: '2026-05-08T00:00:01.000Z' as never,
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('t-1'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'B', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+        attachedMultiExcerpt: tray,
+      }),
+    );
+    act(() => {
+      result.current.send('compare these');
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    const userCall = (append.mock.calls as unknown as unknown[][])[0];
+    const userMsg = userCall?.[0] as {
+      mode?: string;
+      contextRefs?: { kind: string; sectionTitle?: string; text?: string }[];
+    };
+    expect(userMsg.mode).toBe('multi-excerpt');
+    expect(userMsg.contextRefs).toHaveLength(2);
+    expect(userMsg.contextRefs?.[0]?.kind).toBe('passage');
+    expect(userMsg.contextRefs?.[0]?.sectionTitle).toBe('Chapter II');
+    expect(userMsg.contextRefs?.[1]?.sectionTitle).toBe('Chapter V');
+  });
+
+  it('multi-excerpt has priority over a passage attachment', async () => {
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'done' }]);
+    const tray = {
+      excerpts: [
+        {
+          id: 'h:1',
+          sourceKind: 'highlight' as const,
+          highlightId: 'hl-1' as never,
+          anchor: { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/2)' },
+          sectionTitle: 'Chapter II',
+          text: 'first',
+          addedAt: '2026-05-08T00:00:00.000Z' as never,
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('t-1'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'B', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+        attachedMultiExcerpt: tray,
+        attachedPassage: {
+          anchor: { kind: 'epub-cfi', cfi: 'epubcfi(/6/4!/4/9)' },
+          text: 'passage',
+        },
+      }),
+    );
+    act(() => {
+      result.current.send('hi');
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    const userCall = (append.mock.calls as unknown as unknown[][])[0];
+    const userMsg = userCall?.[0] as { mode?: string };
+    expect(userMsg.mode).toBe('multi-excerpt');
+  });
+
+  it('chapter wins over multi-excerpt when both are set', async () => {
+    const append = vi.fn(() => Promise.resolve(undefined));
+    const patch = vi.fn(() => Promise.resolve(undefined));
+    const finalize = vi.fn(() => Promise.resolve(undefined));
+    const streamFactory = (_req: ChatCompletionRequest) =>
+      mkStream([{ kind: 'done' }]);
+    const tray = {
+      excerpts: [
+        {
+          id: 'h:1',
+          sourceKind: 'highlight' as const,
+          highlightId: 'hl-1' as never,
+          anchor: { kind: 'epub-cfi' as const, cfi: 'epubcfi(/6/4!/4/2)' },
+          sectionTitle: 'Chapter II',
+          text: 'first',
+          addedAt: '2026-05-08T00:00:00.000Z' as never,
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useChatSend({
+        threadId: ChatThreadId('t-1'),
+        modelId: 'gpt-x',
+        getApiKey: () => 'sk',
+        book: { title: 'B', format: 'epub' },
+        history: [],
+        append,
+        patch,
+        finalize,
+        streamFactory,
+        attachedMultiExcerpt: tray,
+        attachedChapter: {
+          sectionId: 'spine:foo' as never,
+          sectionTitle: 'Chapter VII',
+          chunks: [],
+          highlights: [],
+          notes: [],
+        },
+      }),
+    );
+    act(() => {
+      result.current.send('hi');
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalled();
+    });
+    const userCall = (append.mock.calls as unknown as unknown[][])[0];
+    const userMsg = userCall?.[0] as { mode?: string };
+    expect(userMsg.mode).toBe('chapter');
+  });
 });

@@ -22,6 +22,8 @@ import {
   assembleRetrievalChatPrompt,
 } from './promptAssembly';
 import { assembleChapterPrompt } from '@/features/ai/prompts/assembleChapterPrompt';
+import { assembleMultiExcerptPrompt } from '@/features/ai/prompts/assembleMultiExcerptPrompt';
+import type { AttachedMultiExcerpt } from '@/domain/ai/multiExcerpt';
 import { streamChatCompletion, type ChatCompletionFailure } from './nanogptChat';
 import { makeChatRequestMachine } from './chatRequestMachine';
 import {
@@ -70,6 +72,7 @@ type Args = {
   readonly attachedPassage?: AttachedPassage | null;
   readonly attachedRetrieval?: AttachedRetrieval | null;
   readonly attachedChapter?: AttachedChapter | null;
+  readonly attachedMultiExcerpt?: AttachedMultiExcerpt | null;
   readonly retrievalDeps?: RetrievalDeps;
   readonly retrievalRunner?: (input: {
     bookId: BookId;
@@ -138,9 +141,12 @@ export function useChatSend(args: Args): UseChatSendHandle {
     const retrieval = a.attachedRetrieval ?? null;
     const passage = a.attachedPassage ?? null;
     const chapter = a.attachedChapter ?? null;
+    const multiExcerpt = a.attachedMultiExcerpt ?? null;
     const isRetrieval = retrieval !== null;
     const isChapter = !isRetrieval && chapter !== null;
-    const isPassage = !isRetrieval && !isChapter && passage !== null;
+    const isMultiExcerpt =
+      !isRetrieval && !isChapter && multiExcerpt !== null && multiExcerpt.excerpts.length > 0;
+    const isPassage = !isRetrieval && !isChapter && !isMultiExcerpt && passage !== null;
 
     // Chapter branch — assembles {chunks + highlights + notes} from the
     // snapshot taken at chapter-button click time. Mutually exclusive with
@@ -188,6 +194,102 @@ export function useChatSend(args: Args): UseChatSendHandle {
       const assembled = {
         messages: [
           ...chapterMessages,
+          ...historyMsgs,
+          { role: 'user' as const, content: userText },
+        ],
+        historyDropped: 0,
+      };
+
+      const factory = a.streamFactory ?? streamChatCompletion;
+      const machine = makeChatRequestMachine({
+        streamFactory: (assembled2, modelId, signal) =>
+          factory({ apiKey, modelId, messages: assembled2.messages, signal }),
+        onDelta: async (id, fields) => {
+          setPartial(fields.content);
+          await a.patch(id, fields);
+        },
+        finalize: async (id, fields) => {
+          await a.finalize(id, fields);
+        },
+      });
+      actorRef.current?.stop();
+      const actor = createActor(machine, {
+        input: {
+          threadId,
+          pendingUserMessageId: userMsgId,
+          pendingAssistantMessageId: assistantMsgId,
+          modelId: a.modelId,
+          assembled,
+        },
+      });
+      actor.subscribe((snap) => {
+        if (snap.status === 'done') {
+          if (snap.value === 'failed') {
+            const ctxFailure = (snap.context as { failure?: ChatCompletionFailure }).failure;
+            if (ctxFailure) setFailure(ctxFailure);
+            setState('error');
+          } else if (snap.value === 'aborted') {
+            setState('aborted');
+          } else {
+            setState('idle');
+          }
+        }
+      });
+      actorRef.current = actor;
+      setState('streaming');
+      setPartial('');
+      setFailure(null);
+      actor.start();
+      return;
+    }
+
+    // Multi-excerpt branch — emits one passage ContextRef per excerpt; the
+    // existing MultiSourceFooter renders these as numbered citation chips
+    // whose numbers match the "Excerpt N" labels in the assembled prompt.
+    if (isMultiExcerpt) {
+      const m = multiExcerpt;
+      const refs: ContextRef[] = m.excerpts.map((e) => ({
+        kind: 'passage',
+        text: e.text,
+        anchor: e.anchor,
+        sectionTitle: e.sectionTitle,
+      }));
+      void a.append({
+        id: userMsgId,
+        threadId,
+        role: 'user',
+        content: userText,
+        mode: 'multi-excerpt',
+        contextRefs: refs,
+        createdAt: now,
+      });
+      void a.append({
+        id: assistantMsgId,
+        threadId,
+        role: 'assistant',
+        content: '',
+        mode: 'multi-excerpt',
+        contextRefs: refs,
+        streaming: true,
+        createdAt: nowPlus,
+      });
+
+      const promptMessages = assembleMultiExcerptPrompt({
+        book: {
+          title: a.book.title,
+          ...(a.book.author !== undefined ? { author: a.book.author } : {}),
+        },
+        excerpts: m.excerpts,
+      });
+      const historyMsgs = a.history
+        .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+        .map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        }));
+      const assembled = {
+        messages: [
+          ...promptMessages,
           ...historyMsgs,
           { role: 'user' as const, content: userText },
         ],

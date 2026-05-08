@@ -13,6 +13,7 @@
 - Phase 5.2 — complete (2026-05-06)
 - Phase 5.3 — complete (2026-05-07)
 - Phase 5.4 — complete (2026-05-07)
+- Phase 5.5 — complete (2026-05-08)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
@@ -345,8 +346,28 @@ synchronous indexing-cancel + chunk-deletion.
 - prompts feel book-specific
 - prompts are not generic filler
 
-#### Task 5.4 — Chapter mode and multi-excerpt mode
-**Acceptance criteria**
+#### Task 5.4 — Chapter mode (complete 2026-05-07)
+
+Chapter mode chip in the composer attaches the current chapter (chunks
++ highlights + notes) as context for the next chat. Snapshot semantics
+mirror passage mode (Phase 4.4); send routes through a new `chapter`
+branch in `useChatSend` with `assembleChapterPrompt` doing token-budget-
+aware chunk sampling. Source-footer rendering reuses the Phase 5.2
+`MultiSourceFooter` plumbing.
+
+#### Task 5.5 — Multi-excerpt mode (complete 2026-05-08)
+
+User builds an ordered set (≤ 6) of excerpts from existing highlights
+(per-row `+`/`✓` toggle in HighlightsPanel) and/or fresh ad-hoc
+selections (`+ Compare` button in HighlightToolbar). The set renders
+as a single composer chip with an expandable preview. Send emits one
+`kind: 'passage'` `ContextRef` per excerpt — reusing
+`MultiSourceFooter` for `[1][2][3]` citation chips whose numbers align
+with the assembled prompt's "Excerpt N" labels. Tray is workspace
+state (no IDB schema changes); auto-sorts by reading position; hard
+caps at 6 with proportional-trim fallback for the 5000-token bundle.
+
+**Acceptance criteria (Task 5.4 + 5.5)**
 - chapter mode works
 - multi-excerpt comparison works
 - source evidence stays visible

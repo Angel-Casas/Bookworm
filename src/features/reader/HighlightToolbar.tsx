@@ -18,6 +18,11 @@ type Props = {
   // Phase 4.4 passage mode. Both must be defined+true for the button to render.
   readonly onAskAI?: () => void;
   readonly canAskAI?: boolean;
+  // Phase 5.5 multi-excerpt mode. The button renders whenever onAddToCompare
+  // is provided; it disables (with a "full" tooltip) when canAddToCompare is
+  // explicitly false.
+  readonly onAddToCompare?: () => void;
+  readonly canAddToCompare?: boolean;
 };
 
 const TOOLBAR_HEIGHT = 36;
@@ -34,6 +39,8 @@ export function HighlightToolbar({
   onDismiss,
   onAskAI,
   canAskAI,
+  onAddToCompare,
+  canAddToCompare,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -67,8 +74,12 @@ export function HighlightToolbar({
     ? screenRect.y + screenRect.height + GAP
     : screenRect.y - TOOLBAR_HEIGHT - GAP;
   const top = Math.max(8, Math.min(vh - TOOLBAR_HEIGHT - 8, rawTop));
+  // The toolbar can host up to 4 color swatches + Note + Ask AI + + Compare
+  // + Delete; widest case is ~360px. Clamp center so the leftmost/rightmost
+  // button stays inside the viewport (transform: translateX(-50%) means
+  // center must be at least half the toolbar width from each edge).
   const rawLeft = screenRect.x + screenRect.width / 2;
-  const left = Math.max(80, Math.min(vw - 80, rawLeft));
+  const left = Math.max(180, Math.min(vw - 180, rawLeft));
 
   return (
     <div
@@ -125,6 +136,30 @@ export function HighlightToolbar({
             }}
           >
             <ChatIcon />
+          </button>
+        </>
+      ) : null}
+      {onAddToCompare ? (
+        <>
+          <span className="highlight-toolbar__divider" aria-hidden="true" />
+          <button
+            type="button"
+            className="highlight-toolbar__compare"
+            aria-label={
+              canAddToCompare === false ? 'Compare set full (6)' : 'Add to compare'
+            }
+            title={
+              canAddToCompare === false
+                ? 'Compare set full (6) — remove an excerpt to add another'
+                : 'Add to compare'
+            }
+            disabled={canAddToCompare === false}
+            onClick={() => {
+              onDismiss();
+              onAddToCompare();
+            }}
+          >
+            + Compare
           </button>
         </>
       ) : null}

@@ -66,3 +66,44 @@
   outline: 2px solid rgba(255, 255, 255, 0.35);
   outline-offset: -2px;
 }
+
+.highlight-toolbar__ask-ai {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.highlight-toolbar__ask-ai:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.highlight-toolbar__compare {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.highlight-toolbar__compare:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+.highlight-toolbar__compare:disabled {
+  color: #888;
+  cursor: not-allowed;
+}
