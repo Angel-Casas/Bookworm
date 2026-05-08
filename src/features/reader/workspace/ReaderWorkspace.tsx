@@ -20,6 +20,7 @@ import type {
   AttachedChapter,
   AttachedRetrieval,
 } from '@/features/ai/chat/useChatSend';
+import type { AttachedMultiExcerpt } from '@/domain/ai/multiExcerpt';
 import { resolveCurrentChapter } from '@/features/ai/prompts/resolveCurrentChapter';
 import { filterAnnotationsForChapter } from '@/features/ai/prompts/filterAnnotationsForChapter';
 import type {
@@ -181,32 +182,50 @@ export function ReaderWorkspace(props: Props) {
   // Phase 5.4 chapter mode. Snapshot at click time, sticky across sends,
   // cleared via the chip's ✕ or by activating another attachment kind.
   const [attachedChapter, setAttachedChapter] = useState<AttachedChapter | null>(null);
+  // Phase 5.5 multi-excerpt mode. Sticky across sends; first add clears
+  // others; tray cleared on remove-last or via wrapper ×.
+  const [attachedMultiExcerpt, setAttachedMultiExcerpt] =
+    useState<AttachedMultiExcerpt | null>(null);
 
-  // Phase 5.4: single reducer that owns the three-way (passage/retrieval/
-  // chapter) mutual-exclusion rule. All component-level setters route here
-  // so the rule lives in one place and can't drift across call sites.
-  type AttachmentKind = 'none' | 'passage' | 'retrieval' | 'chapter';
+  // Single reducer that owns the four-way (passage/retrieval/chapter/
+  // multi-excerpt) mutual-exclusion rule. All component-level setters route
+  // here so the rule lives in one place and can't drift across call sites.
+  type AttachmentKind = 'none' | 'passage' | 'retrieval' | 'chapter' | 'multi-excerpt';
   const setActiveAttachment = useCallback(
     (
       kind: AttachmentKind,
-      payload?: AttachedPassage | AttachedRetrieval | AttachedChapter | null,
+      payload?:
+        | AttachedPassage
+        | AttachedRetrieval
+        | AttachedChapter
+        | AttachedMultiExcerpt
+        | null,
     ): void => {
       if (kind === 'passage') {
         setAttachedPassage((payload ?? null) as AttachedPassage | null);
         setAttachedRetrieval(null);
         setAttachedChapter(null);
+        setAttachedMultiExcerpt(null);
       } else if (kind === 'retrieval') {
         setAttachedRetrieval((payload ?? null) as AttachedRetrieval | null);
         setAttachedPassage(null);
         setAttachedChapter(null);
+        setAttachedMultiExcerpt(null);
       } else if (kind === 'chapter') {
         setAttachedChapter((payload ?? null) as AttachedChapter | null);
         setAttachedPassage(null);
         setAttachedRetrieval(null);
+        setAttachedMultiExcerpt(null);
+      } else if (kind === 'multi-excerpt') {
+        setAttachedMultiExcerpt((payload ?? null) as AttachedMultiExcerpt | null);
+        setAttachedPassage(null);
+        setAttachedRetrieval(null);
+        setAttachedChapter(null);
       } else {
         setAttachedPassage(null);
         setAttachedRetrieval(null);
         setAttachedChapter(null);
+        setAttachedMultiExcerpt(null);
       }
     },
     [],
@@ -627,6 +646,7 @@ export function ReaderWorkspace(props: Props) {
               onToggleChapter={handleToggleChapter}
               chapterAttached={attachedChapter !== null}
               chapterAttachable={chapterAttachable}
+              attachedMultiExcerpt={attachedMultiExcerpt}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
@@ -747,6 +767,7 @@ export function ReaderWorkspace(props: Props) {
               onToggleChapter={handleToggleChapter}
               chapterAttached={attachedChapter !== null}
               chapterAttachable={chapterAttachable}
+              attachedMultiExcerpt={attachedMultiExcerpt}
               {...(props.retrievalDeps !== undefined && {
                 retrievalDeps: props.retrievalDeps,
               })}
