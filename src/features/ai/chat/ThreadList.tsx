@@ -9,6 +9,10 @@ type Props = {
   readonly onRename: (id: ChatThreadId, title: string) => void;
   readonly onDelete: (id: ChatThreadId) => void;
   readonly onClose: () => void;
+  // Phase 6.5 error state. When loadError is non-null the panel renders an
+  // alert with a Retry button instead of the populated/empty content.
+  readonly loadError?: Error | null;
+  readonly onRetryLoad?: () => void;
 };
 
 export function ThreadList({
@@ -18,6 +22,8 @@ export function ThreadList({
   onRename,
   onDelete,
   onClose,
+  loadError,
+  onRetryLoad,
 }: Props) {
   const [focusIdx, setFocusIdx] = useState<number>(0);
   const [editingId, setEditingId] = useState<ChatThreadId | null>(null);
@@ -49,6 +55,24 @@ export function ThreadList({
       window.removeEventListener('keydown', onKey);
     };
   }, [focusIdx, threads, onSelect, onClose]);
+
+  if (loadError != null) {
+    return (
+      <aside className="thread-list thread-list--error" aria-label="Conversations" role="alert">
+        <p className="thread-list__error-icon" aria-hidden="true">
+          !
+        </p>
+        <p className="thread-list__error-title">Couldn&rsquo;t load conversations</p>
+        <button
+          type="button"
+          className="thread-list__error-action"
+          onClick={onRetryLoad}
+        >
+          Retry
+        </button>
+      </aside>
+    );
+  }
 
   if (threads.length === 0) {
     return (
