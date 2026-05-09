@@ -16,6 +16,8 @@ import { compareHighlightsInBookOrder } from './highlightSort';
 
 export type UseHighlightsHandle = {
   readonly list: readonly Highlight[];
+  readonly loadError: Error | null;
+  readonly retryLoad: () => void;
   readonly add: (
     anchor: HighlightAnchor,
     selectedText: string,
@@ -48,16 +50,32 @@ export function useHighlights({
   onAfterRemove,
 }: Options): UseHighlightsHandle {
   const [list, setList] = useState<readonly Highlight[]>([]);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void repo.listByBook(bookId).then((records) => {
-      if (!cancelled) setList(sortInBookOrder(records));
-    });
+    setLoadError(null);
+    void (async () => {
+      try {
+        const records = await repo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) setList(sortInBookOrder(records));
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [bookId, repo]);
+  }, [bookId, repo, loadNonce]);
+
+  const retryLoad = useCallback(() => {
+    setLoadNonce((n) => n + 1);
+  }, []);
 
   const add = useCallback(
     async (
@@ -124,5 +142,5 @@ export function useHighlights({
     [repo, readerState, onAfterRemove],
   );
 
-  return { list, add, changeColor, remove };
+  return { list, loadError, retryLoad, add, changeColor, remove };
 }

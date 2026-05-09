@@ -6,6 +6,8 @@ import type { ReaderViewExposedState } from '@/features/reader/ReaderView';
 
 export type UseBookmarksHandle = {
   readonly list: readonly Bookmark[];
+  readonly loadError: Error | null;
+  readonly retryLoad: () => void;
   readonly add: () => Promise<void>;
   readonly remove: (b: Bookmark) => Promise<void>;
 };
@@ -24,16 +26,32 @@ function sortNewestFirst(list: readonly Bookmark[]): Bookmark[] {
 
 export function useBookmarks({ bookId, repo, readerState }: Options): UseBookmarksHandle {
   const [list, setList] = useState<readonly Bookmark[]>([]);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void repo.listByBook(bookId).then((records) => {
-      if (!cancelled) setList(sortNewestFirst(records));
-    });
+    setLoadError(null);
+    void (async () => {
+      try {
+        const records = await repo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) setList(sortNewestFirst(records));
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [bookId, repo]);
+  }, [bookId, repo, loadNonce]);
+
+  const retryLoad = useCallback(() => {
+    setLoadNonce((n) => n + 1);
+  }, []);
 
   const add = useCallback(async (): Promise<void> => {
     if (!readerState) return;
@@ -82,5 +100,5 @@ export function useBookmarks({ bookId, repo, readerState }: Options): UseBookmar
     [repo],
   );
 
-  return { list, add, remove };
+  return { list, loadError, retryLoad, add, remove };
 }

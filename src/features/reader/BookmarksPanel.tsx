@@ -7,9 +7,41 @@ type Props = {
   readonly onSelect: (b: Bookmark) => void;
   readonly onDelete: (b: Bookmark) => void;
   readonly nowMs?: number;
+  // Phase 6.5 error state. When loadError is non-null the panel renders an
+  // alert with a Retry button instead of the populated/empty content.
+  readonly loadError?: Error | null;
+  readonly onRetryLoad?: () => void;
 };
 
-export function BookmarksPanel({ bookmarks, onSelect, onDelete, nowMs }: Props) {
+export function BookmarksPanel({
+  bookmarks,
+  onSelect,
+  onDelete,
+  nowMs,
+  loadError,
+  onRetryLoad,
+}: Props) {
+  if (loadError != null) {
+    return (
+      <aside
+        className="bookmarks-panel bookmarks-panel--error"
+        aria-label="Bookmarks"
+        role="alert"
+      >
+        <p className="bookmarks-panel__error-icon" aria-hidden="true">
+          !
+        </p>
+        <p className="bookmarks-panel__error-title">Couldn&rsquo;t load bookmarks</p>
+        <button
+          type="button"
+          className="bookmarks-panel__error-action"
+          onClick={onRetryLoad}
+        >
+          Retry
+        </button>
+      </aside>
+    );
+  }
   if (bookmarks.length === 0) {
     return (
       <aside className="bookmarks-panel bookmarks-panel--empty" aria-label="Bookmarks">

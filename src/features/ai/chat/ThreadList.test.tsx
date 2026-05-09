@@ -97,4 +97,42 @@ describe('ThreadList', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+
+  describe('error variant', () => {
+    it('renders aside with role="alert" + Retry button when loadError is set', () => {
+      const onRetry = vi.fn();
+      render(
+        <ThreadList
+          threads={[]}
+          activeId={null}
+          onSelect={() => undefined}
+          onRename={() => undefined}
+          onDelete={() => undefined}
+          onClose={() => undefined}
+          loadError={new Error('boom')}
+          onRetryLoad={onRetry}
+        />,
+      );
+      expect(screen.getByRole('alert')).toBeDefined();
+      expect(screen.getByText(/couldn['’]t load conversations/i)).toBeDefined();
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('error variant takes precedence over the empty state', () => {
+      render(
+        <ThreadList
+          threads={[]}
+          activeId={null}
+          onSelect={() => undefined}
+          onRename={() => undefined}
+          onDelete={() => undefined}
+          onClose={() => undefined}
+          loadError={new Error('boom')}
+          onRetryLoad={() => undefined}
+        />,
+      );
+      expect(screen.queryByText(/no conversations yet/i)).toBeNull();
+    });
+  });
 });

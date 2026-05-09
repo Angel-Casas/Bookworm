@@ -1,11 +1,15 @@
+/* eslint-disable @typescript-eslint/unbound-method --
+   The spies on ChatThreadsRepository methods are vi.fn() and don't use `this`;
+   passing them to expect() is the standard pattern. */
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import {
   createChatMessagesRepository,
   createChatThreadsRepository,
   openBookwormDB,
   type BookwormDB,
+  type ChatThreadsRepository,
 } from '@/storage';
 import { useChatThreads } from './useChatThreads';
 import type { ChatThread } from '@/domain';
@@ -132,5 +136,76 @@ describe('useChatThreads', () => {
     expect(result.current.list.length).toBe(0);
     expect(await threadsRepo.getById(ChatThreadId('t-1'))).toBeNull();
     expect(await messagesRepo.getById(ChatMessageId('m-1'))).toBeNull();
+  });
+});
+
+describe('useChatThreads load error handling', () => {
+  function rejectingRepo(loadError: Error): ChatThreadsRepository {
+    return {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => Promise.reject(loadError)),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+  }
+
+  it('exposes loadError when listByBook rejects', async () => {
+    const repo = rejectingRepo(new Error('db is gone'));
+    const { result } = renderHook(() =>
+      useChatThreads({ bookId: BookId('book-1'), threadsRepo: repo }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    expect(result.current.loadError?.message).toBe('db is gone');
+    expect(result.current.list).toEqual([]);
+  });
+
+  it('retryLoad clears loadError and re-runs the load on success', async () => {
+    let attempt = 0;
+    const repo: ChatThreadsRepository = {
+      upsert: vi.fn(() => Promise.resolve()),
+      getById: vi.fn(() => Promise.resolve(null)),
+      listByBook: vi.fn(() => {
+        attempt += 1;
+        if (attempt === 1) return Promise.reject(new Error('first try'));
+        return Promise.resolve([] as readonly ChatThread[]);
+      }),
+      delete: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+    const { result } = renderHook(() =>
+      useChatThreads({ bookId: BookId('book-1'), threadsRepo: repo }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(result.current.loadError).toBeNull();
+    });
+    expect(repo.listByBook).toHaveBeenCalledTimes(2);
+  });
+
+  it('retryLoad after a second rejection still surfaces the new error', async () => {
+    const repo = rejectingRepo(new Error('still broken'));
+    const { result } = renderHook(() =>
+      useChatThreads({ bookId: BookId('book-1'), threadsRepo: repo }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(repo.listByBook).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
   });
 });

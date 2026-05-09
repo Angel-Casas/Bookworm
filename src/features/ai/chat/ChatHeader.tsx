@@ -14,6 +14,10 @@ type Props = {
   // contexts where the surrounding rail already provides a collapse
   // affordance (avoids two visually adjacent buttons with the same role).
   readonly onCollapse?: () => void;
+  // Phase 6.5: ThreadList renders an error variant with Retry when the
+  // underlying useChatThreads load fails.
+  readonly threadsLoadError?: Error | null;
+  readonly onRetryLoadThreads?: () => void;
 };
 
 export function ChatHeader({
@@ -25,6 +29,8 @@ export function ChatHeader({
   onDeleteThread,
   onStartDraft,
   onCollapse,
+  threadsLoadError,
+  onRetryLoadThreads,
 }: Props) {
   const [open, setOpen] = useState<boolean>(false);
   const active = threads.find((t) => t.id === activeId) ?? null;
@@ -70,6 +76,8 @@ export function ChatHeader({
           onClose={() => {
             setOpen(false);
           }}
+          {...(threadsLoadError !== undefined && { loadError: threadsLoadError })}
+          {...(onRetryLoadThreads !== undefined && { onRetryLoad: onRetryLoadThreads })}
         />
       ) : null}
     </header>

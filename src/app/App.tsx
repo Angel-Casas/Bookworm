@@ -16,6 +16,7 @@ import { loadLibrary } from '@/features/library/boot/loadLibrary';
 import { sweepOrphans } from '@/features/library/orphan-sweep';
 import { LibraryView } from '@/features/library/LibraryView';
 import { LibraryBootError } from '@/features/library/LibraryBootError';
+import { AppErrorBoundary } from '@/app/AppErrorBoundary';
 import { DropOverlay } from '@/features/library/DropOverlay';
 import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
 import { NotebookView } from '@/features/annotations/notebook/NotebookView';
@@ -447,5 +448,9 @@ export function App() {
   if (boot.kind === 'error') {
     return <LibraryBootError reason={boot.reason} />;
   }
-  return <ReadyApp boot={boot} />;
+  return (
+    <AppErrorBoundary>
+      <ReadyApp boot={boot} />
+    </AppErrorBoundary>
+  );
 }

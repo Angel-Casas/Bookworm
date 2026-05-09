@@ -5,6 +5,8 @@ import type { NotesRepository } from '@/storage';
 
 export type UseNotesHandle = {
   readonly byHighlightId: ReadonlyMap<HighlightId, Note>;
+  readonly loadError: Error | null;
+  readonly retryLoad: () => void;
   readonly save: (highlightId: HighlightId, content: string) => Promise<void>;
   readonly clear: (highlightId: HighlightId) => Promise<void>;
 };
@@ -28,16 +30,32 @@ export function useNotes({ bookId, repo }: Options): UseNotesHandle {
   const [byHighlightId, setByHighlightId] = useState<ReadonlyMap<HighlightId, Note>>(
     () => new Map(),
   );
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    void repo.listByBook(bookId).then((records) => {
-      if (!cancelled) setByHighlightId(buildMap(records));
-    });
+    setLoadError(null);
+    void (async () => {
+      try {
+        const records = await repo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) setByHighlightId(buildMap(records));
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [bookId, repo]);
+  }, [bookId, repo, loadNonce]);
+
+  const retryLoad = useCallback(() => {
+    setLoadNonce((n) => n + 1);
+  }, []);
 
   const clear = useCallback(
     async (highlightId: HighlightId): Promise<void> => {
@@ -93,5 +111,5 @@ export function useNotes({ bookId, repo }: Options): UseNotesHandle {
     [bookId, byHighlightId, repo, clear],
   );
 
-  return { byHighlightId, save, clear };
+  return { byHighlightId, loadError, retryLoad, save, clear };
 }

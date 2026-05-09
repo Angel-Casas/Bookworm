@@ -202,3 +202,70 @@ describe('useNotes', () => {
     expect(result.current.byHighlightId.size).toBe(0);
   });
 });
+
+describe('useNotes load error handling', () => {
+  function rejectingRepo(loadError: Error): NotesRepository {
+    return {
+      upsert: vi.fn(() => Promise.resolve()),
+      delete: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => Promise.reject(loadError)),
+      getByHighlight: vi.fn(() => Promise.resolve(null)),
+      deleteByHighlight: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+  }
+
+  it('exposes loadError when listByBook rejects', async () => {
+    const repo = rejectingRepo(new Error('db is gone'));
+    const { result } = renderHook(() => useNotes({ bookId: BookId('b1'), repo }));
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    expect(result.current.loadError?.message).toBe('db is gone');
+    expect(result.current.byHighlightId.size).toBe(0);
+  });
+
+  it('retryLoad clears loadError and re-runs the load on success', async () => {
+    let attempt = 0;
+    const repo: NotesRepository = {
+      upsert: vi.fn(() => Promise.resolve()),
+      delete: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => {
+        attempt += 1;
+        if (attempt === 1) return Promise.reject(new Error('first try'));
+        return Promise.resolve([] as readonly Note[]);
+      }),
+      getByHighlight: vi.fn(() => Promise.resolve(null)),
+      deleteByHighlight: vi.fn(() => Promise.resolve()),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+    const { result } = renderHook(() => useNotes({ bookId: BookId('b1'), repo }));
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(result.current.loadError).toBeNull();
+    });
+    expect(repo.listByBook).toHaveBeenCalledTimes(2);
+  });
+
+  it('retryLoad after a second rejection still surfaces the new error', async () => {
+    const repo = rejectingRepo(new Error('still broken'));
+    const { result } = renderHook(() => useNotes({ bookId: BookId('b1'), repo }));
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(repo.listByBook).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
+  });
+});

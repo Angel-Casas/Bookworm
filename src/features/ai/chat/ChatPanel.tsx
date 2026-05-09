@@ -274,6 +274,8 @@ export function ChatPanel(props: Props) {
           threads.startDraft(props.selectedModelId ?? '');
         }}
         {...(props.onCollapse !== undefined && { onCollapse: props.onCollapse })}
+        threadsLoadError={threads.loadError}
+        onRetryLoadThreads={threads.retryLoad}
       />
       <ChatFirstTimeHint
         visible={!props.hintShown && variant === 'ready'}
