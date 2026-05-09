@@ -33,8 +33,8 @@ This spec defines the **audit plan**: what we examine, with which tools, what ar
 ```
 PR-A  (this spec)            docs/superpowers/specs/2026-05-09-phase-6-audit-design.md
 PR-B  (tooling)              src/main.tsx                           — dev-mode axe wiring
-                             tests/e2e/axe.spec.ts                  — runtime a11y assertions
-                             tests/e2e/offline.spec.ts              — SW + offline behavior
+                             e2e/axe.spec.ts                  — runtime a11y assertions
+                             e2e/offline.spec.ts              — SW + offline behavior
                              docs/superpowers/audits/motion-inventory.md  — empty template
                              docs/superpowers/audits/state-matrix.md      — empty template
                              package.json                           — @axe-core/react devDep
@@ -102,7 +102,7 @@ PR-B and PR-C must pass `pnpm check` and the e2e suite. PR-A is doc-only.
 
 **Method.**
 1. Read `src/pwa/register-sw.ts` plus the Vite PWA / SW manifest configuration. Document what's cached vs. network-fetched in a short prose section of the findings doc.
-2. New Playwright spec `tests/e2e/offline.spec.ts` using `context.setOffline(true)`: cold-load offline; open an existing book; paginate; create an annotation; navigate back to library.
+2. New Playwright spec `e2e/offline.spec.ts` using `context.setOffline(true)`: cold-load offline; open an existing book; paginate; create an annotation; navigate back to library.
 3. "Kill tab mid-read, reopen" test (Playwright) — verify resume position is restored correctly after a fresh tab.
 4. Online-but-API-down test: with `context.route()` blocking the AI provider host, send a chat request and verify it surfaces a usable error rather than spinning indefinitely.
 
@@ -207,8 +207,8 @@ PR-A acceptance:
 
 PR-B acceptance:
 - `@axe-core/react` is in `devDependencies`, wired only into the dev-mode boot path; production bundle is byte-for-byte unaffected (verify with bundle inspection).
-- `tests/e2e/axe.spec.ts` runs and passes against the current main flows (with any current violations marked as expected baseline so the spec is green; baseline becomes a target to drive down during 6.2).
-- `tests/e2e/offline.spec.ts` runs and passes against *current* behavior. Failures encountered while writing the test are not PR-B blockers — assert current behavior (even if surprising) so the spec is green, and surface the surprise in PR-C as a 6.4 finding.
+- `e2e/axe.spec.ts` runs and passes against the current main flows (with any current violations marked as expected baseline so the spec is green; baseline becomes a target to drive down during 6.2).
+- `e2e/offline.spec.ts` runs and passes against *current* behavior. Failures encountered while writing the test are not PR-B blockers — assert current behavior (even if surprising) so the spec is green, and surface the surprise in PR-C as a 6.4 finding.
 - `docs/superpowers/audits/motion-inventory.md` and `state-matrix.md` exist as empty templates with the column headings spelled out.
 - `pnpm check` passes; full e2e suite green.
 
