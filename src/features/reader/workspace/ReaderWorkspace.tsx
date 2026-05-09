@@ -36,6 +36,8 @@ import type {
   HighlightAnchor,
   HighlightColor,
 } from '@/domain/annotations/types';
+import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
+import { PdfReaderAdapter } from '@/features/reader/pdf/PdfReaderAdapter';
 import { ReaderChrome } from '@/features/reader/ReaderChrome';
 import { ReaderView, type ReaderViewExposedState } from '@/features/reader/ReaderView';
 import { TocPanel } from '@/features/reader/TocPanel';
@@ -69,7 +71,6 @@ type Props = {
     preferences: ReaderPreferences;
     initialAnchor?: LocationAnchor;
   }>;
-  readonly createAdapter: (mountInto: HTMLElement, format: BookFormat) => BookReader;
   readonly onAnchorChange: (bookId: string, anchor: LocationAnchor) => void;
   readonly onPreferencesChange: (prefs: ReaderPreferences) => void;
   readonly initialFocusMode: FocusMode;
@@ -194,6 +195,17 @@ export function ReaderWorkspace(props: Props) {
   // others; tray cleared on remove-last or via wrapper ×.
   const [attachedMultiExcerpt, setAttachedMultiExcerpt] =
     useState<AttachedMultiExcerpt | null>(null);
+
+  // Phase 6.3: createAdapter lives here (not in useReaderHost) so the EPUB +
+  // PDF adapter modules — and their heavy foliate-js / pdfjs-dist imports —
+  // land in the lazy ReaderWorkspace chunk instead of the main bundle.
+  const createAdapter = useCallback(
+    (mountInto: HTMLElement, format: BookFormat): BookReader => {
+      if (format === 'pdf') return new PdfReaderAdapter(mountInto);
+      return new EpubReaderAdapter(mountInto);
+    },
+    [],
+  );
 
   // Single reducer that owns the four-way (passage/retrieval/chapter/
   // multi-excerpt) mutual-exclusion rule. All component-level setters route
@@ -718,7 +730,7 @@ export function ReaderWorkspace(props: Props) {
             {...(props.bookSubtitle !== undefined && { bookSubtitle: props.bookSubtitle })}
             onBack={props.onBack}
             loadBookForReader={props.loadBookForReader}
-            createAdapter={props.createAdapter}
+            createAdapter={createAdapter}
             onAnchorChange={props.onAnchorChange}
             onPreferencesChange={props.onPreferencesChange}
             onStateChange={handleStateChange}

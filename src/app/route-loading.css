@@ -1,0 +1,16 @@
+.route-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.route-loading__copy {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0;
+}

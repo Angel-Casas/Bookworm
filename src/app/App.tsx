@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -20,9 +22,23 @@ import { AppErrorBoundary } from '@/app/AppErrorBoundary';
 import { UpdateAvailableToast } from '@/pwa/UpdateAvailableToast';
 import { OfflineReadyToast } from '@/pwa/OfflineReadyToast';
 import { DropOverlay } from '@/features/library/DropOverlay';
-import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
-import { NotebookView } from '@/features/annotations/notebook/NotebookView';
-import { SettingsView } from '@/features/ai/settings/SettingsView';
+import { RouteLoading } from '@/app/RouteLoading';
+
+const ReaderWorkspace = lazy(() =>
+  import('@/features/reader/workspace/ReaderWorkspace').then((m) => ({
+    default: m.ReaderWorkspace,
+  })),
+);
+const NotebookView = lazy(() =>
+  import('@/features/annotations/notebook/NotebookView').then((m) => ({
+    default: m.NotebookView,
+  })),
+);
+const SettingsView = lazy(() =>
+  import('@/features/ai/settings/SettingsView').then((m) => ({
+    default: m.SettingsView,
+  })),
+);
 import { useApiKeyStore } from '@/features/ai/key/apiKeyStore';
 import { useModelCatalogStore } from '@/features/ai/models/modelCatalogStore';
 import { useAppView } from '@/app/useAppView';
@@ -251,21 +267,23 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     if (!book) return null;
     return (
       <div className="app">
-        <NotebookView
-          key={view.current.bookId}
-          bookId={view.current.bookId}
-          bookTitle={book.title}
-          bookmarksRepo={reader.bookmarksRepo}
-          highlightsRepo={reader.highlightsRepo}
-          notesRepo={reader.notesRepo}
-          savedAnswersRepo={reader.savedAnswersRepo}
-          onBack={() => {
-            view.goReader(book);
-          }}
-          onJumpToAnchor={(anchor) => {
-            view.goReaderAt(book.id, anchor);
-          }}
-        />
+        <Suspense fallback={<RouteLoading />}>
+          <NotebookView
+            key={view.current.bookId}
+            bookId={view.current.bookId}
+            bookTitle={book.title}
+            bookmarksRepo={reader.bookmarksRepo}
+            highlightsRepo={reader.highlightsRepo}
+            notesRepo={reader.notesRepo}
+            savedAnswersRepo={reader.savedAnswersRepo}
+            onBack={() => {
+              view.goReader(book);
+            }}
+            onJumpToAnchor={(anchor) => {
+              view.goReaderAt(book.id, anchor);
+            }}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -273,7 +291,9 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
   if (view.current.kind === 'settings') {
     return (
       <div className="app">
-        <SettingsView settingsRepo={wiring.settingsRepo} onClose={view.goLibrary} />
+        <Suspense fallback={<RouteLoading />}>
+          <SettingsView settingsRepo={wiring.settingsRepo} onClose={view.goLibrary} />
+        </Suspense>
       </div>
     );
   }
@@ -283,7 +303,8 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
     if (!book) return null; // useAppView guard falls back to library next render
     return (
       <div className="app">
-        <ReaderWorkspace
+        <Suspense fallback={<RouteLoading />}>
+          <ReaderWorkspace
           key={view.current.bookId}
           bookId={view.current.bookId}
           bookTitle={book.title}
@@ -291,7 +312,6 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           {...(book.author !== undefined && { bookSubtitle: book.author })}
           onBack={view.goLibrary}
           loadBookForReader={loadBookForReader}
-          createAdapter={reader.createAdapter}
           onAnchorChange={reader.onAnchorChange}
           onPreferencesChange={reader.onPreferencesChange}
           initialFocusMode={reader.initialFocusMode}
@@ -321,6 +341,7 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           bookToc={book.toc}
           profileDeps={profileDeps}
         />
+        </Suspense>
       </div>
     );
   }
