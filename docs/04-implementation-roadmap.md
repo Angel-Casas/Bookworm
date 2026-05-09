@@ -15,6 +15,7 @@
 - Phase 5.4 — complete (2026-05-07)
 - Phase 5.5 — complete (2026-05-08)
 - Phase 6 audit — complete (2026-05-09)
+- Phase 6.5 — complete (2026-05-09)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
