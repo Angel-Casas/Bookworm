@@ -17,6 +17,8 @@ export type UseChatThreadsHandle = {
   readonly list: readonly ChatThread[];
   readonly activeId: ChatThreadId | null;
   readonly draft: DraftState | null;
+  readonly loadError: Error | null;
+  readonly retryLoad: () => void;
   readonly setActive: (id: ChatThreadId) => void;
   readonly startDraft: (modelId: string) => void;
   readonly clearDraft: () => void;
@@ -33,22 +35,35 @@ export function useChatThreads({
   const [list, setList] = useState<readonly ChatThread[]>([]);
   const [activeId, setActiveId] = useState<ChatThreadId | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoadError(null);
     void (async () => {
-      const fetched = await threadsRepo.listByBook(bookId);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
-      if (cancelled) return;
-      setList(fetched);
-      if (fetched.length > 0) {
-        setActiveId((prev) => prev ?? fetched[0]?.id ?? null);
+      try {
+        const fetched = await threadsRepo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
+        if (cancelled) return;
+        setList(fetched);
+        if (fetched.length > 0) {
+          setActiveId((prev) => prev ?? fetched[0]?.id ?? null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err : new Error(String(err)));
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [bookId, threadsRepo]);
+  }, [bookId, threadsRepo, loadNonce]);
+
+  const retryLoad = useCallback(() => {
+    setLoadNonce((n) => n + 1);
+  }, []);
 
   const setActive = useCallback((id: ChatThreadId) => {
     setActiveId(id);
@@ -118,6 +133,8 @@ export function useChatThreads({
     list,
     activeId,
     draft,
+    loadError,
+    retryLoad,
     setActive,
     startDraft,
     clearDraft,

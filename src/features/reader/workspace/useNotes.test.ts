@@ -264,6 +264,8 @@ describe('useNotes load error handling', () => {
     await waitFor(() => {
       expect(repo.listByBook).toHaveBeenCalledTimes(2);
     });
-    expect(result.current.loadError?.message).toBe('still broken');
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
   });
 });
