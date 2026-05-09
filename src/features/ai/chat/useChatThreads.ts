@@ -51,6 +51,7 @@ export function useChatThreads({
           setActiveId((prev) => prev ?? fetched[0]?.id ?? null);
         }
       } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!cancelled) {
           setLoadError(err instanceof Error ? err : new Error(String(err)));
         }

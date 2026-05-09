@@ -35,8 +35,10 @@ export function useBookmarks({ bookId, repo, readerState }: Options): UseBookmar
     void (async () => {
       try {
         const records = await repo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!cancelled) setList(sortNewestFirst(records));
       } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!cancelled) {
           setLoadError(err instanceof Error ? err : new Error(String(err)));
         }

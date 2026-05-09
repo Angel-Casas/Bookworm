@@ -39,8 +39,10 @@ export function useNotes({ bookId, repo }: Options): UseNotesHandle {
     void (async () => {
       try {
         const records = await repo.listByBook(bookId);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!cancelled) setByHighlightId(buildMap(records));
       } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutated by cleanup
         if (!cancelled) {
           setLoadError(err instanceof Error ? err : new Error(String(err)));
         }

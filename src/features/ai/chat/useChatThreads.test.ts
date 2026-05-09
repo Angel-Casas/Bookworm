@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/unbound-method --
+   The spies on ChatThreadsRepository methods are vi.fn() and don't use `this`;
+   passing them to expect() is the standard pattern. */
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -6,6 +9,7 @@ import {
   createChatThreadsRepository,
   openBookwormDB,
   type BookwormDB,
+  type ChatThreadsRepository,
 } from '@/storage';
 import { useChatThreads } from './useChatThreads';
 import type { ChatThread } from '@/domain';
@@ -136,7 +140,7 @@ describe('useChatThreads', () => {
 });
 
 describe('useChatThreads load error handling', () => {
-  function rejectingRepo(loadError: Error): import('@/storage').ChatThreadsRepository {
+  function rejectingRepo(loadError: Error): ChatThreadsRepository {
     return {
       upsert: vi.fn(() => Promise.resolve()),
       getById: vi.fn(() => Promise.resolve(null)),
@@ -160,7 +164,7 @@ describe('useChatThreads load error handling', () => {
 
   it('retryLoad clears loadError and re-runs the load on success', async () => {
     let attempt = 0;
-    const repo: import('@/storage').ChatThreadsRepository = {
+    const repo: ChatThreadsRepository = {
       upsert: vi.fn(() => Promise.resolve()),
       getById: vi.fn(() => Promise.resolve(null)),
       listByBook: vi.fn(() => {

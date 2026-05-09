@@ -616,6 +616,8 @@ export function ReaderWorkspace(props: Props) {
       onDelete={(b) => {
         void bookmarks.remove(b);
       }}
+      loadError={bookmarks.loadError}
+      onRetryLoad={bookmarks.retryLoad}
     />
   );
 
@@ -642,6 +644,8 @@ export function ReaderWorkspace(props: Props) {
       isHighlightInCompare={isHighlightInCompare}
       canAddMoreToCompare={canAddMoreToCompare}
       onToggleHighlightInCompare={handleToggleHighlightInCompare}
+      loadError={highlights.loadError}
+      onRetryLoad={highlights.retryLoad}
     />
   );
 
@@ -822,6 +826,8 @@ export function ReaderWorkspace(props: Props) {
               onDelete={(b) => {
                 void bookmarks.remove(b);
               }}
+              loadError={bookmarks.loadError}
+              onRetryLoad={bookmarks.retryLoad}
             />
           ) : null}
           {activeRailTab === 'highlights' ? (
@@ -845,6 +851,8 @@ export function ReaderWorkspace(props: Props) {
               onSaveNote={(h, content) => {
                 void notes.save(h.id, content);
               }}
+              loadError={highlights.loadError}
+              onRetryLoad={highlights.retryLoad}
             />
           ) : null}
           {activeRailTab === 'chat' ? (
