@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { NotebookView } from './NotebookView';
+import * as triggerDownloadModule from './triggerDownload';
 import { BookId, BookmarkId, HighlightId, IsoTimestamp } from '@/domain';
 import type { Bookmark, Highlight, Note, LocationAnchor } from '@/domain';
 import type { BookmarksRepository, HighlightsRepository, NotesRepository } from '@/storage';
@@ -122,5 +123,32 @@ describe('NotebookView', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /^Highlight$/ }));
     expect(onJumpToAnchor).toHaveBeenCalledWith({ kind: 'pdf', page: 7 });
+  });
+
+  it('clicking Export downloads a Markdown file with the right content + filename', async () => {
+    const downloadSpy = vi
+      .spyOn(triggerDownloadModule, 'triggerDownload')
+      .mockImplementation(() => undefined);
+    render(
+      <NotebookView
+        bookId="b1"
+        bookTitle="Pride and Prejudice"
+        bookmarksRepo={fakeBookmarksRepo([bm('b-1', 1, 'a quiet quote')])}
+        highlightsRepo={fakeHighlightsRepo()}
+        notesRepo={fakeNotesRepo()}
+        onBack={() => undefined}
+        onJumpToAnchor={() => undefined}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /export notebook/i })).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /export notebook/i }));
+    expect(downloadSpy).toHaveBeenCalledTimes(1);
+    const call = downloadSpy.mock.calls[0];
+    expect(call?.[0]).toContain('# Pride and Prejudice');
+    expect(call?.[0]).toContain('a quiet quote');
+    expect(call?.[1]).toBe('pride-and-prejudice-notebook.md');
+    downloadSpy.mockRestore();
   });
 });

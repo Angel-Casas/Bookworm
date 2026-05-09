@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { BookId, type LocationAnchor } from '@/domain';
 import type {
   BookmarksRepository,
@@ -10,6 +11,8 @@ import { NotebookSearchBar } from './NotebookSearchBar';
 import { NotebookList } from './NotebookList';
 import { NotebookEmptyState } from './NotebookEmptyState';
 import { useNotebook } from './useNotebook';
+import { exportNotebookToMarkdown, slugifyTitle } from './exportMarkdown';
+import { triggerDownload } from './triggerDownload';
 import './notebook-view.css';
 
 type Props = {
@@ -32,9 +35,22 @@ export function NotebookView(props: Props) {
     ...(props.savedAnswersRepo ? { savedAnswersRepo: props.savedAnswersRepo } : {}),
   });
 
+  const handleExport = useCallback(() => {
+    const md = exportNotebookToMarkdown({
+      bookTitle: props.bookTitle,
+      entries: notebook.entries,
+    });
+    triggerDownload(md, `${slugifyTitle(props.bookTitle)}-notebook.md`);
+  }, [notebook.entries, props.bookTitle]);
+
   return (
     <div className="notebook-view">
-      <NotebookChrome bookTitle={props.bookTitle} onBack={props.onBack} />
+      <NotebookChrome
+        bookTitle={props.bookTitle}
+        onBack={props.onBack}
+        onExport={handleExport}
+        canExport={notebook.entries.length > 0}
+      />
       <NotebookSearchBar
         query={notebook.query}
         onQueryChange={notebook.setQuery}

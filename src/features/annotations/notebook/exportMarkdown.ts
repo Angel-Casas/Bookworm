@@ -130,7 +130,7 @@ function refSourceLine(ref: ContextRef): string {
   }
 }
 
-function blockquoteLines(text: string, indent: string = ''): string[] {
+function blockquoteLines(text: string, indent = ''): string[] {
   return text.split('\n').map((line) => `${indent}> ${line}`);
 }
 

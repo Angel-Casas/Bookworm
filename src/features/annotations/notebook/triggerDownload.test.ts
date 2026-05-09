@@ -13,40 +13,52 @@ describe('triggerDownload', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const blobArg = createObjectURL.mock.calls[0]?.[0];
     expect(blobArg).toBeInstanceOf(Blob);
-    expect((blobArg as Blob).type).toBe('text/markdown;charset=utf-8');
+    if (blobArg instanceof Blob) {
+      expect(blobArg.type).toBe('text/markdown;charset=utf-8');
+    }
   });
 
   it('sets the download attribute on the synthesized anchor', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    let capturedAnchor: HTMLAnchorElement | null = null;
-    const origCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      const el = origCreateElement(tag);
-      if (tag === 'a') capturedAnchor = el as HTMLAnchorElement;
-      return el;
-    });
+    const createSpy = vi.spyOn(document, 'createElement');
     triggerDownload('# Test', 'my-export.md');
-    expect(capturedAnchor).not.toBeNull();
-    expect(capturedAnchor?.getAttribute('download')).toBe('my-export.md');
-    expect(capturedAnchor?.getAttribute('href')).toBe('blob:fake');
+    let anchor: HTMLAnchorElement | null = null;
+    for (let i = 0; i < createSpy.mock.calls.length; i += 1) {
+      const result = createSpy.mock.results[i];
+      if (
+        createSpy.mock.calls[i]?.[0] === 'a' &&
+        result?.type === 'return' &&
+        result.value instanceof HTMLAnchorElement
+      ) {
+        anchor = result.value;
+        break;
+      }
+    }
+    if (anchor === null) throw new Error('expected createElement("a") to have been called');
+    expect(anchor.getAttribute('download')).toBe('my-export.md');
+    expect(anchor.getAttribute('href')).toBe('blob:fake');
   });
 
   it('cleans up: removes the anchor and revokes the URL', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    let capturedAnchor: HTMLAnchorElement | null = null;
-    const origCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      const el = origCreateElement(tag);
-      if (tag === 'a') capturedAnchor = el as HTMLAnchorElement;
-      return el;
-    });
+    const createSpy = vi.spyOn(document, 'createElement');
     triggerDownload('content', 'f.md');
-    expect(capturedAnchor).not.toBeNull();
-    if (capturedAnchor !== null) {
-      expect(document.body.contains(capturedAnchor)).toBe(false);
+    let anchor: HTMLAnchorElement | null = null;
+    for (let i = 0; i < createSpy.mock.calls.length; i += 1) {
+      const result = createSpy.mock.results[i];
+      if (
+        createSpy.mock.calls[i]?.[0] === 'a' &&
+        result?.type === 'return' &&
+        result.value instanceof HTMLAnchorElement
+      ) {
+        anchor = result.value;
+        break;
+      }
     }
+    if (anchor === null) throw new Error('expected createElement("a") to have been called');
+    expect(document.body.contains(anchor)).toBe(false);
     expect(revoke).toHaveBeenCalledWith('blob:fake');
   });
 });
