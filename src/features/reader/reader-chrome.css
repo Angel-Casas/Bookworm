@@ -78,7 +78,7 @@
 }
 
 .reader-chrome__bookmark--pulse {
-  animation: reader-chrome-bookmark-pulse 250ms var(--ease-out);
+  animation: reader-chrome-bookmark-pulse var(--duration-slow) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
