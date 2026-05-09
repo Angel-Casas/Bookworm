@@ -60,6 +60,7 @@ describe('swUpdateStore', () => {
   });
 
   it('survives localStorage failures gracefully (markOfflineReady)', () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- captured to restore after the test
     const original = Storage.prototype.getItem;
     Storage.prototype.getItem = () => {
       throw new Error('blocked');
@@ -73,6 +74,7 @@ describe('swUpdateStore', () => {
   });
 
   it('survives localStorage failures gracefully (dismissOfflineReady)', () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- captured to restore after the test
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = () => {
       throw new Error('blocked');
