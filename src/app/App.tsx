@@ -291,7 +291,6 @@ function ReadyApp({ boot }: { readonly boot: ReadyBoot }) {
           {...(book.author !== undefined && { bookSubtitle: book.author })}
           onBack={view.goLibrary}
           loadBookForReader={loadBookForReader}
-          createAdapter={reader.createAdapter}
           onAnchorChange={reader.onAnchorChange}
           onPreferencesChange={reader.onPreferencesChange}
           initialFocusMode={reader.initialFocusMode}

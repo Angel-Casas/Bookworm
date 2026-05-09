@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { BookId, type Book, type BookFormat, type LocationAnchor, type SortKey } from '@/domain';
-import type { BookReader, FocusMode, ReaderPreferences } from '@/domain/reader';
+import { BookId, type Book, type LocationAnchor, type SortKey } from '@/domain';
+import type { FocusMode, ReaderPreferences } from '@/domain/reader';
 import type {
   BookmarksRepository,
   ChatMessagesRepository,
@@ -11,15 +11,12 @@ import type {
 } from '@/storage';
 import type { LibraryStore } from '@/features/library/store/libraryStore';
 import type { Wiring } from '@/features/library/wiring';
-import { EpubReaderAdapter } from '@/features/reader/epub/EpubReaderAdapter';
-import { PdfReaderAdapter } from '@/features/reader/pdf/PdfReaderAdapter';
 import type { AppView } from '@/app/view';
 
 export type ReaderHostHandle = {
   loadBookForReader: (
     bookId: string,
   ) => Promise<{ blob: Blob; preferences: ReaderPreferences; initialAnchor?: LocationAnchor }>;
-  createAdapter: (mountInto: HTMLElement, format: BookFormat) => BookReader;
   onAnchorChange: (bookId: string, anchor: LocationAnchor) => void;
   onPreferencesChange: (prefs: ReaderPreferences) => void;
   initialFocusMode: FocusMode;
@@ -98,14 +95,6 @@ export function useReaderHost({
       return initialAnchor ? { blob, preferences, initialAnchor } : { blob, preferences };
     },
     [wiring],
-  );
-
-  const createAdapter = useCallback(
-    (mountInto: HTMLElement, format: BookFormat): BookReader => {
-      if (format === 'pdf') return new PdfReaderAdapter(mountInto);
-      return new EpubReaderAdapter(mountInto);
-    },
-    [],
   );
 
   const onAnchorChange = useCallback(
@@ -219,7 +208,6 @@ export function useReaderHost({
 
   return {
     loadBookForReader,
-    createAdapter,
     onAnchorChange,
     onPreferencesChange,
     initialFocusMode,

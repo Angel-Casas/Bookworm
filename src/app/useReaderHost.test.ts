@@ -166,7 +166,6 @@ describe('useReaderHost', () => {
       }),
     );
     expect(typeof result.current.loadBookForReader).toBe('function');
-    expect(typeof result.current.createAdapter).toBe('function');
     expect(typeof result.current.onAnchorChange).toBe('function');
     expect(typeof result.current.onPreferencesChange).toBe('function');
     expect(typeof result.current.onFocusModeChange).toBe('function');
