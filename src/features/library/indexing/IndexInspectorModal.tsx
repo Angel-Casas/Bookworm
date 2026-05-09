@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from '@/shared/a11y/useFocusTrap';
 import type { BookEmbedding, BookId, TextChunk } from '@/domain';
 import type { BookChunksRepository, BookEmbeddingsRepository } from '@/storage';
 import { IndexInspectorChunkRow } from './IndexInspectorChunkRow';
@@ -23,6 +24,8 @@ export function IndexInspectorModal({
   const [chunks, setChunks] = useState<readonly TextChunk[] | null>(null);
   const [embeddings, setEmbeddings] = useState<readonly BookEmbedding[] | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     void chunksRepo.listByBook(bookId).then(setChunks);
@@ -64,6 +67,7 @@ export function IndexInspectorModal({
   return (
     <div className="index-inspector__backdrop">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="index-inspector-title"
