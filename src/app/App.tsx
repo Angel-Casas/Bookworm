@@ -17,6 +17,8 @@ import { sweepOrphans } from '@/features/library/orphan-sweep';
 import { LibraryView } from '@/features/library/LibraryView';
 import { LibraryBootError } from '@/features/library/LibraryBootError';
 import { AppErrorBoundary } from '@/app/AppErrorBoundary';
+import { UpdateAvailableToast } from '@/pwa/UpdateAvailableToast';
+import { OfflineReadyToast } from '@/pwa/OfflineReadyToast';
 import { DropOverlay } from '@/features/library/DropOverlay';
 import { ReaderWorkspace } from '@/features/reader/workspace/ReaderWorkspace';
 import { NotebookView } from '@/features/annotations/notebook/NotebookView';
@@ -451,6 +453,8 @@ export function App() {
   return (
     <AppErrorBoundary>
       <ReadyApp boot={boot} />
+      <UpdateAvailableToast />
+      <OfflineReadyToast />
     </AppErrorBoundary>
   );
 }
