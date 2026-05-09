@@ -1,0 +1,108 @@
+.sw-toast {
+  position: fixed;
+  inset-block-end: var(--space-6);
+  inset-inline-end: var(--space-6);
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-width: min(380px, calc(100vw - 2 * var(--space-6)));
+  animation: sw-toast-in var(--duration-base) var(--ease-out);
+}
+
+.sw-toast__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sw-toast__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.sw-toast__text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.sw-toast__actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sw-toast__primary {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.sw-toast__primary:hover {
+  background: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface));
+}
+
+.sw-toast__primary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.sw-toast__dismiss {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: var(--space-1);
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
+.sw-toast__dismiss:hover {
+  color: var(--color-text);
+}
+
+.sw-toast__dismiss:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@keyframes sw-toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .sw-toast {
+    inset-inline: var(--space-4);
+    inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-toast {
+    animation: none;
+  }
+}
