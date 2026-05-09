@@ -305,4 +305,42 @@ describe('HighlightsPanel — notes', () => {
       expect(onToggle).toHaveBeenCalledWith(sampleHighlight);
     });
   });
+
+  describe('error variant', () => {
+    it('renders aside with role="alert" + Retry button when loadError is set', () => {
+      const onRetry = vi.fn();
+      render(
+        <HighlightsPanel
+          highlights={[]}
+          notesByHighlightId={EMPTY_NOTES}
+          onSelect={() => undefined}
+          onDelete={() => undefined}
+          onChangeColor={() => undefined}
+          onSaveNote={() => undefined}
+          loadError={new Error('boom')}
+          onRetryLoad={onRetry}
+        />,
+      );
+      expect(screen.getByRole('alert')).toBeDefined();
+      expect(screen.getByText(/couldn['’]t load highlights/i)).toBeDefined();
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('error variant takes precedence over the empty state', () => {
+      render(
+        <HighlightsPanel
+          highlights={[]}
+          notesByHighlightId={EMPTY_NOTES}
+          onSelect={() => undefined}
+          onDelete={() => undefined}
+          onChangeColor={() => undefined}
+          onSaveNote={() => undefined}
+          loadError={new Error('boom')}
+          onRetryLoad={() => undefined}
+        />,
+      );
+      expect(screen.queryByText(/no highlights yet/i)).toBeNull();
+    });
+  });
 });

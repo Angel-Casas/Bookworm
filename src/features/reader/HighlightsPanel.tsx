@@ -21,6 +21,10 @@ type Props = {
   readonly isHighlightInCompare?: (h: Highlight) => boolean;
   readonly canAddMoreToCompare?: boolean;
   readonly onToggleHighlightInCompare?: (h: Highlight) => void;
+  // Phase 6.5 error state. When loadError is non-null the panel renders an
+  // alert with a Retry button instead of the populated/empty content.
+  readonly loadError?: Error | null;
+  readonly onRetryLoad?: () => void;
 };
 
 export function HighlightsPanel({
@@ -34,8 +38,32 @@ export function HighlightsPanel({
   isHighlightInCompare,
   canAddMoreToCompare,
   onToggleHighlightInCompare,
+  loadError,
+  onRetryLoad,
 }: Props) {
   const [editingNoteFor, setEditingNoteFor] = useState<HighlightId | null>(null);
+
+  if (loadError != null) {
+    return (
+      <aside
+        className="highlights-panel highlights-panel--error"
+        aria-label="Highlights"
+        role="alert"
+      >
+        <p className="highlights-panel__error-icon" aria-hidden="true">
+          !
+        </p>
+        <p className="highlights-panel__error-title">Couldn&rsquo;t load highlights</p>
+        <button
+          type="button"
+          className="highlights-panel__error-action"
+          onClick={onRetryLoad}
+        >
+          Retry
+        </button>
+      </aside>
+    );
+  }
 
   if (highlights.length === 0) {
     return (
