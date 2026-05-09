@@ -18,6 +18,7 @@
 - Phase 6.5 — complete (2026-05-09)
 - Phase 6.4 — complete (2026-05-09)
 - Phase 6.2 — complete (2026-05-09)
+- Phase 6.3 — complete (2026-05-09)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
