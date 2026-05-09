@@ -5,22 +5,24 @@ type Props = { readonly children: ReactNode };
 type State = { readonly error: Error | null };
 
 export class AppErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[AppErrorBoundary] caught render error', error, info);
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.error === null) return this.props.children;
     return (
       <AppErrorFallback
         error={this.state.error}
-        onReload={() => window.location.reload()}
+        onReload={() => {
+          window.location.reload();
+        }}
       />
     );
   }

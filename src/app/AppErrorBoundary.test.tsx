@@ -51,10 +51,13 @@ describe('AppErrorBoundary', () => {
   it('reload button calls window.location.reload', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const reloadMock = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- captured to restore after the test
     const originalReload = window.location.reload;
     Object.defineProperty(window.location, 'reload', {
       configurable: true,
-      value: reloadMock,
+      value: () => {
+        reloadMock();
+      },
     });
     try {
       render(
