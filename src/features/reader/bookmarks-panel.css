@@ -120,3 +120,45 @@
   margin: 0;
   font-size: var(--text-sm);
 }
+
+/* Phase 6.5 — error variant */
+.bookmarks-panel--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+.bookmarks-panel__error-icon {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  color: var(--color-warning);
+  margin: 0;
+}
+.bookmarks-panel__error-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  margin: 0;
+}
+.bookmarks-panel__error-action {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.bookmarks-panel__error-action:hover {
+  background: var(--color-surface);
+}
+.bookmarks-panel__error-action:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
