@@ -12,9 +12,14 @@ const PG_EPUB = resolve(process.cwd(), 'test-fixtures/small-pride-and-prejudice.
 // improved a11y, in which case the relevant constant should be lowered to
 // match the new baseline so future regressions stay visible.
 const BASELINE_LIBRARY_EMPTY_SERIOUS_OR_CRITICAL = 0;
+// `library with imported book` baseline = 1 — color-contrast on
+// .import-tray__clear / .import-tray__status (F2.1, deferred to 6.2 spec
+// pending a design-system color decision).
 const BASELINE_LIBRARY_WITH_BOOK_SERIOUS_OR_CRITICAL = 1;
-const BASELINE_READER_DEFAULT_SERIOUS_OR_CRITICAL = 1;
-const BASELINE_READER_HIGHLIGHTS_TAB_SERIOUS_OR_CRITICAL = 1;
+// Reader baselines lowered from 1 → 0 in PR-C after fixing aria-prohibited-attr
+// on .reader-view__mount (F2.2 inline fix).
+const BASELINE_READER_DEFAULT_SERIOUS_OR_CRITICAL = 0;
+const BASELINE_READER_HIGHLIGHTS_TAB_SERIOUS_OR_CRITICAL = 0;
 
 async function seriousOrCriticalCount(builder: AxeBuilder): Promise<number> {
   const result = await builder.analyze();

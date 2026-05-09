@@ -16,7 +16,7 @@
   text-align: left;
   font: inherit;
   color: inherit;
-  transition: background 150ms ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 .suggested-prompts__item:hover { background: var(--color-surface); }
 .suggested-prompts__item:focus-visible {
@@ -57,7 +57,7 @@
   gap: var(--space-3);
   padding: var(--space-4);
   color: var(--color-text-muted);
-  animation: suggested-prompts-fade-in 250ms ease;
+  animation: suggested-prompts-fade-in var(--duration-base) var(--ease-out);
 }
 @keyframes suggested-prompts-fade-in {
   from { opacity: 0; }

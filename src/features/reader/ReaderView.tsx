@@ -296,7 +296,12 @@ export function ReaderView({
   return (
     <div className="reader-view" data-reader-theme={prefs?.theme ?? 'light'}>
       <div className="reader-view__body">
-        <div ref={mountRef} className="reader-view__mount" aria-label="Book content" />
+        <div
+          ref={mountRef}
+          className="reader-view__mount"
+          role="region"
+          aria-label="Book content"
+        />
         {status === 'loadingBlob' || status === 'opening' ? (
           <div className="reader-view__overlay" role="status">
             Opening book…

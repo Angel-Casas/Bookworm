@@ -25,7 +25,7 @@ Legend: ✓ present and adequate · ◐ present but inadequate (generic, no reco
 | **Library import — ImportTray** (`ImportTrayItem.tsx:25-38`) | ✓ `running` (◐ symbol) | — (tray hides when entries empty) | ✓ `done` (✓ symbol) | ✓ `failed` with reason text + `duplicate` variant | Clean state-machine: waiting / running / done / duplicate / failed. |
 | **BookCard** (`BookCard.tsx`) | — | — | ✓ always renders card | ✗ no per-card error state if cover fails to load | F5.5 — cover-load failure silently shows broken-image; consider fallback. |
 | **BookCardMenu** (`BookCardMenu.tsx`) | — | — | ✓ menu items | — | Stateless dropdown. |
-| **Reader (ReaderWorkspace + ReaderView)** | ✗ no spinner / skeleton during book load | — | ✓ renders | **✗ no user-visible error if `loadBookForReader` rejects** | **F5.1 critical** — `ReaderView.tsx` catches errors silently (lines 151, 188, 202); no fallback UI. |
+| **Reader (ReaderWorkspace + ReaderView)** | ✓ "Opening book…" overlay (`ReaderView.tsx:300`, `role="status"`) | — | ✓ renders | ✓ error overlay with `role="alert"` + descriptive message via `describeError()` + "Back to library" recovery (`ReaderView.tsx:305-312`) | Strong. State machine transitions to `error` per `readerMachine.ts:110, 141`. Error variants: blob-missing, parse-failed, unsupported-format, engine-crashed. |
 | **TocPanel** (`TocPanel.tsx:11-15`) | — (data sync from book) | ✓ "No chapters in this book." | ✓ entry list | ✗ no error state if TOC extract throws | F5.2 |
 | **HighlightsPanel** (`HighlightsPanel.tsx:40-50`) | — | ✓ rich empty: title + hint + icon | ✓ list | ✗ no error state if repo throws | F5.2 |
 | **BookmarksPanel** (`BookmarksPanel.tsx:13-22`) | — | ✓ rich empty: title + hint + icon | ✓ list | ✗ no error state if repo throws | F5.2 |
@@ -40,10 +40,10 @@ Legend: ✓ present and adequate · ◐ present but inadequate (generic, no reco
 
 ## Candidate findings (to triage in PR-C findings doc)
 
-- **F5.1 (critical)** — Reader has no user-visible error state when `loadBookForReader` rejects (e.g., book blob missing from IndexedDB, parser throws). `ReaderView.tsx` lines 151, 188, 202 silently swallow errors. User sees a blank/broken reader with no way to recover. Severity: **critical**.
+- ~~**F5.1**~~ — *Withdrawn.* Initial reading missed the state-machine-driven error overlay in `ReaderView.tsx:305-312` and the `target: 'error'` transitions in `readerMachine.ts:110, 141`. Reader's error handling is comprehensive: overlay with `role="alert"`, descriptive message via `describeError()`, and a "Back to library" recovery button. The `} catch {}` silent blocks at lines 151, 188, 202 are *secondary*-path catches (snippet extraction, anchor resolution) that fall through to safe defaults rather than the main book-load path.
 - **F5.2 (important)** — Reader panels (TocPanel, HighlightsPanel, BookmarksPanel) and ThreadList have no error state if their respective repos throw. The DB is local IndexedDB so failures are unlikely, but a corrupted store would show as a blank panel. Severity: **important**.
 - **F5.3 (critical, ErrorBoundary-related)** — No top-level `ErrorBoundary` anywhere in `src/` (verified by grep). Any unhandled render error after the boot state succeeds will unmount the entire React tree, leaving the user with a blank page and no recovery. See recommendation below. Severity: **critical**.
-- **F5.4 (nice-to-have)** — Reader has no loading state (skeleton/spinner) during the book-load promise. Books load from IndexedDB so it's typically <100ms, but a large PDF can take longer. Severity: nice-to-have.
+- ~~**F5.4**~~ — *Withdrawn.* Reader does have a loading overlay ("Opening book…") gated on `status === 'loadingBlob' || 'opening'` per `ReaderView.tsx:300-303`.
 - **F5.5 (nice-to-have)** — `BookCard` has no fallback when the cover image fails to render (e.g., extracted cover blob is corrupt). Severity: nice-to-have.
 - **F5.6 (nice-to-have)** — `NoteEditor` has no explicit empty-state copy; editor just renders empty. Could be acceptable; flag for design discussion. Severity: nice-to-have.
 - **F5.7 (nice-to-have)** — `IndexInspectorModal` has no explicit empty state when there are zero chunks (table is just empty). Severity: nice-to-have.
