@@ -16,6 +16,19 @@ if (!rootEl) {
 
 const capabilities = checkCapabilities();
 
+if (import.meta.env.DEV) {
+  // Phase 6 audit: runtime a11y violation logger (dev-only).
+  // Dynamic import keeps this out of production bundles.
+  void (async () => {
+    const [React, ReactDOM, { default: reactAxe }] = await Promise.all([
+      import('react'),
+      import('react-dom'),
+      import('@axe-core/react'),
+    ]);
+    await reactAxe(React, ReactDOM, 1000);
+  })();
+}
+
 createRoot(rootEl).render(
   <StrictMode>
     {capabilities.kind === 'supported' ? (
