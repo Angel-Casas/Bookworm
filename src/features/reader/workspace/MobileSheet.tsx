@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { useFocusTrap } from '@/shared/a11y/useFocusTrap';
 import './mobile-sheet.css';
 
 type Props = {
@@ -7,6 +8,9 @@ type Props = {
 };
 
 export function MobileSheet({ onDismiss, children }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, true);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onDismiss();
@@ -20,7 +24,7 @@ export function MobileSheet({ onDismiss, children }: Props) {
   return (
     <>
       <div className="mobile-sheet__scrim" onClick={onDismiss} aria-hidden="true" />
-      <div className="mobile-sheet" role="dialog" aria-modal="true">
+      <div className="mobile-sheet" role="dialog" aria-modal="true" ref={ref}>
         <div className="mobile-sheet__handle" aria-hidden="true" />
         <div className="mobile-sheet__body">{children}</div>
       </div>

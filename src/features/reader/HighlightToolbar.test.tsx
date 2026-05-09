@@ -311,4 +311,42 @@ describe('HighlightToolbar — Ask AI button (Phase 4.4)', () => {
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(onAddToCompare).toHaveBeenCalledOnce();
   });
+
+  it('focuses the first color button on mount', () => {
+    render(
+      <HighlightToolbar
+        mode="create"
+        screenRect={RECT}
+        onPickColor={() => undefined}
+        onDismiss={() => undefined}
+      />,
+    );
+    expect((document.activeElement as HTMLElement | null)?.getAttribute('aria-label')).toBe(
+      'yellow',
+    );
+  });
+
+  it('restores focus to the trigger when unmounted', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'open toolbar';
+    document.body.appendChild(trigger);
+    trigger.focus();
+    try {
+      const { unmount } = render(
+        <HighlightToolbar
+          mode="create"
+          screenRect={RECT}
+          onPickColor={() => undefined}
+          onDismiss={() => undefined}
+        />,
+      );
+      expect((document.activeElement as HTMLElement | null)?.getAttribute('aria-label')).toBe(
+        'yellow',
+      );
+      unmount();
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      document.body.removeChild(trigger);
+    }
+  });
 });

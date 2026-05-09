@@ -118,4 +118,46 @@ describe('IndexInspectorModal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
   });
+
+  it('focuses the close button on mount', () => {
+    render(
+      <IndexInspectorModal
+        bookId={BookId('b1')}
+        bookTitle="A book"
+        chunksRepo={fakeChunksRepo([]) as never}
+        embeddingsRepo={fakeEmbeddingsRepo() as never}
+        onRebuild={vi.fn(() => Promise.resolve())}
+        onClose={vi.fn()}
+      />,
+    );
+    expect((document.activeElement as HTMLElement | null)?.getAttribute('aria-label')).toBe(
+      'Close inspector',
+    );
+  });
+
+  it('restores focus to the trigger when unmounted', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'open inspector';
+    document.body.appendChild(trigger);
+    trigger.focus();
+    try {
+      const { unmount } = render(
+        <IndexInspectorModal
+          bookId={BookId('b1')}
+          bookTitle="A book"
+          chunksRepo={fakeChunksRepo([]) as never}
+          embeddingsRepo={fakeEmbeddingsRepo() as never}
+          onRebuild={vi.fn(() => Promise.resolve())}
+          onClose={vi.fn()}
+        />,
+      );
+      expect((document.activeElement as HTMLElement | null)?.getAttribute('aria-label')).toBe(
+        'Close inspector',
+      );
+      unmount();
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      document.body.removeChild(trigger);
+    }
+  });
 });

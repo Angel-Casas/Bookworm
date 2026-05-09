@@ -41,4 +41,34 @@ describe('MobileSheet', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onDismiss).not.toHaveBeenCalled();
   });
+
+  it('focuses the first focusable child on mount', () => {
+    render(
+      <MobileSheet onDismiss={() => undefined}>
+        <button type="button">first</button>
+        <button type="button">second</button>
+      </MobileSheet>,
+    );
+    expect((document.activeElement as HTMLElement | null)?.textContent).toBe('first');
+  });
+
+  it('restores focus to the trigger when unmounted', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'trigger';
+    document.body.appendChild(trigger);
+    trigger.focus();
+    try {
+      expect(document.activeElement).toBe(trigger);
+      const { unmount } = render(
+        <MobileSheet onDismiss={() => undefined}>
+          <button type="button">inside</button>
+        </MobileSheet>,
+      );
+      expect((document.activeElement as HTMLElement | null)?.textContent).toBe('inside');
+      unmount();
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      document.body.removeChild(trigger);
+    }
+  });
 });

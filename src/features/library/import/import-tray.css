@@ -19,7 +19,7 @@
   font-family: var(--font-serif);
   font-style: italic;
   font-size: var(--text-sm);
-  color: var(--color-accent);
+  color: var(--color-text-muted);
 }
 .import-tray__list {
   list-style: none;
@@ -53,14 +53,14 @@
 .import-tray__status {
   font-family: var(--font-serif);
   font-size: var(--text-xs);
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
   font-style: italic;
 }
 .import-tray__action,
 .import-tray__dismiss {
   font-family: var(--font-serif);
   font-size: var(--text-xs);
-  color: var(--color-accent);
+  color: var(--color-text-muted);
   background: none;
   border: none;
   cursor: pointer;

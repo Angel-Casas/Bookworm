@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { HighlightColor } from '@/domain/annotations/types';
 import { ChatIcon, NoteIcon } from '@/shared/icons';
+import { useFocusTrap } from '@/shared/a11y/useFocusTrap';
 import { HIGHLIGHT_COLORS, COLOR_HEX } from './highlightColors';
 import './highlight-toolbar.css';
 
@@ -43,6 +44,7 @@ export function HighlightToolbar({
   canAddToCompare,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, true);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
