@@ -27,7 +27,7 @@ Add an export affordance to the per-book notebook view: serialize the user's boo
 - **Export-time filter override** (e.g., "Export current view" vs "Export everything"). User uses the existing filter/search.
 - **Tags in the export.** `Highlight.tags` is currently unused in the UI; defer until tags become user-facing.
 - **Internal IDs.** No `id`, `bookId`, `threadId`, etc. The export is for humans, not for round-trip ingest.
-- **`contextRefs[].text`** (the actual passage text saved alongside an answer). The reader has the source; the export is an *index* of saved content, not a duplicate of the underlying book. Reduces export size.
+- **`contextRefs[].text`** (the actual passage text saved alongside an answer). The reader has the source; the export is an *index* of saved content, not a duplicate of the underlying book. Reduces export size. Note: per `src/domain/ai/types.ts`, `ContextRef` is a 4-kind union (`passage` / `section` / `highlight` / `chunk`); the spec's earlier-draft references to `'chapter'` and `'retrieval'` were stale chat-mode names rather than ref-kind values. Sources rendering uses the actual four kinds.
 
 ---
 
@@ -98,9 +98,10 @@ If a group is empty (filter excluded everything in that kind), its `## Heading` 
 | `userNote` with newlines | Same — inside the `> **Your note:** ...` blockquote. |
 | Bookmark with `snippet === null` | `(no snippet)` placeholder inside the bookmark's blockquote. |
 | Highlight with no associated note | Skip the `> **Note:** ...` line; emit color + date only. |
-| `contextRef.kind === 'passage'` | `- {sectionTitle} — *passage*` |
-| `contextRef.kind === 'chapter'` | `- {sectionTitle} — *chapter*` |
-| `contextRef.kind === 'retrieval'` (Phase 5.2) | `- {sectionTitle} — *retrieval (rank {n})*` if a rank is available; else `- {sectionTitle} — *retrieval*` |
+| `contextRef.kind === 'passage'` | `- {sectionTitle ?? '(no section)'} — *passage*` |
+| `contextRef.kind === 'section'` | `- {sectionTitle ?? '(no section)'} — *section*` |
+| `contextRef.kind === 'highlight'` | `- (highlight) — *highlight*` (the ref carries only `highlightId`; no friendly title in the ref itself) |
+| `contextRef.kind === 'chunk'` | `- (chunk) — *chunk*` (same — only `chunkId` is in the ref) |
 
 ### Date formatting
 
