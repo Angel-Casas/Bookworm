@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { resolve } from 'node:path';
 
@@ -23,7 +23,7 @@ async function seriousOrCriticalCount(builder: AxeBuilder): Promise<number> {
   ).length;
 }
 
-async function importBook(page: import('@playwright/test').Page): Promise<void> {
+async function importBook(page: Page): Promise<void> {
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import a book to begin.' }).click();
   const fileChooser = await fileChooserPromise;
@@ -31,7 +31,7 @@ async function importBook(page: import('@playwright/test').Page): Promise<void> 
   await expect(page.getByText(/pride and prejudice/i).first()).toBeVisible({ timeout: 15_000 });
 }
 
-async function openBook(page: import('@playwright/test').Page): Promise<void> {
+async function openBook(page: Page): Promise<void> {
   await page.getByRole('button', { name: /open pride and prejudice/i }).click();
   await expect(page.getByRole('button', { name: /back to library/i })).toBeVisible({
     timeout: 10_000,
