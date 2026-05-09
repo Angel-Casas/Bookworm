@@ -74,12 +74,25 @@ test.describe('Phase 6 offline behavior baseline', () => {
     await page.goto('/');
     await importBook(page);
 
-    // Go offline mid-session.
+    // Reload so the SW takes control of this page. Without this, lazy-loaded
+    // route chunks (Phase 6.3) fetch from the network and fail when offline.
+    // After reload, chunks come from the SW precache.
+    await page.reload();
+    await page.waitForFunction(
+      () => navigator.serviceWorker.controller !== null,
+      null,
+      { timeout: 15_000 },
+    );
+    await expect(page.getByText(/pride and prejudice/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Go offline.
     await context.setOffline(true);
 
-    // Open the book — content lives in IndexedDB, should render without
-    // network. Asserting via the "Back to library" button which only appears
-    // once the reader has mounted successfully.
+    // Open the book — content lives in IndexedDB, lazy chunks come from SW
+    // precache. Asserting via the "Back to library" button which only
+    // appears once the reader has mounted successfully.
     await page.getByRole('button', { name: /open pride and prejudice/i }).click();
     await expect(page.getByRole('button', { name: /back to library/i })).toBeVisible({
       timeout: 15_000,
