@@ -197,3 +197,72 @@ describe('useBookmarks', () => {
     void result;
   });
 });
+
+describe('useBookmarks load error handling', () => {
+  function rejectingRepo(loadError: Error): BookmarksRepository {
+    return {
+      add: vi.fn(() => Promise.resolve()),
+      patch: vi.fn(() => Promise.resolve()),
+      delete: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => Promise.reject(loadError)),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+  }
+
+  it('exposes loadError when listByBook rejects', async () => {
+    const repo = rejectingRepo(new Error('db is gone'));
+    const { result } = renderHook(() =>
+      useBookmarks({ bookId: BookId('b1'), repo, readerState: fakeReaderState() }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    expect(result.current.loadError?.message).toBe('db is gone');
+    expect(result.current.list).toEqual([]);
+  });
+
+  it('retryLoad clears loadError and re-runs the load on success', async () => {
+    let attempt = 0;
+    const repo: BookmarksRepository = {
+      add: vi.fn(() => Promise.resolve()),
+      patch: vi.fn(() => Promise.resolve()),
+      delete: vi.fn(() => Promise.resolve()),
+      listByBook: vi.fn(() => {
+        attempt += 1;
+        if (attempt === 1) return Promise.reject(new Error('first try'));
+        return Promise.resolve([] as readonly Bookmark[]);
+      }),
+      deleteByBook: vi.fn(() => Promise.resolve()),
+    };
+    const { result } = renderHook(() =>
+      useBookmarks({ bookId: BookId('b1'), repo, readerState: fakeReaderState() }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError).not.toBeNull();
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(result.current.loadError).toBeNull();
+    });
+    expect(repo.listByBook).toHaveBeenCalledTimes(2);
+  });
+
+  it('retryLoad after a second rejection still surfaces the new error', async () => {
+    const repo = rejectingRepo(new Error('still broken'));
+    const { result } = renderHook(() =>
+      useBookmarks({ bookId: BookId('b1'), repo, readerState: fakeReaderState() }),
+    );
+    await waitFor(() => {
+      expect(result.current.loadError?.message).toBe('still broken');
+    });
+    act(() => {
+      result.current.retryLoad();
+    });
+    await waitFor(() => {
+      expect(repo.listByBook).toHaveBeenCalledTimes(2);
+    });
+    expect(result.current.loadError?.message).toBe('still broken');
+  });
+});
