@@ -23,37 +23,40 @@ export function LibraryEmptyState({ onFilesPicked, onOpenSettings }: Props) {
       </button>
       <div className="library-empty__column">
         <svg
-          className="library-empty__mark"
+          className="library-empty__mark motion-rise"
           viewBox="0 0 64 64"
           role="img"
           aria-label="Bookworm bookmark"
-          style={{ animationDelay: '80ms' }}
+          style={{ animationDelay: 'calc(var(--duration-fast) * 0)' }}
         >
           <path d="M22 14 H42 V50 L32 44 L22 50 Z" fill="var(--color-accent)" />
         </svg>
 
         <h1
           id="library-empty-title"
-          className="library-empty__wordmark"
-          style={{ animationDelay: '240ms' }}
+          className="library-empty__wordmark motion-rise"
+          style={{ animationDelay: 'calc(var(--duration-fast) * 1)' }}
         >
           Bookworm
         </h1>
 
-        <p className="library-empty__tagline" style={{ animationDelay: '400ms' }}>
+        <p
+          className="library-empty__tagline motion-rise"
+          style={{ animationDelay: 'calc(var(--duration-fast) * 2)' }}
+        >
           A quiet place to read books and think with&nbsp;them.
         </p>
 
         <span
-          className="library-empty__rule"
+          className="library-empty__rule motion-rule-grow"
           aria-hidden="true"
-          style={{ animationDelay: '560ms' }}
+          style={{ animationDelay: 'calc(var(--duration-fast) * 3)' }}
         />
 
         <button
           type="button"
-          className="library-empty__cta"
-          style={{ animationDelay: '660ms' }}
+          className="library-empty__cta motion-rise"
+          style={{ animationDelay: 'calc(var(--duration-fast) * 4)' }}
           onClick={() => inputRef.current?.click()}
         >
           Import a book to begin.
@@ -71,7 +74,10 @@ export function LibraryEmptyState({ onFilesPicked, onOpenSettings }: Props) {
           }}
         />
 
-        <p className="library-empty__privacy" style={{ animationDelay: '820ms' }}>
+        <p
+          className="library-empty__privacy motion-fade-in"
+          style={{ animationDelay: 'calc(var(--duration-fast) * 5)' }}
+        >
           Your books stay on this device. Nothing leaves until you ask.
         </p>
       </div>
