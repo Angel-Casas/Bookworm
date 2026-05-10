@@ -54,23 +54,23 @@ const REQUIRED_DURATIONS = [
 
 export function assertReducedMotionZeroesTokens(tokensSource: string): void {
   const block = REDUCED_BLOCK_RE.exec(tokensSource);
-  if (!block) {
+  const inner = block?.[1];
+  if (!inner) {
     throw new Error(
       'motion contract: no `@media (prefers-reduced-motion: reduce)` block found in tokens source',
     );
   }
-  const inner = block[1];
   for (const tok of REQUIRED_DURATIONS) {
     const re = new RegExp(`${tok}\\s*:\\s*([^;]+);`);
-    const m = re.exec(inner);
-    if (!m) {
+    const value = re.exec(inner)?.[1]?.trim();
+    if (value === undefined) {
       throw new Error(
         `motion contract: ${tok} is not set inside the reduced-motion block`,
       );
     }
-    if (m[1].trim() !== '0ms') {
+    if (value !== '0ms') {
       throw new Error(
-        `motion contract: ${tok} inside reduced-motion block is "${m[1].trim()}", expected "0ms"`,
+        `motion contract: ${tok} inside reduced-motion block is "${value}", expected "0ms"`,
       );
     }
   }
