@@ -31,7 +31,7 @@
   color: var(--color-text-muted);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  transition: color var(--duration-base) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .right-rail__collapse:hover {
@@ -64,7 +64,7 @@
   position: relative;
   cursor: pointer;
   color: var(--color-text-muted);
-  transition: color var(--duration-base) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .right-rail__edge-tab:hover {
