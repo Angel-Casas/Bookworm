@@ -63,7 +63,7 @@ export function ChatEmptyState(props: Props) {
           Generating suggestions for <em>{props.bookTitle}</em>…
         </p>
         <div
-          className="suggested-prompts__loading"
+          className="suggested-prompts__loading motion-fade-in"
           role="status"
           aria-busy="true"
           aria-live="polite"

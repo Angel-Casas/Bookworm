@@ -45,7 +45,11 @@ export function BookCard({
         aria-label={`Open ${book.title}`}
       >
         {coverUrl ? (
-          <img className="book-card__cover" src={coverUrl} alt="" />
+          <img
+            className="book-card__cover motion-fade-in"
+            src={coverUrl}
+            alt=""
+          />
         ) : (
           <div className="book-card__cover book-card__cover--blank" aria-hidden="true">
             <span className="book-card__cover-fallback-title">{book.title}</span>

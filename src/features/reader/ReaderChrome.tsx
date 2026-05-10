@@ -72,7 +72,7 @@ export function ReaderChrome({
           aria-label="Add bookmark"
           className={
             pulsing
-              ? 'reader-chrome__bookmark reader-chrome__bookmark--pulse'
+              ? 'reader-chrome__bookmark reader-chrome__bookmark--pulse motion-pulse'
               : 'reader-chrome__bookmark'
           }
           title="Bookmark this spot"

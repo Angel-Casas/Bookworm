@@ -56,7 +56,7 @@ export function NotebookRow({
         : null;
     const visibleChunkRefs = chunkRefs.slice(0, 5);
     return (
-      <li className="notebook-row notebook-row--saved-answer">
+      <li className="notebook-row notebook-row--saved-answer motion-fade-in">
         <div className="notebook-row__main">
           <span className="notebook-row__top">
             <span className="notebook-row__type">AI ANSWER</span>
@@ -139,11 +139,11 @@ export function NotebookRow({
   if (entry.kind === 'bookmark') {
     const b = entry.bookmark;
     return (
-      <li className="notebook-row notebook-row--bookmark">
+      <li className="notebook-row notebook-row--bookmark motion-fade-in">
         <div className="notebook-row__main">
           <button
             type="button"
-            className="notebook-row__content"
+            className="notebook-row__content motion-press"
             aria-label={b.sectionTitle ?? 'Bookmark'}
             onClick={() => {
               onJumpToAnchor(b.anchor);
@@ -180,7 +180,7 @@ export function NotebookRow({
   const noteLabel = editingNote ? 'Cancel note' : note ? 'Edit note' : 'Add note';
 
   return (
-    <li className="notebook-row notebook-row--highlight">
+    <li className="notebook-row notebook-row--highlight motion-fade-in">
       <span
         className="notebook-row__bar"
         data-color={h.color}

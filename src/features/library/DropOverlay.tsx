@@ -50,7 +50,11 @@ export function DropOverlay({ onFilesDropped }: Props) {
 
   if (!active) return null;
   return (
-    <div className="drop-overlay" role="presentation" aria-hidden="true">
+    <div
+      className="drop-overlay motion-fade-in"
+      role="presentation"
+      aria-hidden="true"
+    >
       <div className="drop-overlay__plate">
         <p className="drop-overlay__title">Drop to add to your library</p>
         <p className="drop-overlay__hint">Files stay on this device.</p>

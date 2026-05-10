@@ -5,7 +5,11 @@ export function UpdateAvailableToast() {
   const { needsRefresh, applyUpdate, dismissNeedsRefresh } = useSwUpdates();
   if (!needsRefresh) return null;
   return (
-    <div className="sw-toast sw-toast--update" role="status" aria-live="polite">
+    <div
+      className="sw-toast sw-toast--update motion-rise"
+      role="status"
+      aria-live="polite"
+    >
       <div className="sw-toast__body">
         <p className="sw-toast__title">An update is available.</p>
         <p className="sw-toast__text">Reload to get the latest Bookworm.</p>

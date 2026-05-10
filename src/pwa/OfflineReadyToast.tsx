@@ -16,7 +16,11 @@ export function OfflineReadyToast() {
 
   if (!offlineReady) return null;
   return (
-    <div className="sw-toast sw-toast--ready" role="status" aria-live="polite">
+    <div
+      className="sw-toast sw-toast--ready motion-rise"
+      role="status"
+      aria-live="polite"
+    >
       <div className="sw-toast__body">
         <p className="sw-toast__title">Bookworm is ready offline.</p>
       </div>

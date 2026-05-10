@@ -90,7 +90,7 @@
   display: grid;
   place-items: center;
   opacity: 0;
-  transition: opacity var(--duration-base) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 .book-card:hover .book-card__menu-trigger,
 .book-card__menu-trigger:focus-visible {

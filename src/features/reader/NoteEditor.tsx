@@ -96,7 +96,12 @@ export function NoteEditor({
   const counterOver = value.length > SOFT_LIMIT;
 
   return (
-    <div ref={rootRef} className="note-editor" role="group" aria-label="Edit note">
+    <div
+      ref={rootRef}
+      className="note-editor motion-fade-in"
+      role="group"
+      aria-label="Edit note"
+    >
       <textarea
         ref={taRef}
         className="note-editor__textarea"

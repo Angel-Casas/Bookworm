@@ -57,9 +57,4 @@
   gap: var(--space-3);
   padding: var(--space-4);
   color: var(--color-text-muted);
-  animation: suggested-prompts-fade-in var(--duration-base) var(--ease-out);
-}
-@keyframes suggested-prompts-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }

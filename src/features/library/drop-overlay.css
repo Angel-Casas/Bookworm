@@ -7,7 +7,6 @@
   background: color-mix(in oklab, var(--color-bg) 85%, transparent);
   backdrop-filter: blur(2px);
   padding: var(--space-12);
-  animation: drop-overlay-in var(--duration-base) var(--ease-out) forwards;
 }
 .drop-overlay__plate {
   width: min(80vw, 36rem);
@@ -31,17 +30,4 @@
   font-style: italic;
   font-size: var(--text-sm);
   color: var(--color-text-subtle);
-}
-@keyframes drop-overlay-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .drop-overlay {
-    animation: none;
-  }
 }

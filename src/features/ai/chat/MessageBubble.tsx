@@ -158,7 +158,12 @@ export function MessageBubble({ message, onSave, onJumpToSource, resolveChunkAnc
     >
       <p className="message-bubble__content">
         {message.content}
-        {isStreaming ? <span className="message-bubble__caret" aria-hidden="true" /> : null}
+        {isStreaming ? (
+          <span
+            className="message-bubble__caret motion-breath"
+            aria-hidden="true"
+          />
+        ) : null}
       </p>
       <div className="message-bubble__footer">
         {isTruncated ? <em className="message-bubble__truncated">(stopped)</em> : null}

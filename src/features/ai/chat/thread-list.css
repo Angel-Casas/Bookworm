@@ -25,7 +25,7 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   cursor: pointer;
-  transition: background-color var(--duration-base) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .thread-list__row:hover {
@@ -73,7 +73,7 @@
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
   opacity: 0;
-  transition: opacity var(--duration-base) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 .thread-list__row:hover .thread-list__delete {
@@ -130,7 +130,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--duration-base) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .chat-header__actions button:hover {

@@ -28,8 +28,8 @@ export function IndexInspectorChunkRow({
       type="button"
       className={
         expanded
-          ? 'index-inspector__chunk-row index-inspector__chunk-row--expanded'
-          : 'index-inspector__chunk-row'
+          ? 'index-inspector__chunk-row index-inspector__chunk-row--expanded motion-fade-in'
+          : 'index-inspector__chunk-row motion-fade-in'
       }
       aria-expanded={expanded}
       aria-controls={panelId}

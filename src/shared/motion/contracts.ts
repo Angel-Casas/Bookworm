@@ -52,6 +52,17 @@ const REQUIRED_DURATIONS = [
   '--duration-slower',
 ] as const;
 
+const LOCAL_REDUCED_BLOCK_RE =
+  /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/;
+
+export function assertNoLocalReducedMotionBlock(cssSource: string): void {
+  if (LOCAL_REDUCED_BLOCK_RE.test(cssSource)) {
+    throw new Error(
+      'motion contract: local @media (prefers-reduced-motion: reduce) block found — the global token override in tokens.css is the single source of truth; remove this local block',
+    );
+  }
+}
+
 export function assertReducedMotionZeroesTokens(tokensSource: string): void {
   const block = REDUCED_BLOCK_RE.exec(tokensSource);
   const inner = block?.[1];

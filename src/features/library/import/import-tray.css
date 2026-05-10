@@ -2,7 +2,6 @@
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-subtle);
   padding: var(--space-5) var(--space-10);
-  animation: import-tray-in var(--duration-base) var(--ease-out) forwards;
 }
 .import-tray__header {
   display: flex;
@@ -73,19 +72,4 @@
 }
 .import-tray__item--done {
   background: color-mix(in oklab, var(--color-success) 6%, var(--color-bg));
-}
-@keyframes import-tray-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .import-tray {
-    animation: none;
-  }
 }

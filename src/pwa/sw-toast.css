@@ -12,7 +12,6 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   max-width: min(380px, calc(100vw - 2 * var(--space-6)));
-  animation: sw-toast-in var(--duration-base) var(--ease-out);
 }
 
 .sw-toast__body {
@@ -82,27 +81,10 @@
   outline-offset: 2px;
 }
 
-@keyframes sw-toast-in {
-  from {
-    transform: translateY(8px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
 @media (max-width: 600px) {
   .sw-toast {
     inset-inline: var(--space-4);
     inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
     max-width: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sw-toast {
-    animation: none;
   }
 }

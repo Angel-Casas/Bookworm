@@ -23,8 +23,17 @@ export function MobileSheet({ onDismiss, children }: Props) {
 
   return (
     <>
-      <div className="mobile-sheet__scrim" onClick={onDismiss} aria-hidden="true" />
-      <div className="mobile-sheet" role="dialog" aria-modal="true" ref={ref}>
+      <div
+        className="mobile-sheet__scrim motion-scrim-in"
+        onClick={onDismiss}
+        aria-hidden="true"
+      />
+      <div
+        className="mobile-sheet motion-sheet-in"
+        role="dialog"
+        aria-modal="true"
+        ref={ref}
+      >
         <div className="mobile-sheet__handle" aria-hidden="true" />
         <div className="mobile-sheet__body">{children}</div>
       </div>

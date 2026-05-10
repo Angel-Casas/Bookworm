@@ -65,28 +65,6 @@
   background: var(--color-panel);
 }
 
-@keyframes reader-chrome-bookmark-pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.reader-chrome__bookmark--pulse {
-  animation: reader-chrome-bookmark-pulse var(--duration-slow) var(--ease-out);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reader-chrome__bookmark--pulse {
-    animation: none;
-  }
-}
-
 .reader-chrome__notebook {
   display: inline-flex;
   align-items: center;
