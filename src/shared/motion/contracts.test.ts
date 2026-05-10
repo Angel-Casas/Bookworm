@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertNoLiteralMotion,
+  assertNoLocalReducedMotionBlock,
   assertReducedMotionZeroesTokens,
 } from './contracts';
 
@@ -98,5 +99,26 @@ describe('assertReducedMotionZeroesTokens', () => {
     expect(() => {
       assertReducedMotionZeroesTokens(src);
     }).toThrow(/prefers-reduced-motion/);
+  });
+});
+
+describe('assertNoLocalReducedMotionBlock', () => {
+  it('accepts a file without any reduced-motion block', () => {
+    const src = `.x { color: red; }`;
+    expect(() => {
+      assertNoLocalReducedMotionBlock(src);
+    }).not.toThrow();
+  });
+
+  it('rejects a file containing a reduced-motion block', () => {
+    const src = `
+      .x { animation: y var(--duration-base); }
+      @media (prefers-reduced-motion: reduce) {
+        .x { animation: none; }
+      }
+    `;
+    expect(() => {
+      assertNoLocalReducedMotionBlock(src);
+    }).toThrow(/local @media \(prefers-reduced-motion/i);
   });
 });
