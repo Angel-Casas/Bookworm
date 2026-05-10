@@ -940,7 +940,7 @@ export function ReaderWorkspace(props: Props) {
       ) : null}
 
       {focus.firstTimeHintVisible ? (
-        <div className="reader-workspace__hint" role="status">
+        <div className="reader-workspace__hint motion-fade-in" role="status">
           {FOCUS_HINT_TEXT}
         </div>
       ) : null}
