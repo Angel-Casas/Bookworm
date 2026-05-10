@@ -42,24 +42,6 @@
   margin-inline-start: 2px;
   vertical-align: text-bottom;
   opacity: 0.4;
-  animation: bubble-caret 1.4s var(--ease-in-out) infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .message-bubble__caret {
-    animation: none;
-    opacity: 0.7;
-  }
-}
-
-@keyframes bubble-caret {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .message-bubble__footer {
