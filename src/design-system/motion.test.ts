@@ -26,7 +26,9 @@ const PRIMITIVE_CLASSES = [
 
 describe('motion.css contracts', () => {
   it('uses no literal durations or easings', () => {
-    expect(() => assertNoLiteralMotion(motionCss)).not.toThrow();
+    expect(() => {
+      assertNoLiteralMotion(motionCss);
+    }).not.toThrow();
   });
 
   it.each(PRIMITIVE_CLASSES)('declares a rule for %s', (cls) => {
@@ -36,6 +38,8 @@ describe('motion.css contracts', () => {
 
 describe('tokens.css reduced-motion contract', () => {
   it('zeroes all four --duration-* tokens under prefers-reduced-motion', () => {
-    expect(() => assertReducedMotionZeroesTokens(tokensCss)).not.toThrow();
+    expect(() => {
+      assertReducedMotionZeroesTokens(tokensCss);
+    }).not.toThrow();
   });
 });

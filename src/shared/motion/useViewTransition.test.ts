@@ -36,7 +36,7 @@ describe('useViewTransition', () => {
         finished: Promise.resolve(),
         ready: Promise.resolve(),
         updateCallbackDone: Promise.resolve(),
-        skipTransition: () => {},
+        skipTransition: () => undefined,
       };
     });
     (
