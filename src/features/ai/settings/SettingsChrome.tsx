@@ -10,7 +10,7 @@ export function SettingsChrome({ onClose }: Props) {
     <header className="settings-chrome">
       <button
         type="button"
-        className="settings-chrome__back"
+        className="settings-chrome__back motion-press"
         onClick={onClose}
         aria-label="Back to library"
       >

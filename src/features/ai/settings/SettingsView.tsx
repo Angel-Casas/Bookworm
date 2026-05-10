@@ -121,7 +121,7 @@ export function SettingsView({ settingsRepo, onClose }: Props) {
   return (
     <div className="settings-view">
       <SettingsChrome onClose={onClose} />
-      <main className="settings-view__main">
+      <main className="settings-view__main motion-fade-in">
         <section className="settings-view__section">
           <h2 className="settings-view__section-title">API key</h2>
           {state.kind === 'none' ? <ApiKeyForm onSubmit={handleEntrySubmit} /> : null}
