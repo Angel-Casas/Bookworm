@@ -3,7 +3,6 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   z-index: 50;
-  animation: mobile-sheet-scrim-in var(--duration-base) var(--ease-out);
 }
 
 .mobile-sheet {
@@ -16,7 +15,6 @@
   z-index: 51;
   display: flex;
   flex-direction: column;
-  animation: mobile-sheet-in var(--duration-slow) var(--ease-out);
 }
 
 .mobile-sheet__handle {
@@ -32,21 +30,4 @@
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 0 0 env(safe-area-inset-bottom);
-}
-
-@keyframes mobile-sheet-in {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-@keyframes mobile-sheet-scrim-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mobile-sheet,
-  .mobile-sheet__scrim {
-    animation: none;
-  }
 }
