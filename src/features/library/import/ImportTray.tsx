@@ -52,7 +52,7 @@ export function ImportTray({ store, onViewExisting }: Props) {
   );
 
   return (
-    <section className="import-tray" aria-label="Import status">
+    <section className="import-tray motion-rise" aria-label="Import status">
       <header className="import-tray__header">
         <span className="import-tray__summary">{summary(entries)}</span>
         {allTerminal && (
