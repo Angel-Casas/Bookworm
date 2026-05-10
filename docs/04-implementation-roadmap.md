@@ -21,6 +21,7 @@
 - Phase 6.3 — complete (2026-05-09)
 - Phase 7 export-notebook — complete (2026-05-09)
 - Phase 6.1.1 motion-foundation — complete (2026-05-10)
+- Phase 6.1.2 motion-migration — complete (2026-05-10)
 
 ## Roadmap principles
 - Ship a narrow, polished v1
