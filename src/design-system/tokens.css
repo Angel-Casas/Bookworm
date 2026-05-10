@@ -2,6 +2,9 @@
  * CSS custom-property layer paired with `tokens.ts`.
  * Both files must stay in sync — change one, change the other.
  */
+/* See docs/05-design-system.md for the design-system overview;
+ * §Motion documents the motion vocabulary built on the --duration-*
+ * and --ease-* tokens declared below. */
 
 :root {
   color-scheme: light dark;
