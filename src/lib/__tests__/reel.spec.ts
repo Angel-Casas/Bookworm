@@ -68,10 +68,10 @@ describe('activeBeatIndex', () => {
 
 describe('chooseReelSource', () => {
   it('selects by codec support first, then viewport', () => {
-    expect(chooseReelSource(false, true)).toBe('/landing/scrub-1920.mp4')
-    expect(chooseReelSource(true, true)).toBe('/landing/scrub-960.mp4')
-    expect(chooseReelSource(false, false)).toBe('/landing/scrub-1920.webm')
-    expect(chooseReelSource(true, false)).toBe('/landing/scrub-1920.webm')
+    expect(chooseReelSource(false, true)).toBe('landing/scrub-1920.mp4')
+    expect(chooseReelSource(true, true)).toBe('landing/scrub-960.mp4')
+    expect(chooseReelSource(false, false)).toBe('landing/scrub-1920.webm')
+    expect(chooseReelSource(true, false)).toBe('landing/scrub-1920.webm')
   })
 })
 

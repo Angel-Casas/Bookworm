@@ -35,6 +35,16 @@ const veiled = ref(true)
 const chromeOn = ref(false)
 const filmSrc = ref('')
 
+/**
+ * A file from `public/`, addressed from wherever the app is served.
+ *
+ * Bookworm is not always at the root of a domain — on GitHub Pages it lives
+ * under /Bookworm/ — so an absolute `/landing/…` is a 404 there and the whole
+ * film goes blank. `BASE_URL` is whatever the build was given, and it always
+ * ends in a slash.
+ */
+const asset = (path: string): string => `${import.meta.env.BASE_URL}${path}`
+
 function setBeatRef(id: string) {
   return (el: unknown) => {
     beatRefs.value[id] = el instanceof HTMLElement ? el : null
@@ -229,7 +239,7 @@ onMounted(() => {
   }
   const small = Math.min(window.innerWidth, window.innerHeight) < 700 && window.innerWidth < 761
   const canH264 = video.canPlayType('video/mp4; codecs="avc1.42E01E"') !== ''
-  filmSrc.value = chooseReelSource(small, canH264)
+  filmSrc.value = asset(chooseReelSource(small, canH264))
 
   video.addEventListener('loadedmetadata', () => {
     if (Number.isFinite(video.duration) && video.duration > 1) duration = video.duration
@@ -491,9 +501,14 @@ onBeforeUnmount(() => {
           muted
           playsinline
           preload="auto"
-          poster="/landing/poster.jpg"
+          :poster="asset('landing/poster.jpg')"
         ></video>
-        <img v-else class="poster" src="/landing/poster.jpg" :alt="t('landing.filmAlt')" />
+        <img
+          v-else
+          class="poster"
+          :src="asset('landing/poster.jpg')"
+          :alt="t('landing.filmAlt')"
+        />
 
         <!-- I — the medallion descends -->
         <section :ref="setBeatRef('hero')" class="beat st-hero" data-state="out">
@@ -629,7 +644,7 @@ onBeforeUnmount(() => {
         <!-- II -->
         <section :ref="setBeatRef('import')" class="beat side-l" data-state="out" style="--y: 36%">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Library.png'" alt="Library" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Library.png')" alt="Library" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -656,7 +671,7 @@ onBeforeUnmount(() => {
         <!-- III -->
         <section :ref="setBeatRef('read')" class="beat side-r" data-state="out" style="--y: 60%">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Dream.png'" alt="Dream" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Dream.png')" alt="Dream" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -683,7 +698,7 @@ onBeforeUnmount(() => {
         <!-- IV -->
         <section :ref="setBeatRef('context')" class="beat side-l" data-state="out" style="--y: 28%">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Adventure.png'" alt="Adventure" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Adventure.png')" alt="Adventure" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -710,7 +725,7 @@ onBeforeUnmount(() => {
         <!-- V -->
         <section :ref="setBeatRef('ink')" class="beat side-r" data-state="out" style="--y: 64%">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Ink.png'" alt="Ink" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Ink.png')" alt="Ink" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -737,7 +752,7 @@ onBeforeUnmount(() => {
         <!-- VI -->
         <section :ref="setBeatRef('models')" class="beat low-l" data-state="out">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Lens.png'" alt="Lens" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Lens.png')" alt="Lens" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -764,7 +779,7 @@ onBeforeUnmount(() => {
         <!-- VII -->
         <section :ref="setBeatRef('ask')" class="beat side-r" data-state="out" style="--y: 32%">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Time.png'" alt="Time" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Time.png')" alt="Time" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -796,7 +811,7 @@ onBeforeUnmount(() => {
           style="--y: 56%"
         >
           <div class="frame">
-            <img class="wordart" :src="'/landing/Market.png'" alt="Market" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Market.png')" alt="Market" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>
@@ -826,7 +841,7 @@ onBeforeUnmount(() => {
         <!-- IX — colophon: the charms come home to one string -->
         <section :ref="setBeatRef('final')" class="beat st-final" data-state="out">
           <div class="frame">
-            <img class="wordart" :src="'/landing/Somewhere.png'" alt="Somewhere" @error="hideArt" />
+            <img class="wordart" :src="asset('landing/Somewhere.png')" alt="Somewhere" @error="hideArt" />
             <svg class="fc c1" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c2" aria-hidden="true"><use href="#fret" /></svg>
             <svg class="fc c3" aria-hidden="true"><use href="#fret" /></svg>

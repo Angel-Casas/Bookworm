@@ -20,7 +20,9 @@ export default defineConfig({
         theme_color: '#f0ae2f',
         background_color: '#050506',
         display: 'standalone',
-        start_url: '/',
+        // No start_url or scope here on purpose: the plugin fills both from
+        // the build's `base`, which is '/' locally and '/Bookworm/' on GitHub
+        // Pages. A hard-coded '/' installs an app that opens the wrong site.
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

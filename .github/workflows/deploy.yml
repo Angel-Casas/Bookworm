@@ -1,0 +1,61 @@
+# Build Bookworm and publish it to GitHub Pages.
+#
+# The repository holds SOURCE, not a build — `dist/` is ignored — so Pages
+# cannot serve the repository directly: it would hand a visitor the raw
+# index.html, whose <script src="/src/main.ts"> is not a file that exists once
+# the app is built. This workflow does the build and publishes its output.
+#
+# Set Settings → Pages → Source to "GitHub Actions" for this to be what serves
+# the site.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push supersedes one still in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The site lives at /Bookworm/, not at the root of the domain, and every
+      # URL the build writes has to say so.
+      - run: npm run build:pages
+
+      # Pages serves the file you ask for and 404s on anything else, so a
+      # single-page app needs its index back for deep links: /Bookworm/library
+      # is a route inside the app, not a file on the server.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

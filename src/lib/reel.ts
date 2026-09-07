@@ -115,10 +115,16 @@ export function activeBeatIndex(t: number, beats: readonly ReelBeat[]): number {
   return active
 }
 
-/** Pick the right encode for the visitor's viewport and codec support. */
+/**
+ * Pick the right encode for the visitor's viewport and codec support.
+ *
+ * Returned WITHOUT a leading slash: the app is not always served from the root
+ * of a domain — on GitHub Pages it lives under /Bookworm/ — and a pure function
+ * has no business knowing where that is. The caller prefixes the base.
+ */
 export function chooseReelSource(smallViewport: boolean, canPlayH264: boolean): string {
-  if (!canPlayH264) return '/landing/scrub-1920.webm'
-  return smallViewport ? '/landing/scrub-960.mp4' : '/landing/scrub-1920.mp4'
+  if (!canPlayH264) return 'landing/scrub-1920.webm'
+  return smallViewport ? 'landing/scrub-960.mp4' : 'landing/scrub-1920.mp4'
 }
 
 /** Total scrollable track height for a film of `duration` seconds. */

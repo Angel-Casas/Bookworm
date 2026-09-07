@@ -6,6 +6,8 @@
 
 **A bookshelf that lives in your browser, with a reader inside every book.**
 
+### [Open Bookworm →](https://angel-casas.github.io/Bookworm/)
+
 Load your own PDFs and EPUBs, read them anywhere, and ask the book itself what
 it means. Nothing is uploaded. There is no account, and there is no server —
 Bookworm is a static site that runs entirely on your device.
