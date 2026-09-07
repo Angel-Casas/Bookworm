@@ -1,0 +1,394 @@
+/*
+ * Bookworm design system — "Filigrana" carried out of the landing page.
+ * Dark (the void) is the default; [data-theme='light'] flips to warm paper.
+ * Gold is Angel's #f0ae2f, stepped into a ramp for ornament and interaction.
+ */
+
+:root {
+  /* voids and papers */
+  --bg: #050506;
+  --bg-panel: #0d0d11;
+  --bg-raise: #15151b;
+  --text: #ede7db;
+  --text-dim: #c2c9d2;
+  --text-faint: #8a919c;
+
+  /* the gold ramp */
+  --gold: #f0ae2f;
+  --gold-mid: #d1921e;
+  --gold-deep: #8a5f18;
+  --gold-ink: #171208;
+  --hair: rgba(209, 146, 30, 0.42);
+  --hair-soft: rgba(209, 146, 30, 0.22);
+
+  --danger: #e06c5a;
+  --scrim: rgba(5, 5, 6, 0.74);
+  --shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  /* How wide one page may be. Shared, because the reader narrows the PANE to
+     this and the reader view has to know where that leaves the page's edge. */
+  --page-measure: 46rem;
+
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-serif: 'EB Garamond', Georgia, serif;
+  --font-body: 'Spectral', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --ease-wipe: cubic-bezier(0.22, 0.61, 0.2, 1);
+  /* Every control in the reader's pager row stands EXACTLY this tall — the
+     pagers, the contents trigger, and the assistant's plate, which is
+     positioned from a different component and cannot see the others. A fixed
+     height rather than a floor, because a floor is only a floor: with the real
+     book fonts loaded the buttons grew past it and the plate, sized to the
+     number itself, stayed behind. Roomy enough that no font fills it. */
+  --pager-control-h: 2rem;
+}
+
+[data-theme='light'] {
+  --bg: #f6f1e6;
+  --bg-panel: #fdfaf2;
+  --bg-raise: #ffffff;
+  --text: #1b1508;
+  --text-dim: #4a4232;
+  --text-faint: #85795f;
+
+  --gold: #a8720d;
+  --gold-mid: #8f6210;
+  --gold-deep: #6b4a0e;
+  --gold-ink: #fdfaf2;
+  --hair: rgba(143, 98, 16, 0.5);
+  --hair-soft: rgba(143, 98, 16, 0.26);
+
+  --danger: #b3311f;
+  --scrim: rgba(27, 21, 8, 0.4);
+  --shadow: 0 12px 34px rgba(80, 60, 15, 0.2);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-color: var(--gold-deep) var(--bg);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  transition:
+    background 0.35s ease,
+    color 0.35s ease;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--hair);
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-color: var(--gold);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+::selection {
+  background: rgba(240, 174, 47, 0.32);
+}
+
+/* ————— controls: mono small-caps hairline buttons, gold on approach ————— */
+button,
+.btn {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--hair-soft);
+  border-radius: 2px;
+  padding: 0.55em 1.1em;
+  cursor: pointer;
+  transition:
+    color 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease,
+    box-shadow 0.22s ease;
+}
+button:hover:not(:disabled),
+.btn:hover {
+  color: var(--gold);
+  border-color: var(--hair);
+}
+button:focus-visible,
+.btn:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* the sealed-gold primary, straight from the landing's CTA */
+.btn-gold,
+button.btn-gold {
+  background: var(--gold);
+  color: var(--gold-ink);
+  border: 1px solid var(--gold);
+  box-shadow:
+    inset 0 0 0 3px var(--gold),
+    inset 0 0 0 4px rgba(23, 18, 8, 0.55);
+}
+.btn-gold:hover:not(:disabled),
+button.btn-gold:hover:not(:disabled) {
+  color: var(--gold-ink);
+  background: var(--gold-mid);
+  border-color: var(--gold-mid);
+  box-shadow:
+    inset 0 0 0 3px var(--gold-mid),
+    inset 0 0 0 4px rgba(23, 18, 8, 0.55);
+}
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+input[type='search'],
+textarea,
+select {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--bg-raise);
+  border: 1px solid var(--hair-soft);
+  border-radius: 2px;
+  padding: 0.5em 0.7em;
+  transition:
+    border-color 0.22s ease,
+    background 0.35s ease;
+}
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--hair);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
+/* ————— shared surface language ————— */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--hair-soft);
+  border-radius: 3px;
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.gold-rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, transparent, var(--hair), transparent);
+  margin: 1.1rem 0;
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+/* ————— overlay transitions —————
+   The two halves of an overlay are timed apart on purpose. The SCRIM is the
+   answer to the tap — it says "you are somewhere else now" — so it arrives
+   almost at once; the panel takes the longer, softer path. Fading the whole
+   overlay as one unit made the dim and the blur wait on the panel's timing,
+   which read as a second of nothing happening. (It is also the expensive way
+   to do it: an opacity animation on an ancestor of a `backdrop-filter` forces
+   the browser to composite the blurred backdrop through a fading group, every
+   frame.) */
+.veil-fade-enter-active .overlay-scrim {
+  transition: opacity 0.1s linear;
+}
+.veil-fade-leave-active .overlay-scrim {
+  transition: opacity 0.16s ease;
+}
+.veil-fade-enter-from .overlay-scrim,
+.veil-fade-leave-to .overlay-scrim {
+  opacity: 0;
+}
+.veil-fade-enter-active .overlay-panel {
+  transition:
+    opacity 0.24s var(--ease-wipe),
+    transform 0.24s var(--ease-wipe);
+}
+.veil-fade-leave-active .overlay-panel {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+.veil-fade-enter-from .overlay-panel,
+.veil-fade-leave-to .overlay-panel {
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+}
+
+.panel-rise-enter-active {
+  transition:
+    opacity 0.34s var(--ease-wipe),
+    transform 0.34s var(--ease-wipe);
+}
+.panel-rise-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.panel-rise-enter-from,
+.panel-rise-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
+}
+
+.drawer-slide-enter-active {
+  transition:
+    opacity 0.3s var(--ease-wipe),
+    transform 0.3s var(--ease-wipe);
+}
+.drawer-slide-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+  opacity: 0;
+  transform: translateX(26px);
+}
+
+/* nav icon morph (icon <-> hand-drawn X) */
+.morph-enter-active,
+.morph-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.morph-enter-from {
+  opacity: 0;
+  transform: rotate(-70deg) scale(0.7);
+}
+.morph-leave-to {
+  opacity: 0;
+  transform: rotate(70deg) scale(0.7);
+}
+
+/* ————— the app's motion vocabulary —————
+   Four movements, and nothing else invents its own. Everything is short and
+   low: a page settling, a card taking its place, a menu appearing where it was
+   already going to be. Motion here is meant to explain what just happened —
+   never to be watched, and never to stand between a tap and its result. */
+
+/* A view arriving: the old one goes first (quickly), the new one settles in. */
+.view-fade-enter-active {
+  transition:
+    opacity 0.24s var(--ease-wipe),
+    transform 0.24s var(--ease-wipe);
+}
+.view-fade-leave-active {
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.view-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.view-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* A book joining, leaving, or moving to a new place on the shelf. The MOVE is
+   the one that matters: re-sorting a shelf should look like books being
+   rearranged, so the eye can follow one from where it was to where it went. */
+.shelf-card-enter-active {
+  transition:
+    opacity 0.32s var(--ease-wipe),
+    transform 0.32s var(--ease-wipe);
+}
+.shelf-card-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+  /* Out of flow while it goes, so the books behind it close ranks at once
+     rather than waiting for it to finish. */
+  position: absolute;
+}
+.shelf-card-move {
+  transition: transform 0.36s var(--ease-wipe);
+}
+.shelf-card-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.shelf-card-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+/* A popover appearing. Opacity ONLY: these are placed by measuring themselves
+   and sliding sideways to stay on screen, and a transform of our own here
+   would fight the one holding them on the screen. */
+.pop-fade-enter-active {
+  transition: opacity 0.14s ease;
+}
+.pop-fade-leave-active {
+  transition: opacity 0.1s ease;
+}
+.pop-fade-enter-from,
+.pop-fade-leave-to {
+  opacity: 0;
+}
+
+/* Chrome coming and going around the book — the toolbar, the lamp, the rail.
+   Slower out than in: what the reader asked to see should arrive promptly. */
+.chrome-fade-enter-active {
+  transition: opacity 0.2s ease;
+}
+.chrome-fade-leave-active {
+  transition: opacity 0.28s ease;
+}
+.chrome-fade-enter-from,
+.chrome-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

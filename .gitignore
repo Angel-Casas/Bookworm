@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+
+.eslintcache
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# Vite
+*.timestamp-*-*.mjs
+
+# ————— kept out of the published repository —————
+# Working notes: the roadmap, the decisions and the lessons the project is
+# built from. They are read and written by the AI collaborator each session and
+# are not part of the app.
+Docs/
+CLAUDE.md
+
+# Design experiments: HTML mockups, briefs, and the video variants they came
+# from. Nothing here is imported by the app.
+design-explorations/
+Claude outputs/
+
+# Browser probes. They drive a real Chromium against a local build and are run
+# by hand, not in CI.
+e2e/
