@@ -119,8 +119,9 @@ export function activeBeatIndex(t: number, beats: readonly ReelBeat[]): number {
  * Pick the right encode for the visitor's viewport and codec support.
  *
  * Returned WITHOUT a leading slash: the app is not always served from the root
- * of a domain — on GitHub Pages it lives under /Bookworm/ — and a pure function
- * has no business knowing where that is. The caller prefixes the base.
+ * of a domain — it lived under /Bookworm/ before bookworm.talk, and may again —
+ * and a pure function has no business knowing where that is. The caller
+ * prefixes the base.
  */
 export function chooseReelSource(smallViewport: boolean, canPlayH264: boolean): string {
   if (!canPlayH264) return 'landing/scrub-1920.webm'

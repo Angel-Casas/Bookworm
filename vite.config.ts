@@ -21,8 +21,9 @@ export default defineConfig({
         background_color: '#050506',
         display: 'standalone',
         // No start_url or scope here on purpose: the plugin fills both from
-        // the build's `base`, which is '/' locally and '/Bookworm/' on GitHub
-        // Pages. A hard-coded '/' installs an app that opens the wrong site.
+        // the build's `base`. That is '/' at bookworm.talk and locally, and
+        // '/Bookworm/' in the sub-path build — hard-coding either one installs
+        // an app that opens the wrong site.
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
