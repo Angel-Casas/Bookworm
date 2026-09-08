@@ -384,12 +384,22 @@ function repaintUnreadable(doc: Document, dark: boolean): void {
   }
   for (const element of elements) {
     if (!(element instanceof view.HTMLElement)) continue
-    // Links are the stylesheet's business, and it uses !important; an inline
-    // colour here would only be a rule that never wins.
-    if (element.closest('a[href]') !== null) continue
+    // The anchor ITSELF is the stylesheet's business, and that rule carries
+    // !important, so an inline colour here would only be one that never wins.
+    //
+    // What is emphatically not skipped is everything INSIDE it. `color` is
+    // inherited, and inheritance is exactly what a child with a colour of its
+    // own does not do: a publisher's `<a href><h1 class="title">` leaves the
+    // anchor's gold nowhere near the heading. Skipping the whole subtree was
+    // this pass's own blind spot — the headings and contents entries that
+    // stayed black on black were every one of them inside a link.
+    if (element.matches('a[href]')) continue
     const ink = view.getComputedStyle(element).color
     if (!needsNightInk(ink, groundBehind(element, view))) continue
-    element.style.setProperty('color', NIGHT_INK, 'important')
+    // Inside a link the readable colour is the LINK's, so the repaint does not
+    // quietly turn a piece of a link into body prose.
+    const readable = element.closest('a[href]') === null ? NIGHT_INK : NIGHT_LINK
+    element.style.setProperty('color', readable, 'important')
     element.setAttribute(NIGHT_INK_MARK, '')
   }
 }
