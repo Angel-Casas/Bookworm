@@ -384,20 +384,24 @@ function repaintUnreadable(doc: Document, dark: boolean): void {
   }
   for (const element of elements) {
     if (!(element instanceof view.HTMLElement)) continue
-    // The anchor ITSELF is the stylesheet's business, and that rule carries
-    // !important, so an inline colour here would only be one that never wins.
-    //
-    // What is emphatically not skipped is everything INSIDE it. `color` is
-    // inherited, and inheritance is exactly what a child with a colour of its
-    // own does not do: a publisher's `<a href><h1 class="title">` leaves the
-    // anchor's gold nowhere near the heading. Skipping the whole subtree was
-    // this pass's own blind spot — the headings and contents entries that
-    // stayed black on black were every one of them inside a link.
-    if (element.matches('a[href]')) continue
     const ink = view.getComputedStyle(element).color
     if (!needsNightInk(ink, groundBehind(element, view))) continue
-    // Inside a link the readable colour is the LINK's, so the repaint does not
-    // quietly turn a piece of a link into body prose.
+    // Nothing is exempt, links least of all.
+    //
+    // Twice this pass excused anchors to the stylesheet, and twice the
+    // stylesheet could not deliver. `a[href]` is specificity (0,1,1), and a
+    // publisher's `div.toc a.entry { color: #000 !important }` is (0,2,2) — so
+    // the rule that was supposed to make links readable simply lost, and the
+    // pass had been told not to check. The attempt before that skipped the
+    // anchor's whole subtree, where a coloured child never inherits the
+    // anchor's colour in the first place.
+    //
+    // An inline declaration marked !important sits at the top of the cascade,
+    // above any stylesheet however specific. Measuring every element and
+    // writing the answer inline is the only form of this that cannot be
+    // out-argued — which, for a rule whose whole job is that text can be read,
+    // is the only form worth having. Inside a link the answer is the LINK's
+    // colour, so a repaint never turns part of a link into prose.
     const readable = element.closest('a[href]') === null ? NIGHT_INK : NIGHT_LINK
     element.style.setProperty('color', readable, 'important')
     element.setAttribute(NIGHT_INK_MARK, '')
