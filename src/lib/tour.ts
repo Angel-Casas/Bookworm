@@ -19,6 +19,50 @@
 
 export type TourLeg = 'shelf' | 'reader'
 
+/**
+ * A control drawn INTO a line of the card, in the same ink as the button it
+ * names.
+ *
+ * A sentence that opens "the ranked bars sort the shelf" asks the reader to
+ * translate a description back into a shape, then hunt that shape in the row
+ * behind the card. The glyph skips both steps, and it is shorter — which is
+ * what buys the room for the sentence to say something the icon cannot.
+ * `spread`, `theme`, `daylight`, `grid` and `archive` come in more than one
+ * state, and a line about a control that toggles shows every face of it.
+ */
+export type TourGlyph =
+  | 'plus'
+  | 'grid-big'
+  | 'grid-compact'
+  | 'search'
+  | 'rank'
+  | 'archive-out'
+  | 'archive-in'
+  | 'support'
+  | 'lang'
+  | 'theme-dark'
+  | 'theme-light'
+  | 'settings'
+  | 'spread-single'
+  | 'spread-double'
+  | 'spread-scroll'
+  | 'type'
+  | 'focus'
+  | 'daylight-light'
+  | 'daylight-dark'
+  | 'inkwell'
+  | 'ribbon'
+  | 'lamp'
+  | 'gloss'
+  | 'contents'
+
+/** One line under the card's title: what it says, and the controls it is about. */
+export interface TourBullet {
+  key: string
+  /** Drawn before the words, ahead of a thin dash that keeps them apart. */
+  icons?: readonly TourGlyph[]
+}
+
 export interface TourStep {
   id: string
   leg: TourLeg
@@ -30,7 +74,7 @@ export interface TourStep {
   target: string | null
   titleKey: string
   /** One line each, under the title. A row is explained by its bullets. */
-  bulletKeys: readonly string[]
+  bullets: readonly TourBullet[]
   /** Breathing room around the target, in px. */
   pad?: number
   /**
@@ -40,6 +84,18 @@ export interface TourStep {
    * opens it, and every other step closes it again.
    */
   stage?: 'chat'
+  /**
+   * The shelf must be showing covers WITH their details for this step, because
+   * the step talks about the details. A reader whose shelf is set to big
+   * covers would otherwise be pointed at text that is not on their screen.
+   * The reader's own setting is put back when the tour ends.
+   */
+  shelf?: 'compact'
+  /**
+   * A small moving illustration inside the card, for a gesture that a
+   * sentence describes badly — pulling a chain, a corner folding over.
+   */
+  demo?: 'bookmark'
 }
 
 /**
@@ -53,19 +109,19 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'shelf',
     target: null,
     titleKey: 'tour.welcome.title',
-    bulletKeys: ['tour.welcome.b1', 'tour.welcome.b2', 'tour.welcome.b3'],
+    bullets: [{ key: 'tour.welcome.b1' }, { key: 'tour.welcome.b2' }, { key: 'tour.welcome.b3' }],
   },
   {
     id: 'shelf-controls',
     leg: 'shelf',
     target: '.header-actions',
     titleKey: 'tour.controls.title',
-    bulletKeys: [
-      'tour.controls.b1',
-      'tour.controls.b2',
-      'tour.controls.b3',
-      'tour.controls.b4',
-      'tour.controls.b5',
+    bullets: [
+      { key: 'tour.controls.b1', icons: ['plus'] },
+      { key: 'tour.controls.b2', icons: ['grid-big', 'grid-compact'] },
+      { key: 'tour.controls.b3', icons: ['search'] },
+      { key: 'tour.controls.b4', icons: ['rank'] },
+      { key: 'tour.controls.b5', icons: ['archive-out', 'archive-in'] },
     ],
     pad: 10,
   },
@@ -74,15 +130,21 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'shelf',
     target: 'article.book-card',
     titleKey: 'tour.card.title',
-    bulletKeys: ['tour.card.b1', 'tour.card.b2', 'tour.card.b3'],
+    bullets: [{ key: 'tour.card.b1' }, { key: 'tour.card.b2' }, { key: 'tour.card.b3' }],
     pad: 8,
+    shelf: 'compact',
   },
   {
     id: 'nav',
     leg: 'shelf',
     target: '.nav-actions',
     titleKey: 'tour.nav.title',
-    bulletKeys: ['tour.nav.b1', 'tour.nav.b2', 'tour.nav.b3', 'tour.nav.b4'],
+    bullets: [
+      { key: 'tour.nav.b1', icons: ['support'] },
+      { key: 'tour.nav.b2', icons: ['lang'] },
+      { key: 'tour.nav.b3', icons: ['theme-dark', 'theme-light'] },
+      { key: 'tour.nav.b4', icons: ['settings'] },
+    ],
     pad: 8,
   },
   {
@@ -90,21 +152,22 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'shelf',
     target: 'article.book-card',
     titleKey: 'tour.open.title',
-    bulletKeys: ['tour.open.b1'],
+    bullets: [{ key: 'tour.open.b1' }],
     pad: 8,
+    shelf: 'compact',
   },
   {
     id: 'reader-toolbar',
     leg: 'reader',
     target: '.reader-header',
     titleKey: 'tour.toolbar.title',
-    bulletKeys: [
-      'tour.toolbar.b1',
-      'tour.toolbar.b2',
-      'tour.toolbar.b3',
-      'tour.toolbar.b4',
-      'tour.toolbar.b5',
-      'tour.toolbar.b6',
+    bullets: [
+      { key: 'tour.toolbar.b1', icons: ['spread-single', 'spread-double', 'spread-scroll'] },
+      { key: 'tour.toolbar.b2', icons: ['type'] },
+      { key: 'tour.toolbar.b3', icons: ['focus'] },
+      { key: 'tour.toolbar.b4', icons: ['daylight-light', 'daylight-dark'] },
+      { key: 'tour.toolbar.b5', icons: ['inkwell'] },
+      { key: 'tour.toolbar.b6', icons: ['ribbon', 'search'] },
     ],
     pad: 10,
   },
@@ -113,15 +176,24 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'reader',
     target: '[data-testid=add-bookmark]',
     titleKey: 'tour.page.title',
-    bulletKeys: ['tour.page.b1', 'tour.page.b2', 'tour.page.b3'],
+    bullets: [
+      { key: 'tour.page.b1', icons: ['lamp'] },
+      { key: 'tour.page.b2' },
+      { key: 'tour.page.b3' },
+    ],
     pad: 14,
+    demo: 'bookmark',
   },
   {
     id: 'selection',
     leg: 'reader',
     target: '[data-testid=epub-container]',
     titleKey: 'tour.selection.title',
-    bulletKeys: ['tour.selection.b1', 'tour.selection.b2', 'tour.selection.b3'],
+    bullets: [
+      { key: 'tour.selection.b1', icons: ['inkwell'] },
+      { key: 'tour.selection.b2', icons: ['gloss'] },
+      { key: 'tour.selection.b3' },
+    ],
     pad: 6,
   },
   {
@@ -129,7 +201,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'reader',
     target: '.reader-stage .controls',
     titleKey: 'tour.pager.title',
-    bulletKeys: ['tour.pager.b1', 'tour.pager.b2', 'tour.pager.b3'],
+    bullets: [
+      { key: 'tour.pager.b1' },
+      { key: 'tour.pager.b2', icons: ['contents'] },
+      { key: 'tour.pager.b3' },
+    ],
     pad: 10,
   },
   {
@@ -137,7 +213,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'reader',
     target: '[data-testid=chat-toggle]',
     titleKey: 'tour.assistant.title',
-    bulletKeys: ['tour.assistant.b1', 'tour.assistant.b2', 'tour.assistant.b3'],
+    bullets: [
+      { key: 'tour.assistant.b1' },
+      { key: 'tour.assistant.b2' },
+      { key: 'tour.assistant.b3' },
+    ],
     pad: 10,
   },
   {
@@ -145,12 +225,12 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'reader',
     target: '[data-testid=chat-panel]',
     titleKey: 'tour.chat.title',
-    bulletKeys: [
-      'tour.chat.b1',
-      'tour.chat.b2',
-      'tour.chat.b3',
-      'tour.chat.b4',
-      'tour.chat.b5',
+    bullets: [
+      { key: 'tour.chat.b1' },
+      { key: 'tour.chat.b2' },
+      { key: 'tour.chat.b3' },
+      { key: 'tour.chat.b4' },
+      { key: 'tour.chat.b5' },
     ],
     pad: 6,
     stage: 'chat',
@@ -160,7 +240,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     leg: 'shelf',
     target: '[data-testid=continue-reading]',
     titleKey: 'tour.done.title',
-    bulletKeys: ['tour.done.b1', 'tour.done.b2'],
+    bullets: [{ key: 'tour.done.b1' }, { key: 'tour.done.b2' }],
     pad: 8,
   },
 ] as const
@@ -216,12 +296,7 @@ const MARGIN = 12
  * what is being explained, and is honest about there being no room rather
  * than shoving the card half off the edge.
  */
-export function placeCard(
-  hole: Rect | null,
-  card: Size,
-  viewport: Size,
-  gap = 14,
-): CardPlacement {
+export function placeCard(hole: Rect | null, card: Size, viewport: Size, gap = 14): CardPlacement {
   const centre = (): CardPlacement => ({
     top: Math.max(MARGIN, (viewport.height - card.height) / 2),
     left: Math.max(MARGIN, (viewport.width - card.width) / 2),

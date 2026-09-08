@@ -402,12 +402,12 @@ const en = {
   'landing.readHead': 'To read is to dream with your {swash} open.',
   'landing.readWord': 'eyes',
   'landing.readBody':
-    'Pages turn as pages should. Your place, your bookmarks, your underlinings are kept; each book remembers exactly where you left the dream.',
+    'Bookmarks, highlights, discussions with your personal LLM assistant, everything saved. Each book remembers exactly where you left the dream.',
 
   'landing.contextHead': 'Half the adventure is not knowing what the next page {swash}.',
   'landing.contextWord': 'holds',
   'landing.contextBody':
-    'A sentence, a chapter, everything so far — or the whole book. You draw the line, and nothing beyond your page is ever revealed to the LLM.',
+    'Choose a sentence, a chapter, everything read so far or the entire book, and let your LLM assistant answer your questions with this as the base. You draw the line, and nothing beyond your selection is ever revealed to your LLM assistant.',
 
   'landing.groundHead': 'Nothing is answered that your pages did not {swash}.',
   'landing.groundWord': 'write',
@@ -422,7 +422,7 @@ const en = {
   'landing.converseHead': 'A book read twice is two books; a book {swash} is a thousand.',
   'landing.converseWord': 'questioned',
   'landing.converseBody':
-    'Converse, dispute, demand a quiz on last night’s chapter — the conversation stays with the book.',
+    'Converse, dispute, demand a quiz on last night’s chapter — the conversation is saved inside the book.',
 
   'landing.costHead': 'In this market, every answer shows its {swash}.',
   'landing.costWord': 'receipt',
@@ -461,55 +461,54 @@ const en = {
     'We have put a short book on your shelf to try all this on. Remove it whenever you like.',
 
   'tour.controls.title': 'The shelf’s controls',
-  'tour.controls.b1': 'The big + adds books — any PDF or EPUB on your device.',
-  'tour.controls.b2': 'The grid switches between big covers and covers with details.',
-  'tour.controls.b3':
-    'The reading glass searches every book at once, and everything you have marked in them.',
-  'tour.controls.b4': 'The ranked bars sort the shelf: reading, finished, date added, format.',
+  'tour.controls.b1': 'Adds books — any PDF or EPUB on your device.',
+  'tour.controls.b2': 'Switches between big covers and covers with details.',
+  'tour.controls.b3': 'Searches every book at once, and everything you have marked in them.',
+  'tour.controls.b4': 'Sorts the shelf: reading, finished, date added, format.',
   'tour.controls.b5':
-    'The two chests export your whole library to a file, and read one back — your books, marks and conversations together.',
+    'Export your whole library to a file, and read one back — your books, marks and conversations together.',
 
   'tour.card.title': 'A book on the shelf',
   'tour.card.b1': 'The cover opens it. A book with no cover art gets one drawn from its title.',
-  'tour.card.b2': 'Underneath: the format, the size, how far in you are, and how long you have read.',
+  'tour.card.b2':
+    'Underneath: the format, the size, how far in you are, and how long you have read.',
   'tour.card.b3': 'Mark it finished when you are done, or remove it from the shelf entirely.',
 
   'tour.nav.title': 'The top bar',
-  'tour.nav.b1': 'The rings open support — every link opens an issue on GitHub.',
-  'tour.nav.b2': 'The globe changes the language, any time.',
-  'tour.nav.b3': 'The sun and moon switch between light and dark.',
-  'tour.nav.b4':
-    'The cogs hold your NanoGPT key, your model, and this tour if you want it again.',
+  'tour.nav.b1': 'Opens support — every link opens an issue on GitHub.',
+  'tour.nav.b2': 'Changes the language, any time.',
+  'tour.nav.b3': 'Switch between light and dark.',
+  'tour.nav.b4': 'Holds your NanoGPT key, your model, and this tour if you want it again.',
 
   'tour.open.title': 'Let’s open it',
   'tour.open.b1': 'Press Next and we will go inside the book, where most of Bookworm lives.',
 
   'tour.toolbar.title': 'The reader’s tools',
-  'tour.toolbar.b1': 'Pages side by side, or one at a time — on a phone, a single strip you scroll.',
-  'tour.toolbar.b2': 'The letter A sets the size and the typeface.',
-  'tour.toolbar.b3': 'The frame hides everything but the book.',
-  'tour.toolbar.b4': 'The sun and moon light the page itself, apart from the app around it.',
-  'tour.toolbar.b5':
-    'The inkwell chooses your highlighter, and marks the passage you have selected.',
-  'tour.toolbar.b6':
-    'The ribbon holds everything you have saved in this book; the reading glass searches it.',
+  'tour.toolbar.b1':
+    'Pages side by side, or one at a time — on a phone, a single strip you scroll.',
+  'tour.toolbar.b2': 'Sets the size and the typeface.',
+  'tour.toolbar.b3': 'Hides everything but the book.',
+  'tour.toolbar.b4': 'Lights the page itself, apart from the app around it.',
+  'tour.toolbar.b5': 'Chooses your highlighter, and marks the passage you have selected.',
+  'tour.toolbar.b6': 'Everything you have saved in this book, and a search through it.',
 
   'tour.page.title': 'Your place in the book',
-  'tour.page.b1': 'Pull the lamp’s chain to bookmark this spot. Pull it again to put it out.',
-  'tour.page.b2': 'The corner folds over when a page is bookmarked, the way a page does.',
+  'tour.page.b1': 'Pull its chain to bookmark this spot. Pull it again to remove the bookmark.',
+  'tour.page.b2': 'The corner folds over when a page is bookmarked.',
   'tour.page.b3':
     'Above the page: the book’s name, where you are in it, and what it has cost you so far.',
 
   'tour.selection.title': 'Select any words',
-  'tour.selection.b1': 'Highlight a passage and the inkwell above offers five colours for it.',
+  'tour.selection.b1': 'Highlight a passage and this offers five colours for it.',
   'tour.selection.b2':
-    'Select a single word and a second button appears: ask what it means, here, in this sentence.',
+    'Select a single word and this appears beside it: ask what it means, here, in this sentence.',
   'tour.selection.b3': 'Tap the left or right edge of the page to turn it. Swipe works too.',
 
   'tour.pager.title': 'Moving through it',
-  'tour.pager.b1': 'Previous and Next, or the arrow keys.',
-  'tour.pager.b2': 'Contents lists the chapters and says which one you are in.',
-  'tour.pager.b3': 'A PDF gets a page number you can type into as well.',
+  'tour.pager.b1':
+    'Previous and Next, or the arrow keys — on a phone, a tap or a swipe at the page’s edge.',
+  'tour.pager.b2': 'Contents lists the chapters and shows your current position.',
+  'tour.pager.b3': 'In a PDF you can also type a page number and jump straight to it.',
 
   'tour.assistant.title': 'Ask the book',
   'tour.assistant.b1':
@@ -517,13 +516,13 @@ const en = {
   'tour.assistant.b2':
     'Spoilers are yours to allow: send only what you have read and nothing later can be revealed.',
   'tour.assistant.b3':
-    'Every answer is priced to the fraction of a cent and counted against that book.',
+    'Every answer is priced to the fraction of a cent, before you send the request.',
 
   'tour.chat.title': 'This is the assistant',
   'tour.chat.b1':
-    'It has opened so you can see it: the conversation above, the box you write in below, and the book still there beside it.',
+    'I have opened the chat so you can see it: the conversation above, the box you write in below, and the book still there beside it.',
   'tour.chat.b2':
-    'Under the box, “Sends” decides how much of the book travels with your question, and the figure beside it is what that will cost — read it before you press send, not after.',
+    'Under the box, “Sends” decides how much of the book travels with your question, and beside it, the total cost — ready for you to check the price before you hit send.',
   'tour.chat.b3':
     'The model is chosen per book, so a difficult one can be given a better reader than a light one.',
   'tour.chat.b4':
@@ -531,10 +530,10 @@ const en = {
   'tour.chat.b5':
     'It is empty until you have a NanoGPT key — nothing is sent, and nothing is charged, until you ask something.',
 
-  'tour.done.title': 'That is the whole of it',
+  'tour.done.title': 'That is the end of the tour',
   'tour.done.b1': 'The book you were just in waits here, at the page you left.',
   'tour.done.b2':
-    'To talk to a book you will need a NanoGPT key — the cogs in the top bar explain how, and the tour is there too if you want it again.',
+    'To talk to a book you will need a NanoGPT key — the settings menu accessible from the top explains how, this tour can also be taken again through there if you need to. Enjoy your stay!',
 
   // —————————————————— the short book the tour brings ——————————————————
   // A book, not an instruction manual: it is there to be read, marked and

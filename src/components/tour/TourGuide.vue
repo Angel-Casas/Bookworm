@@ -20,9 +20,13 @@ import { isTextEntryTarget } from '@/lib/keyboard'
 import { useI18n, type MessageKey } from '@/i18n'
 import { useTourStore } from '@/stores/tour'
 import { useUiStore } from '@/stores/ui'
+import { useLibraryStore } from '@/stores/library'
+import TourGlyph from '@/components/tour/TourGlyph.vue'
+import TourBookmarkDemo from '@/components/tour/TourBookmarkDemo.vue'
 
 const tour = useTourStore()
 const ui = useUiStore()
+const library = useLibraryStore()
 const router = useRouter()
 const { t } = useI18n()
 
@@ -120,9 +124,7 @@ function layout(): void {
     if (!element) return
     const size = { width: element.offsetWidth, height: element.offsetHeight }
     card.value = placeCard(hole.value, size, viewport())
-    nib.value = hole.value
-      ? nibOffset(hole.value, { ...card.value, ...size }, card.value.side)
-      : 0
+    nib.value = hole.value ? nibOffset(hole.value, { ...card.value, ...size }, card.value.side) : 0
     placed.value = true
     settled.value = true
     if (wantFocus.value) {
@@ -189,6 +191,34 @@ function hunt(): void {
 }
 
 /**
+ * The shelf, borrowed for a step that needs it.
+ *
+ * The card for a book on the shelf talks about the format, the size and the
+ * progress written UNDER the cover — text that only the compact view has. A
+ * reader whose shelf is set to big covers was being pointed at a caption that
+ * was not on their screen, which reads as the tour describing another app.
+ *
+ * So the step says what it needs and the shelf is set to it for as long as
+ * the tour runs, then handed back. It is set, not toggled, and it is not
+ * written to storage: this is the tour's view of the shelf, never the
+ * reader's choice about it.
+ */
+const borrowedShelf = ref<'big' | 'compact' | null>(null)
+
+function borrowShelf(want: 'compact' | undefined): void {
+  if (want) {
+    if (borrowedShelf.value === null) borrowedShelf.value = library.view
+    library.previewView(want)
+  }
+}
+
+function returnShelf(): void {
+  if (borrowedShelf.value === null) return
+  library.previewView(borrowedShelf.value)
+  borrowedShelf.value = null
+}
+
+/**
  * The legs: the shelf steps belong on the library, the reader steps inside the
  * book the tour brought. The store says which; the routing happens here, so
  * only one thing ever believes it is steering.
@@ -213,6 +243,7 @@ watch(
     // every other — including on the way back, so stepping backwards out of it
     // leaves the reader as it was found.
     ui.setChatOpen(step.stage === 'chat')
+    borrowShelf(step.shelf)
     hunt()
   },
   { immediate: true },
@@ -228,7 +259,15 @@ onMounted(() => {
   window.addEventListener('keydown', onKey, true)
 })
 
+watch(
+  () => tour.active,
+  (active) => {
+    if (!active) returnShelf()
+  },
+)
+
 onBeforeUnmount(() => {
+  returnShelf()
   window.clearInterval(huntTimer)
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', onResize, true)
@@ -290,7 +329,7 @@ const panels = computed(() => {
   ]
 })
 
-const bullets = computed(() => tour.step?.bulletKeys ?? [])
+const bullets = computed(() => tour.step?.bullets ?? [])
 </script>
 
 <template>
@@ -367,13 +406,22 @@ const bullets = computed(() => tour.step?.bulletKeys ?? [])
       <!-- The lines arrive one after another, at reading speed. A row of six
            controls explained all at once is a wall; the same six arriving in
            order are a list being read out. -->
+      <!-- A gesture the words describe badly, played instead of told. -->
+      <TourBookmarkDemo v-if="tour.step?.demo === 'bookmark'" :key="`demo-${tour.step?.id}`" />
       <ul :key="`lines-${tour.step?.id}`" class="lines">
         <li
-          v-for="(key, i) in bullets"
-          :key="key"
+          v-for="(bullet, i) in bullets"
+          :key="bullet.key"
+          :class="{ glyphed: bullet.icons && bullet.icons.length > 0 }"
           :style="{ animationDelay: `${40 + i * 45}ms` }"
         >
-          {{ t(key as MessageKey) }}
+          <!-- The control itself, then a thin dash: without the dash the icon
+               runs into the first word and reads as part of it. -->
+          <template v-if="bullet.icons && bullet.icons.length > 0">
+            <TourGlyph v-for="name in bullet.icons" :key="name" :glyph="name" />
+            <span class="sep" aria-hidden="true">–</span>
+          </template>
+          {{ t(bullet.key as MessageKey) }}
         </li>
       </ul>
       <footer>
@@ -579,6 +627,25 @@ const bullets = computed(() => tour.step?.bulletKeys ?? [])
   color: var(--gold-deep);
   font-size: 0.5rem;
   top: 0.42em;
+}
+/* A line that opens with the control it is about needs no bullet: the icon IS
+   the bullet, and two marks before the first word is one too many. The text
+   wraps under the icon rather than around it, which keeps the left edge of
+   every line in the card on the same rule. */
+.lines li.glyphed {
+  padding-inline-start: 0;
+}
+.lines li.glyphed::before {
+  content: none;
+}
+.lines li.glyphed .sep {
+  color: var(--gold-deep);
+  margin-inline: 0.15em 0.2em;
+}
+/* Two glyphs for one control's two faces sit side by side with a hair
+   between them, not touching. */
+.lines li.glyphed .glyph + .glyph {
+  margin-inline-start: 0.22em;
 }
 footer {
   position: relative;

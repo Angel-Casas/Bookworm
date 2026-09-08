@@ -605,14 +605,20 @@ onBeforeUnmount(() => {
 
         <!-- Openings: an empty box is the hardest thing to answer — and
              "Where was I?" or "Quiz me" are wanted mid-conversation just as
-             much as at the start, so the row stays. -->
-        <div v-if="configured" class="openings" data-testid="chat-openings">
+             much as at the start, so the row stays.
+
+             It stays before there is a key, too. Hiding it left the lede
+             above offering "one of these" over an empty panel, which reads as
+             a row that has gone missing rather than one that is waiting: the
+             buttons are simply dead until the setup notice overhead has been
+             answered. -->
+        <div class="openings" data-testid="chat-openings">
           <button
             v-for="opening in availableOpenings"
             :key="opening.id"
             type="button"
             class="opening"
-            :disabled="chat.sending"
+            :disabled="chat.sending || !configured"
             :data-testid="`opening-${opening.id}`"
             @click="useOpening(opening)"
           >
@@ -706,7 +712,6 @@ onBeforeUnmount(() => {
               {{ t('chat.send') }}
             </button>
           </div>
-
         </form>
       </aside>
     </template>

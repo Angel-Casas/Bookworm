@@ -63,6 +63,18 @@ export const useLibraryStore = defineStore('library', () => {
     writePref(VIEW_KEY, view.value)
   }
 
+  /**
+   * Set the view WITHOUT remembering it.
+   *
+   * The tour needs the compact shelf for the step that explains what is
+   * written under a cover, and hands the reader's own setting back when it
+   * ends. Borrowing a preference must not become choosing one, so this is the
+   * one path to `view` that does not write to storage.
+   */
+  function previewView(value: LibraryView): void {
+    view.value = value
+  }
+
   function setSort(value: LibrarySort): void {
     sort.value = value
     writePref(SORT_KEY, value)
@@ -196,6 +208,7 @@ export const useLibraryStore = defineStore('library', () => {
     view,
     sort,
     toggleView,
+    previewView,
     setSort,
     load,
     importFiles,

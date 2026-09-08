@@ -21,7 +21,7 @@ describe('the steps', () => {
 
   it('has a title and at least one line for every stop', () => {
     const untitled = TOUR_STEPS.filter((step) => !step.titleKey.startsWith('tour.'))
-    const silent = TOUR_STEPS.filter((step) => step.bulletKeys.length === 0)
+    const silent = TOUR_STEPS.filter((step) => step.bullets.length === 0)
     expect(untitled.map((step) => step.id)).toEqual([])
     expect(silent.map((step) => step.id)).toEqual([])
   })
@@ -39,6 +39,26 @@ describe('the steps', () => {
 
   it('gives every stop its own id', () => {
     expect(new Set(TOUR_STEPS.map((step) => step.id)).size).toBe(TOUR_STEPS.length)
+  })
+
+  it('names a real message for every line', () => {
+    const stray = TOUR_STEPS.flatMap((step) =>
+      step.bullets.filter((bullet) => !bullet.key.startsWith('tour.')).map((b) => b.key),
+    )
+    expect(stray).toEqual([])
+  })
+
+  it('borrows the compact shelf only for the steps that point at a card', () => {
+    // The lines under a cover exist in one view only; a step that talks about
+    // them and does not ask for that view is describing an empty space.
+    const borrowing = TOUR_STEPS.filter((step) => step.shelf === 'compact')
+    expect(borrowing.map((step) => step.id)).toEqual(['book-card', 'open'])
+    expect(borrowing.every((step) => step.leg === 'shelf')).toBe(true)
+  })
+
+  it('plays the bookmark only where the bookmark is', () => {
+    const demos = TOUR_STEPS.filter((step) => step.demo !== undefined)
+    expect(demos.map((step) => step.id)).toEqual(['page'])
   })
 })
 
