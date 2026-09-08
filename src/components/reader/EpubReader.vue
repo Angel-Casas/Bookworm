@@ -5,6 +5,14 @@ import { DEFAULT_HIGHLIGHT_HEX } from '@/lib/highlight'
 import { LOCATION_CHARS, pageFromLocation } from '@/lib/pagination'
 import { getBookLocations, saveBookLocations } from '@/services/db'
 import type { Annotation } from '@/lib/types'
+import {
+  isPaperish,
+  needsNightInk,
+  parseColor,
+  NIGHT_BG,
+  NIGHT_INK,
+  NIGHT_LINK,
+} from '@/lib/nightPage'
 import { useI18n } from '@/i18n'
 import { flattenToc, tocPath, type TocEntry } from '@/lib/toc'
 import TocMenu from '@/components/reader/TocMenu.vue'
@@ -287,14 +295,104 @@ watch(() => props.highlights, syncHighlights, { deep: true })
  * into and removed from each view's document directly instead.
  */
 const PAGE_THEME_STYLE_ID = 'bw-page-theme'
+/**
+ * The page's ground and its default ink, and nothing else.
+ *
+ * This used to carry `color: inherit !important` for a list of tags, which was
+ * wrong twice over. `inherit` is not "the page's colour", it is "my parent's" —
+ * so a `<ul>`, `<section>` or `<header>` the list had forgotten handed the
+ * publisher's black down to every child that WAS listed, and a table of
+ * contents came out black on coal. And where it did work it was indiscriminate:
+ * a book that colours something deliberately, and legibly, lost it.
+ *
+ * What is left here is only what the page itself owns. Anything the publisher
+ * set explicitly is judged one element at a time by `repaintUnreadable` below,
+ * and kept unless it cannot be read.
+ *
+ * `a[href]`, not `a`: an `<a id="note4">` with no href is a landing place, not
+ * a link. EPUBs are full of them, they are frequently left unclosed, and the
+ * HTML parser then runs one on until the next anchor — so colouring bare `a`
+ * painted half a chapter gold.
+ */
 const DARK_PAGE_CSS = `
-  html, body { background: #16171a !important; color: #e2ddd2 !important; }
-  p, div, span, li, blockquote, h1, h2, h3, h4, h5, h6, td, th, dt, dd {
-    color: inherit !important; background-color: transparent !important;
-  }
-  a { color: #f0ae2f !important; }
-  a:visited { color: #d1921e !important; }
+  html, body { background: ${NIGHT_BG} !important; color: ${NIGHT_INK} !important; }
+  a[href] { color: ${NIGHT_LINK} !important; }
+  a[href]:visited { color: #d1921e !important; }
 `
+
+/** Marks an element this pass has repainted, so it can be put back exactly. */
+const NIGHT_INK_MARK = 'data-bw-night-ink'
+const NIGHT_BG_MARK = 'data-bw-night-bg'
+
+/**
+ * The ground this element will actually be read against.
+ *
+ * Walks up until something paints, because `background-color` does not
+ * inherit: an element's own is `transparent` far more often than not, and what
+ * the reader sees behind it is whichever ancestor last drew. Anything this pass
+ * has already cleared is skipped — it is showing the night page now.
+ */
+function groundBehind(element: Element, view: Window): string {
+  let node: Element | null = element
+  while (node !== null) {
+    if (!node.hasAttribute(NIGHT_BG_MARK)) {
+      const painted = view.getComputedStyle(node).backgroundColor
+      const colour = parseColor(painted)
+      if (colour !== null && colour.a > 0) return painted
+    }
+    node = node.parentElement
+  }
+  return NIGHT_BG
+}
+
+/**
+ * Repaint only what the night page has made unreadable.
+ *
+ * Every element is asked one question — can the ink it ended up with be read on
+ * the ground behind it — and left alone unless the answer is no. A publisher's
+ * grey aside stays a grey aside; their black body text becomes the page's ink.
+ *
+ * Paper-white panels go first, and for the same reason: a pale box drawn behind
+ * a sidebar is a white slab on a dark page, and dropping it lets the coal show
+ * through. Dropping it BEFORE measuring also matters — the text on top of it is
+ * then judged against the night, which is what it will really be sitting on.
+ *
+ * Inline styles, tracked by attribute, so switching back to the day page puts
+ * the book exactly as its publisher wrote it.
+ */
+function repaintUnreadable(doc: Document, dark: boolean): void {
+  const marked = Array.from(
+    doc.querySelectorAll<HTMLElement>(`[${NIGHT_INK_MARK}], [${NIGHT_BG_MARK}]`),
+  )
+  for (const element of marked) {
+    element.style.removeProperty('color')
+    element.style.removeProperty('background-color')
+    element.removeAttribute(NIGHT_INK_MARK)
+    element.removeAttribute(NIGHT_BG_MARK)
+  }
+  if (!dark) return
+  const view = doc.defaultView
+  if (view === null) return
+
+  const elements = Array.from(doc.body?.querySelectorAll('*') ?? [])
+  for (const element of elements) {
+    if (!(element instanceof view.HTMLElement)) continue
+    if (isPaperish(view.getComputedStyle(element).backgroundColor)) {
+      element.style.setProperty('background-color', 'transparent', 'important')
+      element.setAttribute(NIGHT_BG_MARK, '')
+    }
+  }
+  for (const element of elements) {
+    if (!(element instanceof view.HTMLElement)) continue
+    // Links are the stylesheet's business, and it uses !important; an inline
+    // colour here would only be a rule that never wins.
+    if (element.closest('a[href]') !== null) continue
+    const ink = view.getComputedStyle(element).color
+    if (!needsNightInk(ink, groundBehind(element, view))) continue
+    element.style.setProperty('color', NIGHT_INK, 'important')
+    element.setAttribute(NIGHT_INK_MARK, '')
+  }
+}
 
 const FONT_STACKS: Record<'serif' | 'sans', string> = {
   serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
@@ -333,6 +431,9 @@ function applyPageTheme(): void {
       style.textContent = css
       doc.head.appendChild(style)
     }
+    // After the stylesheet, never before: the pass measures what the element
+    // ACTUALLY computes to, and the page's own rules are part of that.
+    repaintUnreadable(doc, props.pageTheme === 'dark')
   }
   reapplyHighlights()
 }
