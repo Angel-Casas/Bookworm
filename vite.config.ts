@@ -11,7 +11,11 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate'. autoUpdate swaps the app out from under
+      // whoever is reading it, and — worse for a bug hunt — does it silently,
+      // so a reader testing a fix cannot tell an old build from a new one. The
+      // reader is asked instead, and nothing changes until they say so.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico'],
       manifest: {
         name: 'Bookworm',

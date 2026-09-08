@@ -438,6 +438,14 @@ const en = {
   'landing.fine': 'Free & open source · MIT · powered by NanoGPT',
   'landing.filmAlt': 'A glowing open book alone in darkness',
 
+  // ————————————————————— a newer Bookworm is waiting —————————————————————
+  // Shown only when a new version has been fetched and is waiting to take
+  // over. It is an offer, never an announcement of something already done.
+  'update.ready': 'A new version of Bookworm is ready.',
+  'update.take': 'Reload',
+  'update.taking': 'Reloading…',
+  'update.later': 'Not now',
+
   // ———————————————————————— the first-run tour ————————————————————————
   // The tour points at ROWS, not buttons: one card per row, with a line for
   // each control in it. Keep the lines short — they are read at a glance,

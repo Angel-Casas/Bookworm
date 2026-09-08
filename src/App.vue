@@ -12,13 +12,16 @@ import LangOverlay from '@/components/overlays/LangOverlay.vue'
 import SupportOverlay from '@/components/overlays/SupportOverlay.vue'
 import ShelfSearch from '@/components/overlays/ShelfSearch.vue'
 import TourGuide from '@/components/tour/TourGuide.vue'
+import UpdateNotice from '@/components/UpdateNotice.vue'
 import { useTourStore } from '@/stores/tour'
+import { useUpdateStore } from '@/stores/update'
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
 const language = useLanguageStore()
 const tour = useTourStore()
+const update = useUpdateStore()
 
 /**
  * The language question comes before anything else, on whatever page the reader
@@ -51,6 +54,9 @@ onMounted(async () => {
   // both of the questions below depend on knowing which page the reader
   // actually landed on.
   await router.isReady()
+  // Start listening for a newer build. Nothing is shown unless one arrives,
+  // and nothing is applied until the reader says so.
+  void update.watch()
   arrivedOnLanding.value = route.name === 'landing'
   askingLanguage.value = !language.chosen
   // One question at a time: the tour waits until the language has been
@@ -124,5 +130,6 @@ const showChrome = computed(() => route.name !== 'landing')
   <Transition name="veil-fade">
     <ShelfSearch v-if="showChrome && ui.overlay === 'shelf'" @close="ui.closeOverlay()" />
   </Transition>
+  <UpdateNotice />
   <TourGuide />
 </template>
