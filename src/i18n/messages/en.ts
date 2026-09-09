@@ -467,6 +467,24 @@ const en = {
   // The tour points at ROWS, not buttons: one card per row, with a line for
   // each control in it. Keep the lines short — they are read at a glance,
   // beside the thing they describe.
+  // ————————————————————— living on the device —————————————————————
+  // Said once, under the nav, and then only ever in settings. A browser hands
+  // over the install dialogue unannounced and exactly once; this is the app
+  // asking in its own words rather than letting a strip of browser chrome ask
+  // over the book.
+  'install.hint': 'Bookworm can live on this device like an app.',
+  // The same offer where there is no button to make it with.
+  'install.hintByHand':
+    'Bookworm can live on this device like an app: Share, then “Add to Home Screen”.',
+  'install.action': 'Install',
+  'install.dismiss': 'Not now',
+  'install.title': 'Install Bookworm',
+  'install.settingsHint':
+    'Installed, it opens in a window of its own and keeps working with no connection. Your books do not move: they are already on this device.',
+  'install.already': 'Bookworm is installed on this device.',
+  'install.manual':
+    'Your browser keeps this in its own menu: an install icon at the end of the address bar, or on an iPhone or iPad, Share and then “Add to Home Screen”.',
+
   'tour.next': 'Next',
   'tour.back': 'Back',
   'tour.skip': 'Skip the tour',

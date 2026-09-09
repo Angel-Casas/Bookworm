@@ -13,6 +13,7 @@ import SupportOverlay from '@/components/overlays/SupportOverlay.vue'
 import ShelfSearch from '@/components/overlays/ShelfSearch.vue'
 import TourGuide from '@/components/tour/TourGuide.vue'
 import UpdateNotice from '@/components/UpdateNotice.vue'
+import { useInstallStore } from '@/stores/install'
 import { useTourStore } from '@/stores/tour'
 import { useUpdateStore } from '@/stores/update'
 
@@ -22,6 +23,7 @@ const ui = useUiStore()
 const language = useLanguageStore()
 const tour = useTourStore()
 const update = useUpdateStore()
+const install = useInstallStore()
 
 /**
  * The language question comes before anything else, on whatever page the reader
@@ -57,6 +59,9 @@ onMounted(async () => {
   // Start listening for a newer build. Nothing is shown unless one arrives,
   // and nothing is applied until the reader says so.
   void update.watch()
+  // And for the browser deciding the app can be installed, which it announces
+  // once and unprompted. Catching it is not offering it — see below.
+  install.start()
   arrivedOnLanding.value = route.name === 'landing'
   askingLanguage.value = !language.chosen
   // One question at a time: the tour waits until the language has been
@@ -91,6 +96,30 @@ watch(
   () => {
     if (!askingLanguage.value) offerTour()
   },
+)
+
+/**
+ * The install note waits its turn.
+ *
+ * A first-time reader is already being asked their language and walked round
+ * the app; a fourth thing on screen is not an offer, it is a queue. So this
+ * only speaks once the chooser has closed and the tour is done with the
+ * screen — and never on the landing page, which makes its own case.
+ */
+watch(
+  [
+    () => install.available,
+    () => install.byHand,
+    () => tour.active,
+    () => route.name,
+    askingLanguage,
+  ],
+  () => {
+    if (tour.active || askingLanguage.value) return
+    if (route.name === 'landing') return
+    install.offerHint()
+  },
+  { immediate: true },
 )
 
 function onLanguageChosen(): void {

@@ -10,6 +10,7 @@ import IconTheme from '@/components/icons/IconTheme.vue'
 import IconLang from '@/components/icons/IconLang.vue'
 import IconSupport from '@/components/icons/IconSupport.vue'
 import IconClose from '@/components/icons/IconClose.vue'
+import InstallHint from '@/components/InstallHint.vue'
 
 const ui = useUiStore()
 const language = useLanguageStore()
@@ -33,6 +34,10 @@ const supportOpen = computed(() => ui.overlay === 'support')
       <IconMedallion class="brand-mark" />
       <span class="brand-name">Bookworm</span>
     </RouterLink>
+
+    <!-- Hangs from the bar, centred. It is here rather than in the page so it
+         can be measured against the bar's own height. -->
+    <InstallHint />
 
     <nav class="nav-actions" :aria-label="t('nav.actions')">
       <button

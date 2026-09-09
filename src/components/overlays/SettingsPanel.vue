@@ -4,6 +4,7 @@ import { NANOGPT_API_KEYS_URL, NANOGPT_SIGNUP_URL } from '@/config'
 import { formatUsd } from '@/lib/cost'
 import { useLanguageStore } from '@/stores/language'
 import { useBalanceStore } from '@/stores/balance'
+import { useInstallStore } from '@/stores/install'
 import { useSettingsStore } from '@/stores/settings'
 import ModelPicker from '@/components/ModelPicker.vue'
 import LinkedText from '@/components/ui/LinkedText.vue'
@@ -15,6 +16,8 @@ const settings = useSettingsStore()
 const language = useLanguageStore()
 /** The same balance the shelf shows — asked for once, in one place. */
 const balance = useBalanceStore()
+/** The note under the nav is said once; this is where it lives afterwards. */
+const install = useInstallStore()
 const { t } = useI18n()
 const tour = useTourStore()
 const ui = useUiStore()
@@ -133,6 +136,30 @@ onMounted(() => {
       />
     </div>
     <p class="hint">{{ t('settings.modelHint') }}</p>
+
+    <hr class="gold-rule" />
+
+    <!-- The one-time note under the nav is gone by now, and a browser hides
+         its own install control somewhere different every year. So the offer
+         has a permanent home: the button when the browser has handed us one,
+         and directions when it has not — which is every iPhone, where the
+         only way in is the Share menu. -->
+    <h2 class="section-title">{{ t('install.title') }}</h2>
+    <p class="hint">{{ t('install.settingsHint') }}</p>
+    <p v-if="install.installed" class="status" data-testid="install-status">
+      {{ t('install.already') }}
+    </p>
+    <p v-else-if="install.offerable" class="tour-row">
+      <button
+        type="button"
+        :disabled="install.asking"
+        data-testid="install-now"
+        @click="install.install()"
+      >
+        {{ t('install.action') }}
+      </button>
+    </p>
+    <p v-else class="hint" data-testid="install-manual">{{ t('install.manual') }}</p>
 
     <hr class="gold-rule" />
 
