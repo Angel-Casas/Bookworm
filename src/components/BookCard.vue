@@ -145,6 +145,13 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  /*
+   * The card measures itself, so what is drawn INSIDE a coverless cover can be
+   * sized against the card rather than against the page. Six to a row on a
+   * desk and four on a phone are wildly different widths for the same box, and
+   * a title set in rem is either enormous in one or unreadable in the other.
+   */
+  container-type: inline-size;
 }
 .cover-link {
   display: block;
@@ -177,8 +184,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
-  padding: 1.4rem 0.9rem;
+  gap: clamp(0.2rem, 4cqi, 0.55rem);
+  padding: clamp(0.4rem, 9cqi, 1.4rem) clamp(0.3rem, 6cqi, 0.9rem);
   text-align: center;
   overflow: hidden;
   background: linear-gradient(170deg, var(--bg-raise), var(--bg-panel));
@@ -199,7 +206,7 @@ onBeforeUnmount(() => {
 .ph-title {
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: 0.98rem;
+  font-size: clamp(0.58rem, 6.5cqi, 0.98rem);
   line-height: 1.25;
   color: var(--text);
   display: -webkit-box;
@@ -209,7 +216,7 @@ onBeforeUnmount(() => {
 }
 .ph-author {
   font-style: italic;
-  font-size: 0.78rem;
+  font-size: clamp(0.5rem, 5cqi, 0.78rem);
   color: var(--text-faint);
 }
 .title {
@@ -265,12 +272,12 @@ onBeforeUnmount(() => {
 }
 .seal {
   position: absolute;
-  top: 0.5rem;
-  inset-inline-end: 0.5rem;
+  top: clamp(0.25rem, 3cqi, 0.5rem);
+  inset-inline-end: clamp(0.25rem, 3cqi, 0.5rem);
   display: grid;
   place-items: center;
-  width: 1.45rem;
-  height: 1.45rem;
+  width: clamp(0.9rem, 10cqi, 1.45rem);
+  height: clamp(0.9rem, 10cqi, 1.45rem);
   border-radius: 50%;
   background: var(--gold);
   color: var(--gold-ink);
@@ -278,8 +285,8 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--gold-ink) 25%, var(--gold));
 }
 .seal svg {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 55%;
+  height: 55%;
 }
 .sr-only {
   position: absolute;

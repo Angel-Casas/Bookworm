@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_LIBRARY_SORT,
   bookToContinue,
+  booksInProgress,
   isLibrarySort,
   sortBooks,
   type LibrarySort,
@@ -55,7 +56,16 @@ export const useLibraryStore = defineStore('library', () => {
 
   const sortedBooks = computed(() => sortBooks(books.value, sort.value))
 
-  /** The book the shelf offers to pick up again; null on a shelf never read. */
+  /**
+   * Everything on the go, latest first — the strip at the top of the shelf.
+   *
+   * A reader with three books open had two of them out of sight: the shelf
+   * below is sorted by whatever they chose, and "continue reading" only ever
+   * held one. The strip is that one and the rest of them in a row you push
+   * sideways, which costs the page no more height than the single band did.
+   */
+  const reading = computed(() => booksInProgress(books.value))
+  /** The book the shelf offers first; null on a shelf never read. */
   const continuing = computed(() => bookToContinue(books.value))
 
   function toggleView(): void {
@@ -201,6 +211,7 @@ export const useLibraryStore = defineStore('library', () => {
   return {
     books,
     sortedBooks,
+    reading,
     continuing,
     loaded,
     importing,

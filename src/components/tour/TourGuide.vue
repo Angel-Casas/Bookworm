@@ -31,6 +31,9 @@ const router = useRouter()
 const { t } = useI18n()
 
 const cardRef = ref<HTMLDivElement | null>(null)
+/** The quick-start button. It takes the focus while the chooser is up — see
+ *  the note in the template. */
+const firstPathRef = ref<HTMLButtonElement | null>(null)
 /**
  * Where the light is, always — never null.
  *
@@ -75,6 +78,17 @@ const settled = ref(false)
  * card is the thing that just changed.
  */
 const wantFocus = ref(false)
+
+/**
+ * The pointer moves the focus between the two buttons.
+ *
+ * One of them is focused from the moment the card lands, and focus is what
+ * fills it with gold. Without this, hovering the other one would light both:
+ * two answers offered at once, which is the state the chooser exists to avoid.
+ */
+function takeFocus(event: MouseEvent): void {
+  if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true })
+}
 
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight })
 
@@ -129,7 +143,11 @@ function layout(): void {
     settled.value = true
     if (wantFocus.value) {
       wantFocus.value = false
-      element.focus({ preventScroll: true })
+      // While the chooser is up the focus belongs to the first of the two
+      // buttons rather than to the card around them: it is what the reader is
+      // being asked, and it wears the answer's colours until they say otherwise.
+      const focusTarget = tour.choosing ? (firstPathRef.value ?? element) : element
+      focusTarget.focus({ preventScroll: true })
     }
   })
 }
@@ -243,8 +261,30 @@ watch(
     // every other — including on the way back, so stepping backwards out of it
     // leaves the reader as it was found.
     ui.setChatOpen(step.stage === 'chat')
+    // Settings the same way, with one difference: it is left OPEN when the
+    // tour ends on it. The quick walk's last stop is the three steps that get
+    // a reader a key, and closing the drawer on the way out would put the
+    // instructions away the moment they became useful.
+    if (step.stage === 'settings') ui.overlay = 'settings'
+    else if (ui.overlay === 'settings') ui.closeOverlay()
     borrowShelf(step.shelf)
     hunt()
+  },
+  { immediate: true },
+)
+
+/**
+ * The chooser has no target, so nothing hunts for one: the iris shuts and the
+ * card is placed in the middle, exactly as a step that points at nothing is.
+ */
+watch(
+  () => tour.choosing,
+  (choosing) => {
+    if (!choosing) return
+    placed.value = false
+    wantFocus.value = true
+    shut()
+    layout()
   },
   { immediate: true },
 )
@@ -292,6 +332,15 @@ function onKey(event: KeyboardEvent): void {
   if (!tour.active) return
   if (!OWNED.has(event.key)) return
   if (isTextEntryTarget(event.target)) return
+  // A question has no "next". While the chooser is up the arrows and Enter
+  // belong to the two buttons — Escape is still a way out of the whole thing.
+  if (tour.choosing) {
+    if (event.key !== 'Escape') return
+    event.preventDefault()
+    event.stopPropagation()
+    tour.finish()
+    return
+  }
   // Enter aimed at one of the card's own buttons belongs to that button —
   // "back" and "skip the tour" must not both mean "next".
   if (
@@ -381,74 +430,118 @@ const bullets = computed(() => tour.step?.bullets ?? [])
     <div
       ref="cardRef"
       class="card"
-      :class="[`side-${card.side}`, { unplaced: !placed && !settled }]"
+      :class="[`side-${card.side}`, { unplaced: !placed && !settled, choosing: tour.choosing }]"
       data-testid="tour-card"
       :data-placed="placed"
       tabindex="-1"
       role="dialog"
       aria-live="polite"
-      :aria-label="t(tour.step?.titleKey as MessageKey)"
+      :aria-label="tour.choosing ? t('tour.choose.title') : t(tour.step?.titleKey as MessageKey)"
       :style="{ top: `${card.top}px`, left: `${card.left}px` }"
     >
-      <i
-        v-if="card.side !== 'centre' && card.side !== 'bottom'"
-        class="nib"
-        aria-hidden="true"
-        :style="
-          card.side === 'below' || card.side === 'above'
-            ? { insetInlineStart: `${nib}px` }
-            : { top: `${nib}px` }
-        "
-      ></i>
-      <h2 :key="`title-${tour.step?.id}`" class="title">
-        {{ t(tour.step?.titleKey as MessageKey) }}
-      </h2>
-      <!-- The lines arrive one after another, at reading speed. A row of six
+      <!-- The first card is a question, not a stop: two ways in, one on top
+           of the other, each the full width of the card. Nothing is pointed
+           at until one of them is pressed. -->
+      <template v-if="tour.choosing">
+        <h2 class="title">{{ t('tour.choose.title') }}</h2>
+        <p class="lead">{{ t('tour.choose.lead') }}</p>
+        <div class="paths">
+          <!-- The quick one holds the focus, so it is already wearing the
+               inverted colours when the card lands: the eye is offered an
+               answer rather than a pair of them. The other is a button of
+               equal size beside it, one press away — quieter, not lesser. -->
+          <button
+            ref="firstPathRef"
+            type="button"
+            class="path"
+            data-testid="tour-quick"
+            @mouseenter="takeFocus"
+            @click="tour.choose('quick')"
+          >
+            <span class="path-name">{{ t('tour.choose.quickTitle') }}</span>
+            <span class="path-count">{{ t('tour.choose.steps', { n: tour.quickLength }) }}</span>
+          </button>
+          <button
+            type="button"
+            class="path"
+            data-testid="tour-full"
+            @mouseenter="takeFocus"
+            @click="tour.choose('full')"
+          >
+            <span class="path-name">{{ t('tour.choose.fullTitle') }}</span>
+            <span class="path-count">{{ t('tour.choose.steps', { n: tour.fullLength }) }}</span>
+          </button>
+        </div>
+        <footer class="choose-foot">
+          <button type="button" class="skip" data-testid="tour-skip" @click="tour.finish()">
+            {{ t('tour.skip') }}
+          </button>
+        </footer>
+      </template>
+      <template v-else>
+        <i
+          v-if="card.side !== 'centre' && card.side !== 'bottom'"
+          class="nib"
+          aria-hidden="true"
+          :style="
+            card.side === 'below' || card.side === 'above'
+              ? { insetInlineStart: `${nib}px` }
+              : { top: `${nib}px` }
+          "
+        ></i>
+        <h2 :key="`title-${tour.step?.id}`" class="title">
+          {{ t(tour.step?.titleKey as MessageKey) }}
+        </h2>
+        <!-- The lines arrive one after another, at reading speed. A row of six
            controls explained all at once is a wall; the same six arriving in
            order are a list being read out. -->
-      <!-- A gesture the words describe badly, played instead of told. -->
-      <TourBookmarkDemo v-if="tour.step?.demo === 'bookmark'" :key="`demo-${tour.step?.id}`" />
-      <ul :key="`lines-${tour.step?.id}`" class="lines">
-        <li
-          v-for="(bullet, i) in bullets"
-          :key="bullet.key"
-          :class="{ glyphed: bullet.icons && bullet.icons.length > 0 }"
-          :style="{ animationDelay: `${40 + i * 45}ms` }"
-        >
-          <!-- The control itself, then a thin dash: without the dash the icon
+        <!-- A gesture the words describe badly, played instead of told. -->
+        <TourBookmarkDemo v-if="tour.step?.demo === 'bookmark'" :key="`demo-${tour.step?.id}`" />
+        <ul :key="`lines-${tour.step?.id}`" class="lines">
+          <li
+            v-for="(bullet, i) in bullets"
+            :key="bullet.key"
+            :class="{ glyphed: bullet.icons && bullet.icons.length > 0 }"
+            :style="{ animationDelay: `${40 + i * 45}ms` }"
+          >
+            <!-- The control itself, then a thin dash: without the dash the icon
                runs into the first word and reads as part of it. -->
-          <template v-if="bullet.icons && bullet.icons.length > 0">
-            <TourGlyph v-for="name in bullet.icons" :key="name" :glyph="name" />
-            <span class="sep" aria-hidden="true">–</span>
-          </template>
-          {{ t(bullet.key as MessageKey) }}
-        </li>
-      </ul>
-      <footer>
-        <!-- How far along, as a line rather than only as a number: the count
+            <template v-if="bullet.icons && bullet.icons.length > 0">
+              <TourGlyph v-for="name in bullet.icons" :key="name" :glyph="name" />
+              <span class="sep" aria-hidden="true">–</span>
+            </template>
+            {{ t(bullet.key as MessageKey) }}
+          </li>
+        </ul>
+        <footer>
+          <!-- How far along, as a line rather than only as a number: the count
              says it and the line shows it. -->
-        <span class="bar" aria-hidden="true">
-          <span class="fill" :style="{ width: `${((tour.index + 1) / tour.total) * 100}%` }"></span>
-        </span>
-        <span class="count" data-testid="tour-count">
-          {{ t('tour.count', { n: tour.index + 1, total: tour.total }) }}
-        </span>
-        <button type="button" class="skip" data-testid="tour-skip" @click="tour.finish()">
-          {{ t('tour.skip') }}
-        </button>
-        <button
-          v-if="tour.index > 0"
-          type="button"
-          class="step-btn"
-          data-testid="tour-back"
-          @click="tour.back()"
-        >
-          {{ t('tour.back') }}
-        </button>
-        <button type="button" class="step-btn go" data-testid="tour-next" @click="tour.next()">
-          {{ tour.isLast ? t('tour.finish') : t('tour.next') }}
-        </button>
-      </footer>
+          <span class="bar" aria-hidden="true">
+            <span
+              class="fill"
+              :style="{ width: `${((tour.index + 1) / tour.total) * 100}%` }"
+            ></span>
+          </span>
+          <span class="count" data-testid="tour-count">
+            {{ t('tour.count', { n: tour.index + 1, total: tour.total }) }}
+          </span>
+          <button type="button" class="skip" data-testid="tour-skip" @click="tour.finish()">
+            {{ t('tour.skip') }}
+          </button>
+          <button
+            v-if="tour.index > 0"
+            type="button"
+            class="step-btn"
+            data-testid="tour-back"
+            @click="tour.back()"
+          >
+            {{ t('tour.back') }}
+          </button>
+          <button type="button" class="step-btn go" data-testid="tour-next" @click="tour.next()">
+            {{ tour.isLast ? t('tour.finish') : t('tour.next') }}
+          </button>
+        </footer>
+      </template>
     </div>
   </div>
 </template>
@@ -560,6 +653,97 @@ const bullets = computed(() => tour.step?.bullets ?? [])
   opacity: 0;
   transform: translateY(6px) scale(0.99);
   pointer-events: none;
+}
+/* The chooser is wider than a step's card: two buttons stacked in a narrow
+   column read as a list of settings rather than as a fork in the road. */
+.card.choosing {
+  width: min(27rem, calc(100vw - 1.5rem));
+  padding-bottom: 0.7rem;
+}
+.lead {
+  margin: 0 0 0.85rem;
+  color: var(--text-dim);
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  animation: line-in 0.3s var(--curve) both;
+}
+.paths {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+/* Rectangles, deliberately: the whole width of the card, tall enough to hold
+   a name and a line about it, and the only two things on the screen that can
+   be pressed. A reader meeting the app for the first time should not have to
+   look for the answer to the first question it asks. */
+.path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 4.6rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--gold-deep);
+  border-radius: 2px;
+  background: none;
+  text-align: center;
+  cursor: pointer;
+  animation: line-in 0.3s var(--curve) both;
+  transition:
+    border-color 0.22s ease,
+    background 0.22s ease,
+    color 0.22s ease;
+}
+.path:first-child {
+  animation-delay: 60ms;
+}
+.path:last-child {
+  animation-delay: 110ms;
+}
+/* Filled rather than merely outlined: the gold comes forward and the words
+   are written in the ground's own ink — dark on the bright gold of the void,
+   paper-white on the deeper gold of the page. `:focus` and not
+   `:focus-visible`, because the focus here is PUT on the first button rather
+   than tabbed to, and the whole point is that it shows. */
+.path:hover,
+.path:focus {
+  border-color: var(--gold);
+  background: var(--gold);
+  outline: none;
+}
+.path:hover .path-name,
+.path:focus .path-name,
+.path:hover .path-count,
+.path:focus .path-count {
+  color: var(--gold-ink);
+}
+.path-name {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  transition: color 0.22s ease;
+}
+.path-count {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.22s ease;
+}
+.choose-foot {
+  display: flex;
+  margin-top: 0.7rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--hair-soft);
+}
+.choose-foot .skip {
+  margin-inline-start: auto;
 }
 .nib {
   position: absolute;
@@ -704,6 +888,8 @@ footer {
   .ring,
   .card,
   .lines li,
+  .lead,
+  .path,
   .title,
   .bar .fill {
     transition: none;

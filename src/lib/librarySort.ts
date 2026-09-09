@@ -29,22 +29,30 @@ function byRecency(a: number | null | undefined, b: number | null | undefined): 
 }
 
 /**
- * The book to offer picking up again: the one opened most recently that has not
- * been marked finished.
+ * Everything the reader is in the middle of, most recently opened first.
  *
  * A book has to have been OPENED to qualify — importing a shelf full of books
  * should not put one of them under "Continue reading", because the reader has
  * not started it. Finished books are skipped: the shelf below is where you go
  * to re-read something you have closed for good.
+ *
+ * Being open is what counts as progress here, not a percentage. A book whose
+ * pages have not been counted yet has `progress: null` and would fail any test
+ * on the number, which would drop the very book the reader opened five minutes
+ * ago — the one they are most likely to want back.
+ */
+export function booksInProgress(books: readonly BookMeta[]): BookMeta[] {
+  return books
+    .filter((book) => book.finishedAt == null && book.lastOpenedAt != null)
+    .sort((a, b) => byRecency(a.lastOpenedAt, b.lastOpenedAt))
+}
+
+/**
+ * The book to offer picking up again: the first of those. Null on a shelf
+ * nobody has read.
  */
 export function bookToContinue(books: readonly BookMeta[]): BookMeta | null {
-  let best: BookMeta | null = null
-  for (const book of books) {
-    if (book.finishedAt != null) continue
-    if (book.lastOpenedAt == null) continue
-    if (best === null || book.lastOpenedAt > (best.lastOpenedAt ?? 0)) best = book
-  }
-  return best
+  return booksInProgress(books)[0] ?? null
 }
 
 /**

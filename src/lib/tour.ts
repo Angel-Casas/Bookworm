@@ -81,9 +81,12 @@ export interface TourStep {
    * Something the app must be showing for this step to make sense. The
    * assistant is a panel, not a button: explaining it while it is shut is
    * describing a room from outside the door, so the step that explains it
-   * opens it, and every other step closes it again.
+   * opens it, and every other step closes it again. Settings is the same
+   * argument: the three steps that get a reader a key are IN there, and a
+   * tour that points at the door instead of the instructions has explained
+   * nothing.
    */
-  stage?: 'chat'
+  stage?: 'chat' | 'settings'
   /**
    * The shelf must be showing covers WITH their details for this step, because
    * the step talks about the details. A reader whose shelf is set to big
@@ -244,6 +247,74 @@ export const TOUR_STEPS: readonly TourStep[] = [
     pad: 8,
   },
 ] as const
+
+/**
+ * The short way round.
+ *
+ * The full tour is twelve stops because the app has twelve rows of controls
+ * worth naming, and a reader who wants to READ SOMETHING TONIGHT does not owe
+ * us twelve. This one answers the only three questions that stand between a
+ * newcomer and a working app: where the books are, what the assistant is, and
+ * what it needs before it will say a word. Everything else is discoverable by
+ * pressing it; a key is not.
+ *
+ * It ends inside settings rather than pointing at the door to it, because the
+ * last step is the one with something to DO — the three-step block it lands on
+ * is the instruction, and the reader is already there when the tour lets go.
+ */
+export const QUICK_TOUR_STEPS: readonly TourStep[] = [
+  {
+    id: 'quick-shelf',
+    leg: 'shelf',
+    target: '[data-testid=shelf]',
+    titleKey: 'tour.quick.shelf.title',
+    bullets: [
+      { key: 'tour.quick.shelf.b1', icons: ['plus'] },
+      { key: 'tour.quick.shelf.b2' },
+      { key: 'tour.quick.shelf.b3' },
+    ],
+    pad: 10,
+    shelf: 'compact',
+  },
+  {
+    id: 'quick-chat',
+    leg: 'reader',
+    target: '[data-testid=chat-panel]',
+    titleKey: 'tour.quick.chat.title',
+    bullets: [
+      { key: 'tour.quick.chat.b1' },
+      { key: 'tour.quick.chat.b2' },
+      { key: 'tour.quick.chat.b3' },
+    ],
+    pad: 6,
+    stage: 'chat',
+  },
+  {
+    id: 'quick-key',
+    leg: 'shelf',
+    target: '[data-testid=key-setup]',
+    titleKey: 'tour.quick.key.title',
+    bullets: [
+      { key: 'tour.quick.key.b1' },
+      { key: 'tour.quick.key.b2' },
+      { key: 'tour.quick.key.b3' },
+      { key: 'tour.quick.key.b4' },
+    ],
+    pad: 10,
+    stage: 'settings',
+  },
+] as const
+
+/**
+ * Which walk a reader asked for. Chosen once, on the first card, and then
+ * never asked about again — settings runs the full one, which is what a reader
+ * who comes back for a tour is coming back for.
+ */
+export type TourPath = 'full' | 'quick'
+
+export function stepsFor(path: TourPath): readonly TourStep[] {
+  return path === 'quick' ? QUICK_TOUR_STEPS : TOUR_STEPS
+}
 
 export interface Rect {
   top: number

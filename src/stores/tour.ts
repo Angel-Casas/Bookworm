@@ -8,7 +8,7 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { TOUR_STEPS, type TourStep } from '@/lib/tour'
+import { QUICK_TOUR_STEPS, TOUR_STEPS, stepsFor, type TourPath, type TourStep } from '@/lib/tour'
 import { importSampleBook, SAMPLE_KEYS } from '@/services/sampleBook'
 import { isRtl } from '@/lib/language'
 import { saveBook } from '@/services/db'
@@ -41,14 +41,34 @@ export const useTourStore = defineStore('tour', () => {
   const seen = ref(read(SEEN_KEY) !== null)
   const active = ref(false)
   const index = ref(0)
+  /**
+   * Which walk is running. It is only ever asked ONCE, on the first card, and
+   * only of a reader meeting the app for the first time — a reader who comes
+   * back to settings for the tour is asking for the tour.
+   */
+  const path = ref<TourPath>('full')
+  /** True while the first card is asking which walk this is going to be. The
+   *  tour is active — the dark is already down — but no step is running yet. */
+  const choosing = ref(false)
   /** The book the tour brought, so the reader leg knows which one to open. */
   const bookId = ref<string | null>(null)
   /** True while the sample book is being built and imported. */
   const preparing = ref(false)
 
-  const step = computed<TourStep | null>(() => (active.value ? (TOUR_STEPS[index.value] ?? null) : null))
-  const total = TOUR_STEPS.length
-  const isLast = computed(() => index.value >= total - 1)
+  const steps = computed<readonly TourStep[]>(() => stepsFor(path.value))
+  /**
+   * Null while the chooser is up, which is what keeps the guide from hunting
+   * for a target: the card is on screen, but it is asking a question rather
+   * than pointing at anything.
+   */
+  const step = computed<TourStep | null>(() =>
+    active.value && !choosing.value ? (steps.value[index.value] ?? null) : null,
+  )
+  const total = computed(() => steps.value.length)
+  const isLast = computed(() => index.value >= total.value - 1)
+  /** How long each walk is, for the chooser's own two lines. */
+  const quickLength = QUICK_TOUR_STEPS.length
+  const fullLength = TOUR_STEPS.length
 
   /**
    * Make sure there is something to point at.
@@ -87,14 +107,37 @@ export const useTourStore = defineStore('tour', () => {
     }
   }
 
-  async function start(): Promise<void> {
+  /**
+   * A first visit: the dark comes down and the first card asks which walk
+   * this is going to be. The book is fetched while the question is on screen,
+   * so whichever button is pressed, there is already something to point at.
+   */
+  async function offer(): Promise<void> {
     index.value = 0
+    path.value = 'full'
+    choosing.value = true
     active.value = true
     await ensureBook()
   }
 
+  /** Straight into one, no question asked — what settings does. */
+  async function start(which: TourPath = 'full'): Promise<void> {
+    index.value = 0
+    path.value = which
+    choosing.value = false
+    active.value = true
+    await ensureBook()
+  }
+
+  /** The answer to the chooser: the walk begins at its first stop. */
+  function choose(which: TourPath): void {
+    path.value = which
+    index.value = 0
+    choosing.value = false
+  }
+
   function next(): void {
-    if (index.value < total - 1) index.value += 1
+    if (index.value < total.value - 1) index.value += 1
     else finish()
   }
 
@@ -104,17 +147,38 @@ export const useTourStore = defineStore('tour', () => {
 
   /** Jump past a step whose target never appeared — see TourGuide. */
   function skipStep(): void {
-    if (index.value < total - 1) index.value += 1
+    if (index.value < total.value - 1) index.value += 1
     else finish()
   }
 
   /** Left early or run to the end: either way it does not open itself again. */
   function finish(): void {
     active.value = false
+    choosing.value = false
     index.value = 0
     seen.value = true
     write(SEEN_KEY, 'seen')
   }
 
-  return { seen, active, index, total, step, isLast, bookId, preparing, start, next, back, skipStep, finish }
+  return {
+    seen,
+    active,
+    choosing,
+    path,
+    index,
+    total,
+    quickLength,
+    fullLength,
+    step,
+    isLast,
+    bookId,
+    preparing,
+    offer,
+    start,
+    choose,
+    next,
+    back,
+    skipStep,
+    finish,
+  }
 })

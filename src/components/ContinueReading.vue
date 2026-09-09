@@ -1,10 +1,15 @@
 <script setup lang="ts">
 /**
- * The book you were last reading, offered at the top of the shelf.
+ * A book you are in the middle of, offered at the top of the shelf.
  *
  * One tap back into the page you left. The percentage comes from the reader's
  * own page count (saved on the book), so this bar and the counter in the
  * reader can never tell you two different stories.
+ *
+ * The same band is used for every book on the go — the one you left last is
+ * simply the first of them (`lead`), and the rest are a push sideways away.
+ * Only the lead carries the test ids: they name the offer at the top of the
+ * shelf, and an offer there is exactly one thing.
  */
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { formatProgress } from '@/lib/pagination'
@@ -13,7 +18,7 @@ import IconMedallion from '@/components/icons/IconMedallion.vue'
 import { useI18n } from '@/i18n'
 import type { BookMeta } from '@/lib/types'
 
-const props = defineProps<{ book: BookMeta }>()
+const props = defineProps<{ book: BookMeta; lead?: boolean }>()
 
 const language = useLanguageStore()
 const { t } = useI18n()
@@ -61,17 +66,17 @@ const percent = computed(() => `${drawn.value * 100}%`)
 <template>
   <RouterLink
     class="continue"
-    data-testid="continue-reading"
+    :data-testid="lead ? 'continue-reading' : 'reading-more'"
     :to="{ name: 'reader', params: { id: book.id } }"
+    draggable="false"
   >
-    <img v-if="coverUrl" :src="coverUrl" alt="" class="cover" />
+    <img v-if="coverUrl" :src="coverUrl" alt="" class="cover" draggable="false" />
     <span v-else class="cover cover-placeholder" aria-hidden="true">
       <IconMedallion class="ph-knot" />
     </span>
 
     <span class="body">
-      <span class="eyebrow">{{ t('continue.eyebrow') }}</span>
-      <span class="title" data-testid="continue-title">{{ book.title }}</span>
+      <span class="title" :data-testid="lead ? 'continue-title' : undefined">{{ book.title }}</span>
       <span v-if="book.author" class="author">{{ book.author }}</span>
 
       <span class="meter">
@@ -79,7 +84,7 @@ const percent = computed(() => `${drawn.value * 100}%`)
           class="rail"
           :class="{ unknown: fraction === null }"
           role="progressbar"
-          data-testid="continue-progress"
+          :data-testid="lead ? 'continue-progress' : undefined"
           :aria-label="t('continue.progress')"
           :aria-valuenow="fraction === null ? undefined : Math.round(fraction * 100)"
           :aria-valuemin="0"
@@ -88,7 +93,7 @@ const percent = computed(() => `${drawn.value * 100}%`)
         >
           <span class="fill" :style="{ width: percent }"></span>
         </span>
-        <span class="percent" data-testid="continue-percent">{{
+        <span class="percent" :data-testid="lead ? 'continue-percent' : undefined">{{
           fraction === null ? t('continue.justOpened') : label
         }}</span>
       </span>
@@ -101,7 +106,7 @@ const percent = computed(() => `${drawn.value * 100}%`)
   display: flex;
   align-items: center;
   gap: clamp(0.9rem, 3vw, 1.5rem);
-  margin-top: 1.8rem;
+  height: 100%;
   padding: clamp(0.8rem, 2.5vw, 1.1rem);
   text-decoration: none;
   color: inherit;
@@ -143,13 +148,6 @@ const percent = computed(() => `${drawn.value * 100}%`)
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-}
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold-deep);
 }
 .title {
   font-family: var(--font-serif);

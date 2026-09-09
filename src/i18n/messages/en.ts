@@ -39,6 +39,12 @@ const en = {
   // ————————————————————————————— the shelf —————————————————————————————
   'library.title': 'Library',
   'library.totalSpent': 'Total spent: {amount}',
+  // Spent and left, side by side. The balance is a button: the only thing
+  // anyone wants from a figure like that is a fresher one.
+  'library.balance': 'Balance: {amount}',
+  'library.balanceLoading': 'Balance: …',
+  'library.balanceUnknown': 'Balance: —',
+  'library.balanceRefresh': 'Check your NanoGPT balance again',
   'library.add': 'Add books',
   'library.adding': 'Importing books',
   'library.addingShort': 'Importing…',
@@ -75,6 +81,7 @@ const en = {
   'card.read': '{duration} read',
   'card.pageTurns': { one: '{count} page turn', other: '{count} page turns' },
 
+  // Heads the strip of everything on the go, said once for all of them.
   'continue.eyebrow': 'Continue reading',
   'continue.progress': 'Progress through this book',
   'continue.uncounted': 'Not counted yet',
@@ -132,13 +139,23 @@ const en = {
   'settings.keyTitle': 'NanoGPT API key',
   'settings.keyIntro1':
     'Bookworm’s assistant runs on {link}: you pay only for the tokens you use, with no subscription.',
-  'settings.keyIntro2':
-    '{link}, add a small balance, and paste your API key below. The key is stored only in this browser and is sent only to NanoGPT.',
-  'settings.createAccount': 'Create an account',
-  // Said plainly, beside the link itself: a referral passed off as a plain
-  // URL is the kind of small dishonesty this project has no use for.
+  // Three steps, in the order they happen. The reader is not short of an
+  // explanation of what a key is; they are short of knowing there are exactly
+  // three things to do.
+  'settings.setup1Title': 'Open NanoGPT',
+  'settings.setup1':
+    'Go to {link} and sign in — create an account, or use it without one: NanoGPT works with no account at all.',
+  'settings.setup2Title': 'Add some balance',
+  'settings.setup2':
+    'Top it up by card, Apple Pay or Google Pay, or with digital currency — Bitcoin, Monero, Solana and others. A dollar or two lasts a long time.',
+  'settings.setup3Title': 'Create a key, and paste it here',
+  'settings.setup3':
+    'At {link}, create an API key and paste it in the box below. It is kept in this browser only, and sent only to NanoGPT.',
+  // Said plainly, beside the link itself: an invitation passed off as a plain
+  // URL is the kind of small dishonesty this project has no use for. It is
+  // also worth something to the reader, and that half is said first.
   'settings.referral':
-    'The links above carry the project owner’s referral code. Your tokens cost exactly the same either way — NanoGPT returns a small share to the project, and that is the only support Bookworm asks for.',
+    'The link above is our invitation link: going through it takes 5% off every model call you ever make, for as long as the account lasts. It also returns a small share to the project — the only support Bookworm asks for.',
   'settings.keyPlaceholder': 'Paste your NanoGPT API key',
   'settings.keyLabel': 'NanoGPT API key',
   'settings.show': 'Show',
@@ -459,6 +476,41 @@ const en = {
   'tour.settingsHint':
     'A walk through the shelf and the reader, pointing at each row of controls in turn. It runs once on a first visit; from here you can run it again whenever you like.',
   'tour.settingsButton': 'Take the tour',
+
+  // The first card is a question: the long way round, or the short one. Keep
+  // both answers to a line — they are read standing in a doorway.
+  'tour.choose.title': 'Welcome to Bookworm',
+  'tour.choose.lead':
+    'Your books live on this device, and each one comes with an assistant that has read it. Two ways to begin:',
+  // A name and a number of steps, and nothing else: the two buttons are read
+  // in the second before a reader decides, and a sentence in each is a
+  // sentence neither of them gets.
+  'tour.choose.quickTitle': 'Quick start',
+  'tour.choose.fullTitle': 'The whole tour',
+  'tour.choose.steps': '{n} steps',
+
+  'tour.quick.shelf.title': 'This is your shelf',
+  'tour.quick.shelf.b1': 'Adds books — any PDF or EPUB on your device.',
+  'tour.quick.shelf.b2':
+    'A cover opens the book. Underneath it: the format, how far in you are, and what it has cost.',
+  'tour.quick.shelf.b3':
+    'Everything stays on this device. Nothing is uploaded, and there is no account.',
+
+  'tour.quick.chat.title': 'The book, and the assistant',
+  'tour.quick.chat.b1':
+    'Every book opens with the LLM assistant’s chat beside it: ask about a passage, a chapter, or the whole thing.',
+  'tour.quick.chat.b2':
+    'The dropdown “Sends” decides how much of the book travels with your question — send only what you have read and nothing later can be spoiled.',
+  'tour.quick.chat.b3': 'Beside it, the price of the answer, worked out before you send it.',
+
+  'tour.quick.key.title': 'Three steps to a working assistant',
+  'tour.quick.key.b1': 'Open NanoGPT and sign in — or use it without an account, which it allows.',
+  'tour.quick.key.b2':
+    'Add a little balance: card, Apple Pay or Google Pay, or Bitcoin, Monero, Solana and others.',
+  'tour.quick.key.b3':
+    'Create an API key and paste it in the box below this. You are done — the assistant answers from then on.',
+  'tour.quick.key.b4':
+    'Our invitation link takes 5% off every model call, forever. It is the link in step one.',
 
   'tour.welcome.title': 'Welcome to Bookworm',
   'tour.welcome.b1':

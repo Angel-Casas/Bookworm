@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { NANOGPT_SIGNUP_URL } from '@/config'
+import { computed, onMounted, ref, watch } from 'vue'
+import { NANOGPT_API_KEYS_URL, NANOGPT_SIGNUP_URL } from '@/config'
 import { formatUsd } from '@/lib/cost'
 import { useLanguageStore } from '@/stores/language'
-import { checkBalance, NanoGptError } from '@/services/nanogpt'
-import { describeFailure } from '@/lib/failure'
-import { failureWordsIn } from '@/i18n/bundles'
+import { useBalanceStore } from '@/stores/balance'
 import { useSettingsStore } from '@/stores/settings'
 import ModelPicker from '@/components/ModelPicker.vue'
 import LinkedText from '@/components/ui/LinkedText.vue'
@@ -15,6 +13,8 @@ import { useI18n } from '@/i18n'
 
 const settings = useSettingsStore()
 const language = useLanguageStore()
+/** The same balance the shelf shows — asked for once, in one place. */
+const balance = useBalanceStore()
 const { t } = useI18n()
 const tour = useTourStore()
 const ui = useUiStore()
@@ -26,30 +26,14 @@ function runTour(): void {
   void tour.start()
 }
 const showKey = ref(false)
-const balance = ref<number | null>(null)
-const balanceLoading = ref(false)
-const balanceError = ref<string | null>(null)
-
-async function refreshBalance(): Promise<void> {
-  balanceLoading.value = true
-  balanceError.value = null
-  try {
-    balance.value = (await checkBalance(settings.apiKey)).usdBalance
-  } catch (error) {
-    // Classified like every other model-side failure, so a rejected key reads
-    // the same here as it does inside a book.
-    const status = error instanceof NanoGptError ? error.status : null
-    balanceError.value = describeFailure(
-      status,
-      navigator.onLine !== false,
-      failureWordsIn(language.code),
-    ).message
-  } finally {
-    balanceLoading.value = false
-  }
-}
 
 const keyPresent = computed(() => settings.apiKey.trim().length > 0)
+
+/** A new key is a new account: whatever figure is held belongs to the old one. */
+watch(
+  () => settings.apiKey,
+  () => balance.forget(),
+)
 
 onMounted(() => {
   void settings.loadModels()
@@ -59,19 +43,50 @@ onMounted(() => {
 <template>
   <section class="settings-panel" data-testid="settings-panel">
     <h2 class="section-title">{{ t('settings.keyTitle') }}</h2>
-    <!-- Two sentences with a link inside each. The link is placed by the
+    <!-- One sentence with a link inside it. The link is placed by the
          translation's own {link} rather than by splicing English around it,
          which is how a sentence survives a language that puts it elsewhere. -->
     <p class="prose">
       <LinkedText :text="t('settings.keyIntro1')" :href="NANOGPT_SIGNUP_URL" label="NanoGPT" />
-      <LinkedText
-        :text="t('settings.keyIntro2')"
-        :href="NANOGPT_SIGNUP_URL"
-        :label="t('settings.createAccount')"
-      />
     </p>
-    <!-- The link above is a referral. Saying so beside it costs a line and is
-         the difference between support and a quiet cut. -->
+    <!-- Three steps, numbered, in the order they have to happen. A reader
+         with no key is not short of an explanation of what a key IS — they are
+         short of knowing that there are exactly three things to do and that
+         none of them takes long. The tour's quick walk ends pointing here. -->
+    <ol class="setup" data-testid="key-setup">
+      <li>
+        <span class="step-no" aria-hidden="true">1</span>
+        <span class="step-body">
+          <strong class="step-title">{{ t('settings.setup1Title') }}</strong>
+          <LinkedText
+            :text="t('settings.setup1')"
+            :href="NANOGPT_SIGNUP_URL"
+            label="nano-gpt.com"
+          />
+        </span>
+      </li>
+      <li>
+        <span class="step-no" aria-hidden="true">2</span>
+        <span class="step-body">
+          <strong class="step-title">{{ t('settings.setup2Title') }}</strong>
+          {{ t('settings.setup2') }}
+        </span>
+      </li>
+      <li>
+        <span class="step-no" aria-hidden="true">3</span>
+        <span class="step-body">
+          <strong class="step-title">{{ t('settings.setup3Title') }}</strong>
+          <LinkedText
+            :text="t('settings.setup3')"
+            :href="NANOGPT_API_KEYS_URL"
+            label="nano-gpt.com/api"
+          />
+        </span>
+      </li>
+    </ol>
+    <!-- The link above is an invitation. Saying so beside it — along with what
+         it is worth to the reader — costs a line and is the difference between
+         support and a quiet cut. -->
     <p class="referral">{{ t('settings.referral') }}</p>
     <div class="key-row">
       <input
@@ -90,13 +105,15 @@ onMounted(() => {
     </p>
 
     <div v-if="keyPresent" class="balance-row">
-      <button type="button" :disabled="balanceLoading" @click="refreshBalance">
-        {{ balanceLoading ? t('settings.checking') : t('settings.checkBalance') }}
+      <button type="button" :disabled="balance.loading" @click="balance.refresh(true)">
+        {{ balance.loading ? t('settings.checking') : t('settings.checkBalance') }}
       </button>
-      <span v-if="balance !== null" class="balance" data-testid="balance">
-        {{ t('settings.balance', { amount: formatUsd(balance, language.code) }) }}
+      <span v-if="balance.usd !== null" class="balance" data-testid="balance">
+        {{ t('settings.balance', { amount: formatUsd(balance.usd, language.code) }) }}
       </span>
-      <span v-if="balanceError" class="error-text" role="alert">{{ balanceError }}</span>
+      <span v-if="balance.failure" class="error-text" role="alert">{{
+        balance.failure.message
+      }}</span>
     </div>
 
     <hr class="gold-rule" />
@@ -136,6 +153,38 @@ onMounted(() => {
 .section-title {
   font-size: 1.15rem;
   margin: 0 0 0.5rem;
+}
+/* Numbered in the markup rather than by the list's own counter: the number
+   is a mark in gold beside the step, not a prefix to its first line. */
+.setup {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.setup li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr;
+  gap: 0.55rem;
+  align-items: baseline;
+}
+.step-no {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--gold);
+  text-align: end;
+}
+.step-body {
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.step-title {
+  display: block;
+  font-weight: 500;
+  color: var(--text);
 }
 .referral {
   margin: -0.35rem 0 0.9rem;

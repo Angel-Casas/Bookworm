@@ -3,6 +3,7 @@ import {
   DEFAULT_LIBRARY_SORT,
   LIBRARY_SORT_OPTIONS,
   bookToContinue,
+  booksInProgress,
   isLibrarySort,
   sortBooks,
 } from '../librarySort'
@@ -90,5 +91,46 @@ describe('bookToContinue', () => {
     // A freshly imported shelf has nothing to continue.
     expect(bookToContinue([book({ id: 'a' }), book({ id: 'b' })])).toBeNull()
     expect(bookToContinue([])).toBeNull()
+  })
+})
+
+describe('booksInProgress', () => {
+  it('is every unfinished book that has been opened, latest first', () => {
+    const reading = booksInProgress([
+      book({ id: 'a', lastOpenedAt: 100 }),
+      book({ id: 'unopened' }),
+      book({ id: 'b', lastOpenedAt: 300 }),
+      book({ id: 'done', lastOpenedAt: 400, finishedAt: 450 }),
+      book({ id: 'c', lastOpenedAt: 200 }),
+    ])
+    expect(ids(reading)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('keeps a book whose pages have not been counted yet', () => {
+    // Progress is null until the reader has counted the pages. Judging by the
+    // number would drop the book opened five minutes ago — the likeliest one
+    // to be wanted back.
+    const reading = booksInProgress([book({ id: 'fresh', lastOpenedAt: 10, progress: null })])
+    expect(ids(reading)).toEqual(['fresh'])
+  })
+
+  it('agrees with bookToContinue about which one is first', () => {
+    const shelf = [
+      book({ id: 'a', lastOpenedAt: 100 }),
+      book({ id: 'b', lastOpenedAt: 300 }),
+      book({ id: 'c', lastOpenedAt: 200 }),
+    ]
+    expect(booksInProgress(shelf)[0]?.id).toBe(bookToContinue(shelf)?.id)
+  })
+
+  it('leaves the shelf it was given alone', () => {
+    const shelf = [book({ id: 'a', lastOpenedAt: 100 }), book({ id: 'b', lastOpenedAt: 300 })]
+    booksInProgress(shelf)
+    expect(ids(shelf)).toEqual(['a', 'b'])
+  })
+
+  it('is empty for a shelf nobody has read', () => {
+    expect(booksInProgress([book({ id: 'a' })])).toEqual([])
+    expect(booksInProgress([])).toEqual([])
   })
 })

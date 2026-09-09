@@ -71,7 +71,9 @@ onMounted(async () => {
  */
 function offerTour(): void {
   if (tour.seen || tour.active || route.name !== 'library') return
-  void tour.start()
+  // Offered, not started: the first card asks whether this is the short way
+  // round or the long one, and nothing points at anything until it is answered.
+  void tour.offer()
 }
 
 /**

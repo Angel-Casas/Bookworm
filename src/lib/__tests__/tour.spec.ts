@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { TOUR_STEPS, nibOffset, placeCard, spotlightRect } from '../tour'
+import {
+  QUICK_TOUR_STEPS,
+  TOUR_STEPS,
+  nibOffset,
+  placeCard,
+  spotlightRect,
+  stepsFor,
+} from '../tour'
 
 const VIEW = { width: 1000, height: 800 }
 const CARD = { width: 300, height: 200 }
@@ -59,6 +66,53 @@ describe('the steps', () => {
   it('plays the bookmark only where the bookmark is', () => {
     const demos = TOUR_STEPS.filter((step) => step.demo !== undefined)
     expect(demos.map((step) => step.id)).toEqual(['page'])
+  })
+})
+
+describe('the quick way round', () => {
+  it('is short enough to be worth choosing', () => {
+    // The whole argument for it is that it is not the long one. Four stops is
+    // the ceiling; past that a reader may as well take the tour.
+    expect(QUICK_TOUR_STEPS.length).toBeGreaterThan(0)
+    expect(QUICK_TOUR_STEPS.length).toBeLessThanOrEqual(4)
+    expect(QUICK_TOUR_STEPS.length).toBeLessThan(TOUR_STEPS.length)
+  })
+
+  it('shows the shelf, the assistant, and the key — in that order', () => {
+    expect(QUICK_TOUR_STEPS.map((step) => step.id)).toEqual([
+      'quick-shelf',
+      'quick-chat',
+      'quick-key',
+    ])
+  })
+
+  it('opens the assistant for the stop about it, and settings for the last', () => {
+    const staged = QUICK_TOUR_STEPS.filter((step) => step.stage !== undefined)
+    expect(staged.map((step) => [step.id, step.stage])).toEqual([
+      ['quick-chat', 'chat'],
+      ['quick-key', 'settings'],
+    ])
+    // The assistant only exists inside a book; settings is over the shelf.
+    expect(QUICK_TOUR_STEPS.find((step) => step.stage === 'chat')?.leg).toBe('reader')
+    expect(QUICK_TOUR_STEPS.find((step) => step.stage === 'settings')?.leg).toBe('shelf')
+  })
+
+  it('has a title and at least one line for every stop', () => {
+    for (const step of QUICK_TOUR_STEPS) {
+      expect(step.titleKey.startsWith('tour.')).toBe(true)
+      expect(step.bullets.length).toBeGreaterThan(0)
+      expect(step.bullets.every((bullet) => bullet.key.startsWith('tour.'))).toBe(true)
+    }
+  })
+
+  it('shares no ids with the full tour — the two are told apart by them', () => {
+    const full = new Set(TOUR_STEPS.map((step) => step.id))
+    expect(QUICK_TOUR_STEPS.filter((step) => full.has(step.id))).toEqual([])
+  })
+
+  it('is what stepsFor hands back for the quick path, and only then', () => {
+    expect(stepsFor('quick')).toBe(QUICK_TOUR_STEPS)
+    expect(stepsFor('full')).toBe(TOUR_STEPS)
   })
 })
 

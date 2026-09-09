@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { formatUsd } from '@/lib/cost'
 import { useLanguageStore } from '@/stores/language'
 import { LIBRARY_SORT_OPTIONS, type LibrarySort } from '@/lib/librarySort'
 import { shiftIntoView } from '@/lib/popover'
 import { exportLibrary, importLibrary } from '@/services/backup'
+import { useBalanceStore } from '@/stores/balance'
 import { useLibraryStore } from '@/stores/library'
+import { useSettingsStore } from '@/stores/settings'
 import { useSpendStore } from '@/stores/spend'
 import { useStatsStore } from '@/stores/stats'
 import BookCard from '@/components/BookCard.vue'
-import ContinueReading from '@/components/ContinueReading.vue'
+import ReadingStrip from '@/components/ReadingStrip.vue'
 import IconGrid from '@/components/icons/IconGrid.vue'
 import IconRank from '@/components/icons/IconRank.vue'
 import IconPlus from '@/components/icons/IconPlus.vue'
@@ -24,6 +26,12 @@ const ui = useUiStore()
 const { t } = useI18n()
 const spend = useSpendStore()
 const stats = useStatsStore()
+const settings = useSettingsStore()
+const balance = useBalanceStore()
+
+/** Spent is what the books have cost; balance is what is left to spend with.
+ *  The second only exists once there is a key to ask with. */
+const hasKey = computed(() => settings.apiKey.trim().length > 0)
 const fileInput = ref<HTMLInputElement | null>(null)
 const backupInput = ref<HTMLInputElement | null>(null)
 const backupBusy = ref(false)
@@ -68,6 +76,9 @@ onMounted(() => {
   if (!library.loaded) void library.load()
   void spend.load()
   void stats.load()
+  // Cached for a minute in the store, so walking in and out of a book does not
+  // ask NanoGPT the same question five times.
+  void balance.refresh()
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onDocumentKeydown)
 })
@@ -134,10 +145,33 @@ async function onImportBackup(event: Event): Promise<void> {
     <header class="library-header">
       <div class="heading">
         <h1 class="page-title">{{ t('library.title') }}</h1>
-        <p class="spend" data-testid="library-spend">
-          {{ t('library.totalSpent', { amount: formatUsd(spend.totalUsd, language.code) })
-          }}<span v-if="spend.hasUnpriced">+</span>
-        </p>
+        <!-- Two halves of the same sentence: what the reading has cost, and
+             what is left to read with. The balance is a button because the
+             only thing anyone wants from a number like that is a fresher
+             one. -->
+        <div class="ledger">
+          <p class="spend" data-testid="library-spend">
+            {{ t('library.totalSpent', { amount: formatUsd(spend.totalUsd, language.code) })
+            }}<span v-if="spend.hasUnpriced">+</span>
+          </p>
+          <template v-if="hasKey">
+            <span class="ledger-dot" aria-hidden="true">·</span>
+            <button
+              type="button"
+              class="balance"
+              data-testid="library-balance"
+              :disabled="balance.loading"
+              :title="balance.failure ? balance.failure.message : t('library.balanceRefresh')"
+              @click="balance.refresh(true)"
+            >
+              <template v-if="balance.usd !== null">{{
+                t('library.balance', { amount: formatUsd(balance.usd, language.code) })
+              }}</template>
+              <template v-else-if="balance.loading">{{ t('library.balanceLoading') }}</template>
+              <template v-else>{{ t('library.balanceUnknown') }}</template>
+            </button>
+          </template>
+        </div>
       </div>
       <div class="header-actions">
         <!-- Adding books comes first and comes biggest: on an empty shelf it is
@@ -283,8 +317,10 @@ async function onImportBackup(event: Event): Promise<void> {
       </div>
     </Transition>
 
+    <!-- The book you left last, and everything else on the go beside it — one
+         band, pushed sideways. -->
     <Transition name="panel-rise">
-      <ContinueReading v-if="library.continuing" :book="library.continuing" />
+      <ReadingStrip v-if="library.reading.length > 0" :books="library.reading" />
     </Transition>
 
     <!-- A group rather than a plain list so a re-sort is something you can
@@ -339,6 +375,39 @@ async function onImportBackup(event: Event): Promise<void> {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);
+}
+.ledger {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.ledger-dot {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+}
+/* A line of the same ledger, not a control that shouts: the type is the
+   spend's own, and only the gold says it can be pressed. */
+.balance {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  cursor: pointer;
+}
+.balance:hover:not(:disabled) {
+  border: none;
+  text-decoration: underline;
+}
+.balance:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }
 .header-actions {
   display: flex;
@@ -468,14 +537,46 @@ async function onImportBackup(event: Event): Promise<void> {
      positioned against this box while it goes. */
   position: relative;
 }
+/*
+ * How many books to a row.
+ *
+ * Counted rather than fitted. `auto-fill` with a minimum track sounds like the
+ * right tool and is the reason a phone was showing ONE cover the height of the
+ * screen: a 11.5rem minimum simply does not fit twice into 358px, so the
+ * shelf gave up and made one enormous column. A number of columns per
+ * breakpoint is the promise actually being made — four on a phone, six on a
+ * desk — and the covers take whatever width that leaves.
+ *
+ * The two views differ in the WRITING, not the size: covers alone pack tighter
+ * than covers with a title, an author and a bar under them, so the view with
+ * the words gets fewer to the row and more room between them.
+ */
 .shelf.compact {
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-  gap: 1.8rem 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 0.9rem;
 }
-/* Gallery mode: nothing but covers, a touch larger, packed tighter. */
+@media (min-width: 560px) {
+  .shelf.compact {
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 1.8rem 1.5rem;
+  }
+}
+/* Gallery mode: nothing but covers, so they sit closer together. */
 .shelf.big {
-  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
-  gap: 1.2rem 1.1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem 0.7rem;
+}
+@media (min-width: 560px) {
+  .shelf.big {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1.1rem 0.9rem;
+  }
+}
+@media (min-width: 900px) {
+  .shelf.big {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.2rem 1.1rem;
+  }
 }
 .empty {
   margin-top: 4rem;
