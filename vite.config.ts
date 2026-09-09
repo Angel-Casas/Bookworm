@@ -16,7 +16,7 @@ export default defineConfig({
       // so a reader testing a fix cannot tell an old build from a new one. The
       // reader is asked instead, and nothing changes until they say so.
       registerType: 'prompt',
-      includeAssets: ['favicon.ico'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Bookworm',
         short_name: 'Bookworm',

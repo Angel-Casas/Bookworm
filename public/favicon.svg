@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Bookworm">
+  <title>Bookworm</title>
+  <!-- The endless-knot medallion, the same mark the app draws in its nav —
+       redrawn heavier and without its ring of beads: at 16px a hairline is
+       nothing at all, and a ring of beads is a smudge. -->
+  <rect width="120" height="120" rx="26" fill="#050506"/>
+  <g fill="none" stroke="#f0ae2f" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="60" cy="60" r="43" stroke-width="5" opacity="0.75"/>
+    <g stroke-width="7.5">
+      <path d="M60 60C50 49 50 34 60 34C70 34 70 49 60 60"/>
+      <path d="M60 60C50 49 50 34 60 34C70 34 70 49 60 60" transform="rotate(90 60 60)"/>
+      <path d="M60 60C50 49 50 34 60 34C70 34 70 49 60 60" transform="rotate(180 60 60)"/>
+      <path d="M60 60C50 49 50 34 60 34C70 34 70 49 60 60" transform="rotate(270 60 60)"/>
+    </g>
+  </g>
+  <circle cx="60" cy="31" r="6.5" fill="#f0ae2f"/>
+</svg>
