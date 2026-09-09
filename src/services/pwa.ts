@@ -38,6 +38,16 @@ export interface UpdateWatch {
  */
 const CHECK_EVERY_MS = 15 * 60 * 1000
 
+/**
+ * How long to wait for the new worker to take over before reloading anyway.
+ *
+ * Skipping the wait and activating usually takes a few hundred milliseconds.
+ * This is not a deadline for that — it is the answer to the case where the
+ * hand-over never happens at all, and the plate would otherwise sit there
+ * saying "Reloading…" for the rest of the reader's life.
+ */
+const HANDOVER_MS = 2500
+
 /** Applies the waiting update and reloads. Null until there is one to apply. */
 export type ApplyUpdate = (() => Promise<void>) | null
 
@@ -54,7 +64,10 @@ export async function watchForUpdate(watch: UpdateWatch): Promise<ApplyUpdate> {
       },
     })
     return async () => {
+      // Ask the worker that is waiting to stop waiting…
       await update(true)
+      // …and then make sure the page actually turns over. See below.
+      await handOver()
     }
   } catch {
     // No worker registered (dev server, unsupported browser, blocked by
@@ -98,4 +111,43 @@ function keepAsking(registration: ServiceWorkerRegistration, watch: UpdateWatch)
    * covers the tab that was handed one that was already there.
    */
   if (registration.waiting) watch.onWaiting()
+}
+
+/**
+ * Reload onto the new worker — and reload even if it never announces itself.
+ *
+ * The plate said "Reloading…" and stayed there. Everything up to that point
+ * had worked: the new worker was installed, waiting, and it did skip the wait
+ * when asked. What never came was the RELOAD, because the library performs
+ * that inside a `controlling` listener and only when its `isUpdate` flag is
+ * set — and that flag is `Boolean(navigator.serviceWorker.controller)` read at
+ * registration, i.e. "was this page already being served by a worker".
+ *
+ * A page that is NOT under a worker is the whole problem. It happens on a
+ * first visit, and — much more often than that — after a hard reload, which is
+ * exactly what someone does when they suspect they are looking at a stale
+ * build. Such a page is never claimed (a prompt-style worker does not claim
+ * clients: it must not swap the page out from under a reader who has not said
+ * yes), so `controllerchange` never fires, so the reload never runs, and the
+ * button spins forever having in fact done its job.
+ *
+ * So the reload is ours to do. The hand-over is still waited for, because a
+ * reload issued a moment too early is served by the OLD worker and lands the
+ * reader right back where they were — but it is waited for with an end to it.
+ */
+function handOver(): Promise<void> {
+  return new Promise((resolve) => {
+    let timer = 0
+    let reloading = false
+    const go = (): void => {
+      if (reloading) return
+      reloading = true
+      window.clearTimeout(timer)
+      navigator.serviceWorker.removeEventListener('controllerchange', go)
+      window.location.reload()
+      resolve()
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', go)
+    timer = window.setTimeout(go, HANDOVER_MS)
+  })
 }
