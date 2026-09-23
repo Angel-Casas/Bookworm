@@ -15,27 +15,13 @@ import { saveBook } from '@/services/db'
 import { translateIn } from '@/i18n'
 import { useLanguageStore } from '@/stores/language'
 import { useLibraryStore } from '@/stores/library'
-
-/** Set once the tour has run to the end or been left early: it is offered
- *  once, and after that it lives in settings. */
-const SEEN_KEY = 'bookworm.tourSeen.v1'
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Storage unavailable: the tour will offer itself again next visit, which
-    // is a smaller annoyance than refusing to run it at all.
-  }
-}
+// Set once the tour has run to the end or been left early: it is offered once,
+// and after that it lives in settings.
+import {
+  TOUR_SEEN_KEY as SEEN_KEY,
+  readPref as read,
+  writePref as write,
+} from '@/services/firstRun'
 
 export const useTourStore = defineStore('tour', () => {
   const seen = ref(read(SEEN_KEY) !== null)

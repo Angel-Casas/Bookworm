@@ -10,27 +10,12 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { guessLanguage, isLanguageCode } from '@/lib/language'
-
-const LANG_KEY = 'bookworm.language.v1'
-/** Set once the reader has been told where the language lives. */
-const HINT_KEY = 'bookworm.languageHintSeen.v1'
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Storage unavailable (private mode): the choice holds for this visit only,
-    // which is better than refusing to let them choose at all.
-  }
-}
+import {
+  LANGUAGE_KEY as LANG_KEY,
+  LANGUAGE_HINT_KEY as HINT_KEY,
+  readPref as read,
+  writePref as write,
+} from '@/services/firstRun'
 
 export const useLanguageStore = defineStore('language', () => {
   const stored = read(LANG_KEY)

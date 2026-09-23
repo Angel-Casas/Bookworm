@@ -40,9 +40,40 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,mjs}'],
+        // jpg for the landing poster, which is what the film falls back to
+        // offline (the film itself is too large to precache).
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest,mjs}'],
         // The pdf.js worker chunk is ~1.3 MB; leave headroom.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // Take charge of the page that installed the worker. Without this the
+        // FIRST session is never served from the cache: every chunk loaded
+        // later (the library, the reader, a language) still goes to the
+        // network, so going offline straight after installing — which on iOS
+        // is the first session of the Home Screen app — breaks the app.
+        //
+        // This does not undo 'prompt' above. An UPDATE still waits until the
+        // reader says yes; claiming happens on activation, which for an update
+        // is that yes — and it is what fires the `controllerchange` the reload
+        // in services/pwa.ts waits for.
+        clientsClaim: true,
+        runtimeCaching: [
+          // The type is Google Fonts. Without these the app works offline in
+          // the system's fonts, which is working but not looking like itself.
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-css' },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

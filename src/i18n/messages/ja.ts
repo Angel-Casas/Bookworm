@@ -9,6 +9,7 @@ import type { Catalogue } from '@/lib/i18n'
 
 const ja: Catalogue = {
   "nav.library": "Bookworm の書棚",
+  "nav.home": "Bookworm — ホーム",
   "nav.actions": "アプリケーション",
   "nav.support": "サポート",
   "nav.supportClose": "サポートを閉じる",

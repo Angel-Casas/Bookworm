@@ -16,6 +16,8 @@ import UpdateNotice from '@/components/UpdateNotice.vue'
 import { useInstallStore } from '@/stores/install'
 import { useTourStore } from '@/stores/tour'
 import { useUpdateStore } from '@/stores/update'
+import { isIosBrowser } from '@/services/install'
+import { isStandalone, pointInstallAt } from '@/services/firstRun'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,7 +47,13 @@ watchEffect(() => {
   void loadLocale(language.code)
 })
 
-const askingLanguage = ref(false)
+/**
+ * Settled at setup, not in onMounted: the route watcher below fires on the
+ * first navigation, which can land before onMounted gets past its await — and
+ * with this still false it offered the tour on top of the language question.
+ * The installed app never opens on the chooser (see onMounted).
+ */
+const askingLanguage = ref(!language.chosen && !isStandalone())
 /** Where they landed, remembered before they answer: the landing page says its
  *  own piece about the app, so only a reader who skipped it is owed the note
  *  pointing at the globe in the bar. */
@@ -63,7 +71,10 @@ onMounted(async () => {
   // once and unprompted. Catching it is not offering it — see below.
   install.start()
   arrivedOnLanding.value = route.name === 'landing'
-  askingLanguage.value = !language.chosen
+  // The installed app never opens on the chooser. On iOS it starts with empty
+  // storage of its own, but the reader has already met the app in Safari:
+  // the device's language stands in, and the note points at the globe.
+  if (!language.chosen && isStandalone()) language.offerHint()
   // One question at a time: the tour waits until the language has been
   // settled, and never interrupts the landing film.
   if (!askingLanguage.value) offerTour()
@@ -116,11 +127,33 @@ watch(
   ],
   () => {
     if (tour.active || askingLanguage.value) return
-    if (route.name === 'landing') return
+    // Undefined until the first navigation resolves — which is before the
+    // chooser or the tour has had a chance to say anything.
+    if (!route.name || route.name === 'landing') return
     install.offerHint()
   },
   { immediate: true },
 )
+
+/**
+ * On an iPhone or iPad, keep "Add to Home Screen" pointed at the answers.
+ *
+ * The installed app will not share this tab's storage, so its start URL
+ * carries what has been settled here. Re-pointed whenever an answer changes,
+ * because Safari reads the manifest at the moment the button is pressed.
+ */
+if (isIosBrowser() && !isStandalone()) {
+  watch(
+    [() => language.chosen, () => language.code, () => tour.seen],
+    () => {
+      void pointInstallAt({
+        lang: language.chosen ? language.code : null,
+        tourSeen: tour.seen,
+      })
+    },
+    { immediate: true },
+  )
+}
 
 function onLanguageChosen(): void {
   askingLanguage.value = false

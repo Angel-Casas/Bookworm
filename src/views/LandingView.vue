@@ -11,6 +11,7 @@
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { GITHUB_REPO_URL } from '@/config'
+import { markLandingSeen } from '@/services/firstRun'
 import { useI18n } from '@/i18n'
 import SwashText from '@/components/ui/SwashText.vue'
 import {
@@ -223,6 +224,9 @@ let prevHtmlBg = ''
 let prevBodyBg = ''
 
 onMounted(() => {
+  // Seen once is enough: from here on the app opens on the shelf, and the
+  // medallion in the nav is the way back here.
+  markLandingSeen()
   prevHtmlBg = document.documentElement.style.background
   prevBodyBg = document.body.style.background
   document.documentElement.style.background = '#050506'

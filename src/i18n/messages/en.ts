@@ -24,6 +24,7 @@ import type { Catalogue } from '@/lib/i18n'
 const en = {
   // ————————————————————————— the bar at the top —————————————————————————
   'nav.library': 'Bookworm library',
+  'nav.home': 'Bookworm — home',
   'nav.actions': 'Application',
   'nav.support': 'Support',
   'nav.supportClose': 'Close support',

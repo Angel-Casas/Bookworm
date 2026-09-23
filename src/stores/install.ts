@@ -13,32 +13,23 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { isIosBrowser, isStandalone, watchInstall, type OfferInstall } from '@/services/install'
-
-/** Set once the reader has been told the app can be installed. */
-const HINT_KEY = 'bookworm.installHintSeen.v1'
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Storage unavailable: the note may be offered again next visit, which is
-    // a smaller annoyance than never offering it at all.
-  }
-}
+import {
+  INSTALL_HINT_KEY as HINT_KEY,
+  readPref as read,
+  writePref as write,
+} from '@/services/firstRun'
 
 export const useInstallStore = defineStore('install', () => {
   /** The browser has handed over an install offer we can still use. */
   const available = ref(false)
-  /** Already an app on this device — so there is nothing to offer. */
-  const installed = ref(false)
+  /**
+   * Already an app on this device — so there is nothing to offer.
+   *
+   * Known from the first moment, not from `start()`: the note's watcher runs
+   * while the app is still being set up, and asking "is this installed?" only
+   * later is how the installed app came to offer to install itself.
+   */
+  const installed = ref(isStandalone())
   /** Whether the one-time note is still owed. */
   const hintOwed = ref(read(HINT_KEY) === null)
   const hintVisible = ref(false)
@@ -58,7 +49,7 @@ export const useInstallStore = defineStore('install', () => {
   const byHand = computed(() => !available.value && !installed.value && isIosBrowser())
 
   function start(): void {
-    installed.value = isStandalone()
+    if (isStandalone()) installed.value = true
     offer = watchInstall({
       onAvailable: () => {
         available.value = true

@@ -9,6 +9,7 @@ import type { Catalogue } from '@/lib/i18n'
 
 const pt: Catalogue = {
   "nav.library": "Biblioteca do Bookworm",
+  "nav.home": "Bookworm — início",
   "nav.actions": "Aplicação",
   "nav.support": "Ajuda",
   "nav.supportClose": "Fechar a ajuda",

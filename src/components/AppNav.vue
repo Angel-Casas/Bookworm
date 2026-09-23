@@ -30,7 +30,9 @@ const supportOpen = computed(() => ui.overlay === 'support')
 
 <template>
   <header class="app-nav">
-    <RouterLink to="/library" class="brand" :aria-label="t('nav.library')">
+    <!-- The medallion is the way back to the landing page: the app opens on the
+         shelf, and this is where the introduction lives after the first time. -->
+    <RouterLink to="/" class="brand" :aria-label="t('nav.home')">
       <IconMedallion class="brand-mark" />
       <span class="brand-name">Bookworm</span>
     </RouterLink>

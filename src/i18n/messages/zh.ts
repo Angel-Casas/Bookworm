@@ -9,6 +9,7 @@ import type { Catalogue } from '@/lib/i18n'
 
 const zh: Catalogue = {
   "nav.library": "Bookworm 书架",
+  "nav.home": "Bookworm — 首页",
   "nav.actions": "应用",
   "nav.support": "支持",
   "nav.supportClose": "关闭支持",

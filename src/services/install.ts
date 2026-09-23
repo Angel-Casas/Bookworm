@@ -31,21 +31,8 @@ export type OfferOutcome = 'accepted' | 'dismissed' | 'unavailable'
 /** Puts the browser's install dialogue up. Only ever answers once. */
 export type OfferInstall = () => Promise<OfferOutcome>
 
-/**
- * Whether the app is already running as an app.
- *
- * Two ways of asking, because iOS answered the question years before it
- * agreed on the standard one, and still answers only its own.
- */
-export function isStandalone(): boolean {
-  try {
-    if (window.matchMedia('(display-mode: standalone)').matches) return true
-    if (window.matchMedia('(display-mode: window-controls-overlay)').matches) return true
-  } catch {
-    // No matchMedia: fall through to the iOS flag.
-  }
-  return (navigator as Navigator & { standalone?: boolean }).standalone === true
-}
+/** Lives with the other first-run facts; re-exported for the install store. */
+export { isStandalone } from './firstRun'
 
 /**
  * Whether this is an iOS browser, where the offer has to be made in words.
