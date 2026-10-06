@@ -17,6 +17,10 @@ import IconRank from '@/components/icons/IconRank.vue'
 import IconPlus from '@/components/icons/IconPlus.vue'
 import IconArchive from '@/components/icons/IconArchive.vue'
 import IconSearch from '@/components/icons/IconSearch.vue'
+import IconShelf from '@/components/icons/IconShelf.vue'
+import ShelfHeading from '@/components/shelves/ShelfHeading.vue'
+import ShelfEditor, { type ShelfTarget } from '@/components/overlays/ShelfEditor.vue'
+import { useTopicsStore } from '@/stores/topics'
 import { useI18n } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
 
@@ -28,6 +32,24 @@ const spend = useSpendStore()
 const stats = useStatsStore()
 const settings = useSettingsStore()
 const balance = useBalanceStore()
+const topics = useTopicsStore()
+
+/** The shelf panel, and what it was opened on. Null when it is shut. */
+const editing = ref<ShelfTarget | null>(null)
+
+/**
+ * The shelf button. With no shelves yet it makes the first one — grouping a
+ * shelf by topics it does not have would only show one shelf called "not on a
+ * shelf". After that it switches between shelves and everything together.
+ */
+function onArrange(): void {
+  if (topics.topics.length === 0) editing.value = { kind: 'new' }
+  else topics.setArrange(topics.grouped ? 'all' : 'topics')
+}
+const arrangeLabel = computed(() => {
+  if (topics.topics.length === 0) return t('library.newShelfFirst')
+  return topics.grouped ? t('library.arrangeAll') : t('library.arrangeTopics')
+})
 
 /** Spent is what the books have cost; balance is what is left to spend with.
  *  The second only exists once there is a key to ask with. */
@@ -74,6 +96,7 @@ function onDocumentKeydown(event: KeyboardEvent): void {
 
 onMounted(() => {
   if (!library.loaded) void library.load()
+  void topics.load()
   void spend.load()
   void stats.load()
   // Cached for a minute in the store, so walking in and out of a book does not
@@ -204,6 +227,17 @@ async function onImportBackup(event: Event): Promise<void> {
             <IconGrid :cells="3" class="ctl-icon" :class="{ off: library.view !== 'compact' }" />
           </span>
         </button>
+        <button
+          type="button"
+          class="icon-btn"
+          data-testid="arrange-toggle"
+          :aria-pressed="topics.grouped"
+          :aria-label="arrangeLabel"
+          :title="arrangeLabel"
+          @click="onArrange"
+        >
+          <IconShelf class="ctl-icon-fixed" aria-hidden="true" />
+        </button>
         <!-- One question the shelf could not answer until now: "which book
              was that sentence in?" -->
         <button
@@ -326,7 +360,60 @@ async function onImportBackup(event: Event): Promise<void> {
     <!-- A group rather than a plain list so a re-sort is something you can
          WATCH: each book keeps its identity and glides to its new place, which
          is the difference between "the shelf changed" and "these books moved". -->
+    <!-- Shelves by topic: one labelled shelf per topic, a book on every shelf
+         it belongs to, and the books on none at the end. -->
+    <template v-if="topics.grouped">
+      <section
+        v-for="shelf in topics.shelves"
+        :key="shelf.topic ?? '\u0000loose'"
+        class="topic-shelf"
+        data-testid="topic-shelf"
+        :data-topic="shelf.topic ?? ''"
+      >
+        <ShelfHeading
+          :topic="shelf.topic"
+          :count="shelf.books.length"
+          :folded="topics.isFolded(shelf.topic)"
+          @fold="topics.toggleFold(shelf.topic)"
+          @edit="editing = { kind: 'shelf', topic: shelf.topic ?? '' }"
+        />
+        <template v-if="!topics.isFolded(shelf.topic)">
+          <p v-if="shelf.books.length === 0" class="shelf-empty">
+            {{ t('shelves.empty') }}
+            <button type="button" @click="editing = { kind: 'shelf', topic: shelf.topic ?? '' }">
+              {{ t('shelves.fill') }}
+            </button>
+          </p>
+          <TransitionGroup
+            v-else
+            tag="div"
+            name="shelf-card"
+            class="shelf on-topic"
+            :class="library.view"
+          >
+            <BookCard
+              v-for="book in shelf.books"
+              :key="book.id"
+              :book="book"
+              :view="library.view"
+              @remove="onRemove"
+              @toggle-finished="library.toggleFinished"
+              @shelves="editing = { kind: 'book', bookId: $event }"
+            />
+          </TransitionGroup>
+        </template>
+      </section>
+      <button
+        type="button"
+        class="new-shelf"
+        data-testid="new-shelf"
+        @click="editing = { kind: 'new' }"
+      >
+        + {{ t('shelves.new') }}
+      </button>
+    </template>
     <TransitionGroup
+      v-else
       tag="div"
       name="shelf-card"
       class="shelf"
@@ -340,8 +427,12 @@ async function onImportBackup(event: Event): Promise<void> {
         :view="library.view"
         @remove="onRemove"
         @toggle-finished="library.toggleFinished"
+        @shelves="editing = { kind: 'book', bookId: $event }"
       />
     </TransitionGroup>
+    <Transition name="veil-fade">
+      <ShelfEditor v-if="editing" :target="editing" @close="editing = null" />
+    </Transition>
   </section>
 </template>
 
@@ -577,6 +668,32 @@ async function onImportBackup(event: Event): Promise<void> {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 1.2rem 1.1rem;
   }
+}
+/* On a topic shelf the heading already makes the gap above. */
+.shelf.on-topic {
+  margin-top: 0;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid var(--hair-soft);
+}
+.shelf-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin: 0;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid var(--hair-soft);
+  color: var(--text-faint);
+  font-style: italic;
+}
+.new-shelf {
+  display: block;
+  width: 100%;
+  margin-top: 2rem;
+  min-height: 2.75rem;
+  border-style: dashed;
+  border-color: var(--hair);
+  color: var(--gold);
 }
 .empty {
   margin-top: 4rem;

@@ -41,6 +41,9 @@ export interface BackupManifest {
   chats: BackupChat[]
   spend: BackupSpend[]
   stats: BackupStats[]
+  /** The reader's shelf list, in order. Absent from backups made before
+   *  topics existed; each book's own `topics` travel with the book. */
+  shelves?: string[]
 }
 
 export function buildManifest(
@@ -50,6 +53,7 @@ export function buildManifest(
   spend: BackupSpend[],
   stats: BackupStats[],
   exportedAt: number,
+  shelves: string[] = [],
 ): BackupManifest {
   return {
     version: BACKUP_VERSION,
@@ -62,6 +66,7 @@ export function buildManifest(
     chats,
     spend,
     stats,
+    shelves,
   }
 }
 
@@ -95,6 +100,7 @@ export function validateManifest(data: unknown): BackupManifest {
   const chats = Array.isArray(data.chats) ? data.chats : []
   const spend = Array.isArray(data.spend) ? data.spend : []
   const stats = Array.isArray(data.stats) ? data.stats : []
+  const shelves = Array.isArray(data.shelves) ? data.shelves : []
   return {
     version: BACKUP_VERSION,
     exportedAt: typeof data.exportedAt === 'number' ? data.exportedAt : 0,
@@ -117,5 +123,6 @@ export function validateManifest(data: unknown): BackupManifest {
         typeof entry.bookId === 'string' &&
         typeof entry.readingSeconds === 'number',
     ),
+    shelves: shelves.filter((name): name is string => typeof name === 'string'),
   }
 }

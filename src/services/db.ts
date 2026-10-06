@@ -52,6 +52,16 @@ export interface SpendRecord {
   at: number
 }
 
+/**
+ * The reader's own list of shelves (topics), in the order they arranged them.
+ * One record: shelves that hold no book yet exist only here, so this is user
+ * data like any other and lives with it. See lib/topics.
+ */
+export interface ShelfOrder {
+  id: 'order'
+  names: string[]
+}
+
 interface BookwormSchema extends DBSchema {
   books: { key: string; value: BookMeta }
   files: { key: string; value: { bookId: string; blob: Blob } }
@@ -60,10 +70,11 @@ interface BookwormSchema extends DBSchema {
   annotations: { key: string; value: Annotation; indexes: { 'by-book': string } }
   stats: { key: string; value: ReadingStats }
   locations: { key: string; value: BookLocations }
+  shelves: { key: string; value: ShelfOrder }
 }
 
 const DB_NAME = 'bookworm'
-const DB_VERSION = 5
+const DB_VERSION = 6
 
 let dbPromise: Promise<IDBPDatabase<BookwormSchema>> | null = null
 
@@ -91,6 +102,9 @@ function applySchema(db: IDBPDatabase<BookwormSchema>): void {
   if (!db.objectStoreNames.contains('stats')) {
     db.createObjectStore('stats', { keyPath: 'bookId' })
   }
+  if (!db.objectStoreNames.contains('shelves')) {
+    db.createObjectStore('shelves', { keyPath: 'id' })
+  }
 }
 
 const REQUIRED_STORES = [
@@ -101,6 +115,7 @@ const REQUIRED_STORES = [
   'annotations',
   'stats',
   'locations',
+  'shelves',
 ] as const
 
 function isVersionError(error: unknown): boolean {
@@ -187,10 +202,7 @@ export async function deleteBook(id: string): Promise<void> {
 }
 
 /** Cached pagination for a book, if it was generated under the same setting. */
-export async function getBookLocations(
-  bookId: string,
-  chars: number,
-): Promise<string | undefined> {
+export async function getBookLocations(bookId: string, chars: number): Promise<string | undefined> {
   const db = await getDB()
   const record = await db.get('locations', bookId)
   return record?.chars === chars ? record.json : undefined
@@ -264,4 +276,15 @@ export async function putReadingStats(stats: ReadingStats): Promise<void> {
 export async function listReadingStats(): Promise<ReadingStats[]> {
   const db = await getDB()
   return db.getAll('stats')
+}
+
+export async function getShelfOrder(): Promise<string[]> {
+  const db = await getDB()
+  const record = await db.get('shelves', 'order')
+  return record?.names ?? []
+}
+
+export async function saveShelfOrder(names: string[]): Promise<void> {
+  const db = await getDB()
+  await db.put('shelves', { id: 'order', names })
 }

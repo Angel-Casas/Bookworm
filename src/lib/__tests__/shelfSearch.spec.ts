@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { passageHits, searchShelfMeta, shelfNeedle, splitExcerpt } from '../shelfSearch'
+import { passageHits, searchShelfMeta, shelfNeedle, shelveHits, splitExcerpt } from '../shelfSearch'
 import type { Annotation } from '@/lib/types'
 
 const BOOKS = [
@@ -124,5 +124,50 @@ describe('splitExcerpt', () => {
     expect(before).toBe('the great ')
     expect(match).toBe('whale')
     expect(after).toBe(' swam')
+  })
+})
+
+describe('shelveHits', () => {
+  const book = (id: string, topics?: string[]) => ({
+    id,
+    title: id,
+    author: null,
+    format: 'epub' as const,
+    topics,
+  })
+  const hit = (id: string, bookId: string) => ({
+    id,
+    kind: 'passage' as const,
+    bookId,
+    bookTitle: bookId,
+    where: '',
+    excerpt: 'x',
+    matchStart: 0,
+    matchEnd: 1,
+    position: null,
+  })
+  const books = [book('carol', ['Fiction']), book('frank', ['Fiction', 'Gothic']), book('walden')]
+
+  it('files hits under their book and books under their shelves', () => {
+    const shelves = shelveHits(books, [hit('1', 'carol'), hit('2', 'frank'), hit('3', 'frank')], [
+      'Fiction',
+      'Gothic',
+      'Philosophy',
+    ])
+    expect(shelves.map((s) => s.topic)).toEqual(['Fiction', 'Gothic'])
+    // More answers first.
+    expect(shelves[0]?.books.map((b) => b.book.id)).toEqual(['frank', 'carol'])
+    expect(shelves[1]?.books[0]?.hits).toHaveLength(2)
+  })
+
+  it('puts unshelved books last, and is one plain list without shelves', () => {
+    expect(shelveHits(books, [hit('1', 'walden')], ['Fiction']).map((s) => s.topic)).toEqual([null])
+    expect(shelveHits(books, [hit('1', 'carol')], [])).toEqual([
+      { topic: null, books: [{ book: books[0], topics: ['Fiction'], hits: [hit('1', 'carol')] }] },
+    ])
+  })
+
+  it('is empty when nothing was found', () => {
+    expect(shelveHits(books, [], ['Fiction'])).toEqual([])
   })
 })

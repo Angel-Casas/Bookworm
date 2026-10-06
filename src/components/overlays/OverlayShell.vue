@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import OrnateFrame from '@/components/ui/OrnateFrame.vue'
 
-defineProps<{ title: string; wide?: boolean }>()
+defineProps<{ title: string; wide?: boolean; widest?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 function onKey(event: KeyboardEvent): void {
@@ -16,7 +16,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <template>
   <div class="overlay-root" role="dialog" aria-modal="true" :aria-label="title">
     <div class="overlay-scrim" @click="emit('close')"></div>
-    <OrnateFrame class="overlay-panel" :class="{ wide }">
+    <OrnateFrame class="overlay-panel" :class="{ wide, widest }">
       <header class="overlay-head">
         <h1 class="overlay-title">{{ title }}</h1>
         <i class="head-rule" aria-hidden="true"></i>
@@ -52,6 +52,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 }
 .overlay-panel.wide {
   width: min(44rem, 100%);
+}
+/* Two panes side by side — the shelf search, on a screen wide enough. */
+.overlay-panel.widest {
+  width: min(62rem, 100%);
 }
 .overlay-head {
   text-align: center;

@@ -18,6 +18,7 @@
  */
 import { makeExcerpt } from '@/lib/search'
 import type { SearchMatch } from '@/lib/search'
+import { groupByTopic } from '@/lib/topics'
 import type { Annotation, AnnotationType, BookFormat } from '@/lib/types'
 
 export const MIN_SHELF_QUERY = 2
@@ -28,6 +29,8 @@ export interface ShelfBook {
   title: string
   author: string | null
   format: BookFormat
+  /** The shelves it stands on, so the answers can be grouped the same way. */
+  topics?: string[]
 }
 
 export type ShelfHitKind = 'book' | 'mark' | 'passage'
@@ -200,4 +203,47 @@ export function splitExcerpt(hit: ShelfHit): [string, string, string] {
     hit.excerpt.slice(hit.matchStart, hit.matchEnd),
     hit.excerpt.slice(hit.matchEnd),
   ]
+}
+
+/** One book in the answer list, with everything found in it. */
+export interface HitBook {
+  book: ShelfBook
+  topics?: string[]
+  hits: ShelfHit[]
+}
+
+/** One shelf of the answer list. A null topic is the books on no shelf. */
+export interface HitShelf {
+  topic: string | null
+  books: HitBook[]
+}
+
+/**
+ * Every answer, filed under its book, and the books filed by shelf.
+ *
+ * Within a book the answers keep the order they arrive in (the title, then the
+ * reader's own marks, then passages from the text). Books with more answers
+ * come first on their shelf — when one book holds twelve of the fifteen, that
+ * is the book the reader is looking for. A book on two shelves is listed on
+ * both, the same as on the library's own shelves. With no shelves at all the
+ * answer is one unlabelled list.
+ */
+export function shelveHits(
+  books: readonly ShelfBook[],
+  hits: readonly ShelfHit[],
+  topics: readonly string[],
+): HitShelf[] {
+  const byBook = new Map<string, ShelfHit[]>()
+  for (const hit of hits) {
+    const list = byBook.get(hit.bookId)
+    if (list) list.push(hit)
+    else byBook.set(hit.bookId, [hit])
+  }
+  const found: HitBook[] = books
+    .filter((book) => byBook.has(book.id))
+    .map((book) => ({ book, topics: book.topics, hits: byBook.get(book.id) ?? [] }))
+    .sort((a, b) => b.hits.length - a.hits.length)
+  if (found.length === 0) return []
+  if (topics.length === 0) return [{ topic: null, books: found }]
+  return groupByTopic(found, topics).filter((shelf) => shelf.books.length > 0)
 }

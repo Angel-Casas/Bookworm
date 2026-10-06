@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { formatCount, formatDuration } from '@/lib/format'
+import { formatDuration } from '@/lib/format'
 import { formatBytes } from '@/lib/metadata'
 import { formatProgress } from '@/lib/pagination'
 import { useStatsStore } from '@/stores/stats'
@@ -11,7 +11,7 @@ import { durationWordsIn } from '@/i18n/bundles'
 import type { BookMeta } from '@/lib/types'
 
 const props = defineProps<{ book: BookMeta; view?: 'big' | 'compact' }>()
-defineEmits<{ remove: [id: string]; toggleFinished: [id: string] }>()
+defineEmits<{ remove: [id: string]; toggleFinished: [id: string]; shelves: [id: string] }>()
 
 const statsStore = useStatsStore()
 /** Every number below is shaped for the reader's own language. */
@@ -120,11 +120,22 @@ onBeforeUnmount(() => {
           })
         }}
         ·
-        {{ t('card.pageTurns', { count: formatCount(stats.pageTurns, language.code) }) }}
+        {{ t('card.pageTurns', { count: stats.pageTurns }) }}
+      </p>
+      <p v-if="book.topics && book.topics.length > 0" class="topics" data-testid="card-topics">
+        {{ book.topics.join(' · ') }}
       </p>
       <div class="card-actions">
         <button type="button" class="remove" @click="$emit('remove', book.id)">
           {{ t('card.remove') }}
+        </button>
+        <button
+          type="button"
+          class="shelves"
+          data-testid="card-shelves"
+          @click="$emit('shelves', book.id)"
+        >
+          {{ t('card.shelves') }}
         </button>
         <button
           type="button"
@@ -297,8 +308,25 @@ onBeforeUnmount(() => {
 }
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.35rem;
+}
+.topics {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-mid);
+}
+.shelves {
+  font-size: 0.58rem;
+  padding: 0.45em 0.9em;
+  opacity: 0.75;
+}
+.shelves:hover {
+  opacity: 1;
 }
 .remove {
   font-size: 0.58rem;

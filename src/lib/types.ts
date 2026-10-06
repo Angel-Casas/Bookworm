@@ -27,6 +27,8 @@ export interface BookMeta {
   finishedAt?: number | null
   /** Per-book model override; null/absent = use the global setting. */
   modelId?: string | null
+  /** The shelves this book stands on (see lib/topics). Absent = none. */
+  topics?: string[]
 }
 
 export interface ImportedBook {

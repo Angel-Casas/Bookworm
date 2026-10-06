@@ -6,6 +6,7 @@ import {
   addAnnotation,
   addSpendRecord,
   getBookFile,
+  getShelfOrder,
   listAnnotations,
   listBooks,
   listChatConversations,
@@ -14,19 +15,22 @@ import {
   putReadingStats,
   saveBook,
   saveChatConversation,
+  saveShelfOrder,
 } from '@/services/db'
+import { uniqueTopics } from '@/lib/topics'
 
 const MIME_BY_FORMAT = { pdf: 'application/pdf', epub: 'application/epub+zip' } as const
 
 export async function exportLibrary(): Promise<Blob> {
-  const [books, annotations, chats, spend, stats] = await Promise.all([
+  const [books, annotations, chats, spend, stats, shelves] = await Promise.all([
     listBooks(),
     listAnnotations(),
     listChatConversations(),
     listSpendRecords(),
     listReadingStats(),
+    getShelfOrder(),
   ])
-  const manifest = buildManifest(books, annotations, chats, spend, stats, Date.now())
+  const manifest = buildManifest(books, annotations, chats, spend, stats, Date.now(), shelves)
 
   const zippable: Zippable = {
     'manifest.json': strToU8(JSON.stringify(manifest, null, 2)),
@@ -82,6 +86,11 @@ export async function importLibrary(file: File): Promise<ImportSummary> {
   for (const chat of manifest.chats) await saveChatConversation(chat)
   for (const record of manifest.spend) await addSpendRecord(record)
   for (const stats of manifest.stats) await putReadingStats(stats)
+  // Shelves are merged, not replaced: a backup restored onto a shelf that has
+  // its own topics keeps both, the reader's current ones first.
+  if (manifest.shelves && manifest.shelves.length > 0) {
+    await saveShelfOrder(uniqueTopics([...(await getShelfOrder()), ...manifest.shelves]))
+  }
 
   return {
     books: importedBooks,
