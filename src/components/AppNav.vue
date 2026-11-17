@@ -30,12 +30,18 @@ const supportOpen = computed(() => ui.overlay === 'support')
 
 <template>
   <header class="app-nav">
-    <!-- The medallion is the way back to the landing page: the app opens on the
-         shelf, and this is where the introduction lives after the first time. -->
-    <RouterLink to="/" class="brand" :aria-label="t('nav.home')">
-      <IconMedallion class="brand-mark" />
-      <span class="brand-name">Bookworm</span>
-    </RouterLink>
+    <!-- Two links that read as one mark. The medallion is the way back to the
+         landing page: the app opens on the shelf, and this is where the
+         introduction lives after the first time. The name is the way home to
+         the library — the place a reader means when they press "Bookworm". -->
+    <div class="brand-row">
+      <RouterLink to="/" class="brand" :aria-label="t('nav.home')">
+        <IconMedallion class="brand-mark" />
+      </RouterLink>
+      <RouterLink :to="{ name: 'library' }" class="brand-name" :aria-label="t('nav.library')">
+        Bookworm
+      </RouterLink>
+    </div>
 
     <!-- Hangs from the bar, centred. It is here rather than in the page so it
          can be measured against the bar's own height. -->
@@ -215,10 +221,13 @@ const supportOpen = computed(() => ui.overlay === 'support')
     background 0.35s ease,
     border-color 0.35s ease;
 }
-.brand {
+.brand-row {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+.brand {
+  display: flex;
   text-decoration: none;
 }
 .brand-mark {
@@ -231,6 +240,8 @@ const supportOpen = computed(() => ui.overlay === 'support')
   transform: rotate(90deg);
 }
 .brand-name {
+  text-decoration: none;
+  transition: color 0.25s ease;
   font-family: var(--font-display);
   font-weight: 500;
   font-size: 1.02rem;
@@ -238,6 +249,10 @@ const supportOpen = computed(() => ui.overlay === 'support')
   text-indent: 0.05em;
   text-transform: uppercase;
   color: var(--text);
+}
+.brand-name:hover,
+.brand-name:focus-visible {
+  color: var(--gold);
 }
 .nav-actions {
   display: flex;

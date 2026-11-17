@@ -11,7 +11,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useSpendStore } from '@/stores/spend'
 import { useStatsStore } from '@/stores/stats'
 import BookCard from '@/components/BookCard.vue'
-import ReadingStrip from '@/components/ReadingStrip.vue'
+import ReadingShelf from '@/components/bookshelf/ReadingShelf.vue'
 import IconGrid from '@/components/icons/IconGrid.vue'
 import IconRank from '@/components/icons/IconRank.vue'
 import IconPlus from '@/components/icons/IconPlus.vue'
@@ -165,7 +165,9 @@ async function onImportBackup(event: Event): Promise<void> {
 
 <template>
   <section class="library">
-    <header class="library-header">
+    <!-- No rule under the header while the shelf stands below it: the shelf's
+         own heading already opens the section, and two lines read as a fence. -->
+    <header class="library-header" :class="{ 'over-shelf': library.shelf.length > 0 }">
       <div class="heading">
         <h1 class="page-title">{{ t('library.title') }}</h1>
         <!-- Two halves of the same sentence: what the reading has cost, and
@@ -351,10 +353,10 @@ async function onImportBackup(event: Event): Promise<void> {
       </div>
     </Transition>
 
-    <!-- The book you left last, and everything else on the go beside it — one
-         band, pushed sideways. -->
+    <!-- The book you left last, in front and turned to its cover; everything
+         else on the go beside it, then the rest of the library, spine out. -->
     <Transition name="panel-rise">
-      <ReadingStrip v-if="library.reading.length > 0" :books="library.reading" />
+      <ReadingShelf v-if="library.shelf.length > 0" :books="library.shelf" />
     </Transition>
 
     <!-- A group rather than a plain list so a re-sort is something you can
@@ -450,6 +452,9 @@ async function onImportBackup(event: Event): Promise<void> {
   flex-wrap: wrap;
   padding-bottom: 1.1rem;
   border-bottom: 1px solid var(--hair-soft);
+}
+.library-header.over-shelf {
+  border-bottom: 0;
 }
 .page-title {
   font-family: var(--font-display);

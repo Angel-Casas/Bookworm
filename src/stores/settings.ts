@@ -6,6 +6,7 @@ import { failureWordsIn } from '@/i18n/bundles'
 import { translateIn } from '@/i18n'
 import { useLanguageStore } from '@/stores/language'
 import { listModels, NanoGptError, type NanoModel } from '@/services/nanogpt'
+import { DEFAULT_SPINE_MODEL, isSpineModel } from '@/lib/spineArt'
 
 const STORAGE_KEY = 'bookworm.settings.v1'
 
@@ -13,6 +14,8 @@ interface PersistedSettings {
   apiKey: string
   modelId: string
   favoriteModelIds: string[]
+  /** The image model that paints spines on the shelf (lib/spineArt). */
+  spineModelId: string
 }
 
 function readPersisted(): PersistedSettings {
@@ -26,12 +29,13 @@ function readPersisted(): PersistedSettings {
         favoriteModelIds: Array.isArray(parsed.favoriteModelIds)
           ? parsed.favoriteModelIds.filter((id): id is string => typeof id === 'string')
           : [],
+        spineModelId: isSpineModel(parsed.spineModelId) ? parsed.spineModelId : DEFAULT_SPINE_MODEL,
       }
     }
   } catch {
     // Corrupt or unavailable storage: fall through to defaults.
   }
-  return { apiKey: '', modelId: '', favoriteModelIds: [] }
+  return { apiKey: '', modelId: '', favoriteModelIds: [], spineModelId: DEFAULT_SPINE_MODEL }
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -39,6 +43,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const apiKey = ref(persisted.apiKey)
   const modelId = ref(persisted.modelId)
   const favoriteModelIds = ref<string[]>(persisted.favoriteModelIds)
+  const spineModelId = ref(persisted.spineModelId)
   const models = ref<NanoModel[]>([])
   const modelsLoading = ref(false)
   /** Why the model list would not load, classified — and always offered as a
@@ -47,7 +52,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const modelsFailure = ref<Failure | null>(null)
 
   watch(
-    [apiKey, modelId, favoriteModelIds],
+    [apiKey, modelId, favoriteModelIds, spineModelId],
     () => {
       try {
         localStorage.setItem(
@@ -56,6 +61,7 @@ export const useSettingsStore = defineStore('settings', () => {
             apiKey: apiKey.value,
             modelId: modelId.value,
             favoriteModelIds: [...favoriteModelIds.value],
+            spineModelId: spineModelId.value,
           }),
         )
       } catch {
@@ -107,6 +113,7 @@ export const useSettingsStore = defineStore('settings', () => {
     apiKey,
     modelId,
     favoriteModelIds,
+    spineModelId,
     models,
     modelsLoading,
     modelsFailure,

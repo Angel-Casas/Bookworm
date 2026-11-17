@@ -52,5 +52,29 @@ export const useSpendStore = defineStore('spend', () => {
     records.value = [...records.value, entry]
   }
 
-  return { records, loaded, totalUsd, hasUnpriced, totalForBook, load, record }
+  /**
+   * An image bought for a book (a painted spine): priced per image, not per
+   * token, so the cost is whatever the reply said it was — null when it said
+   * nothing, which the total then reports as unpriced rather than as free.
+   */
+  async function recordImage(
+    bookId: string,
+    modelId: string,
+    costUsd: number | null,
+  ): Promise<void> {
+    const entry: SpendRecord = {
+      id: generateId(),
+      bookId,
+      modelId,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      costUsd,
+      at: Date.now(),
+    }
+    await addSpendRecord(entry)
+    records.value = [...records.value, entry]
+  }
+
+  return { records, loaded, totalUsd, hasUnpriced, totalForBook, load, record, recordImage }
 })

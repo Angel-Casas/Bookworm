@@ -2,10 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { NANOGPT_API_KEYS_URL, NANOGPT_SIGNUP_URL } from '@/config'
 import { formatUsd } from '@/lib/cost'
+import { SPINE_MODELS } from '@/lib/spineArt'
 import { useLanguageStore } from '@/stores/language'
 import { useBalanceStore } from '@/stores/balance'
 import { useInstallStore } from '@/stores/install'
 import { useSettingsStore } from '@/stores/settings'
+import { useSpinesStore } from '@/stores/spines'
 import ModelPicker from '@/components/ModelPicker.vue'
 import LinkedText from '@/components/ui/LinkedText.vue'
 import { useTourStore } from '@/stores/tour'
@@ -21,6 +23,15 @@ const install = useInstallStore()
 const { t } = useI18n()
 const tour = useTourStore()
 const ui = useUiStore()
+const spines = useSpinesStore()
+
+/** What a painted spine costs with the chosen model: what was last paid, or the list price. */
+watch(
+  () => settings.spineModelId,
+  (id) => spines.ensurePrice(id),
+  { immediate: true },
+)
+const spinePrice = computed(() => spines.priceOfOne(settings.spineModelId))
 
 /** Settings is over the app; the tour needs the app itself, so this closes
  *  the overlay on its way out. */
@@ -139,6 +150,26 @@ onMounted(() => {
 
     <hr class="gold-rule" />
 
+    <h2 class="section-title">{{ t('settings.spineTitle') }}</h2>
+    <select
+      v-model="settings.spineModelId"
+      class="spine-model"
+      data-testid="spine-model"
+      :aria-label="t('settings.spineTitle')"
+    >
+      <option v-for="model in SPINE_MODELS" :key="model.id" :value="model.id">
+        {{ model.label }}
+      </option>
+    </select>
+    <p class="hint">
+      {{ t('settings.spineHint') }}
+      <template v-if="spinePrice !== null">
+        {{ t('settings.spineAbout', { amount: formatUsd(spinePrice, language.code) }) }}
+      </template>
+    </p>
+
+    <hr class="gold-rule" />
+
     <!-- The one-time note under the nav is gone by now, and a browser hides
          its own install control somewhere different every year. So the offer
          has a permanent home: the button when the browser has handed us one,
@@ -250,6 +281,10 @@ onMounted(() => {
 }
 .model-row {
   max-width: 26rem;
+}
+.spine-model {
+  max-width: 26rem;
+  width: 100%;
 }
 .hint {
   color: var(--text-faint);

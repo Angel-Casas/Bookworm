@@ -5,7 +5,9 @@ import { formatBytes } from '@/lib/metadata'
 import { formatProgress } from '@/lib/pagination'
 import { useStatsStore } from '@/stores/stats'
 import { useLanguageStore } from '@/stores/language'
+import IconClose from '@/components/icons/IconClose.vue'
 import IconMedallion from '@/components/icons/IconMedallion.vue'
+import IconShelf from '@/components/icons/IconShelf.vue'
 import { useI18n } from '@/i18n'
 import { durationWordsIn } from '@/i18n/bundles'
 import type { BookMeta } from '@/lib/types'
@@ -125,26 +127,37 @@ onBeforeUnmount(() => {
       <p v-if="book.topics && book.topics.length > 0" class="topics" data-testid="card-topics">
         {{ book.topics.join(' · ') }}
       </p>
+      <!-- A colophon: the three things to do with a book, set under a gilt
+           rule like the note at the end of one — each a small gilt mark over
+           its word, nothing hidden, nothing boxed. -->
       <div class="card-actions">
-        <button type="button" class="remove" @click="$emit('remove', book.id)">
-          {{ t('card.remove') }}
-        </button>
         <button
           type="button"
-          class="shelves"
+          class="act shelves"
           data-testid="card-shelves"
           @click="$emit('shelves', book.id)"
         >
-          {{ t('card.shelves') }}
+          <IconShelf class="act-icon" />
+          <span class="act-word">{{ t('card.shelves') }}</span>
         </button>
+        <span class="lozenge" aria-hidden="true"></span>
         <button
           type="button"
-          class="finish"
+          class="act finish"
           data-testid="toggle-finished"
           :aria-pressed="book.finishedAt != null"
           @click="$emit('toggleFinished', book.id)"
         >
-          {{ book.finishedAt != null ? t('card.finishedTick') : t('card.markFinished') }}
+          <IconMedallion class="act-icon" />
+          <!-- One word for both states: it is a toggle, and aria-pressed (and
+               the gold) says which way it is set. "Mark finished" wrapped on
+               every card, and broke mid-word in German. -->
+          <span class="act-word">{{ t('card.finished') }}</span>
+        </button>
+        <span class="lozenge" aria-hidden="true"></span>
+        <button type="button" class="act remove" @click="$emit('remove', book.id)">
+          <IconClose class="act-icon" />
+          <span class="act-word">{{ t('card.remove') }}</span>
         </button>
       </div>
     </template>
@@ -307,10 +320,84 @@ onBeforeUnmount(() => {
   clip-path: inset(50%);
 }
 .card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: start;
+  margin-top: 0.7rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--hair-soft);
+}
+/* Each action: a gilt mark over its word. Reset from the app's mono boxed
+   buttons — this is a line of type, not a row of controls. */
+.act {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.35rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.15rem 0.1rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.86rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.act-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--gold);
+  transition: transform 0.2s ease;
+}
+.act-word {
+  text-align: center;
+  text-wrap: balance;
+  hyphens: auto;
+}
+.act:hover,
+.act:focus-visible {
+  color: var(--gold);
+}
+.act:hover .act-icon {
+  transform: translateY(-1px);
+}
+.finish {
+  color: var(--text-faint);
+}
+.finish .act-icon {
+  opacity: 0.55;
+}
+.finish[aria-pressed='true'] {
+  color: var(--gold);
+}
+.finish[aria-pressed='true'] .act-icon,
+.finish:hover .act-icon {
+  opacity: 1;
+}
+/* Remove is the one that cannot be taken back: quieter until reached for. */
+.remove,
+.remove .act-icon {
+  color: var(--text-faint);
+}
+.remove:hover,
+.remove:hover .act-icon,
+.remove:focus-visible,
+.remove:focus-visible .act-icon {
+  color: var(--danger);
+}
+.lozenge {
+  width: 5px;
+  height: 5px;
+  margin-top: 0.55rem;
+  border: 1px solid var(--gold);
+  transform: rotate(45deg);
+  opacity: 0.8;
 }
 .topics {
   margin: 0.15rem 0 0;
@@ -319,38 +406,5 @@ onBeforeUnmount(() => {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold-mid);
-}
-.shelves {
-  font-size: 0.58rem;
-  padding: 0.45em 0.9em;
-  opacity: 0.75;
-}
-.shelves:hover {
-  opacity: 1;
-}
-.remove {
-  font-size: 0.58rem;
-  padding: 0.45em 0.9em;
-  opacity: 0.75;
-}
-.finish {
-  font-size: 0.58rem;
-  padding: 0.45em 0.9em;
-  opacity: 0.75;
-}
-.finish:hover {
-  opacity: 1;
-  color: var(--gold);
-  border-color: var(--gold-deep);
-}
-.finish[aria-pressed='true'] {
-  opacity: 1;
-  color: var(--gold);
-  border-color: var(--gold-deep);
-}
-.remove:hover {
-  opacity: 1;
-  color: var(--danger);
-  border-color: var(--danger);
 }
 </style>

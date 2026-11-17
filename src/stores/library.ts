@@ -13,6 +13,7 @@ import {
   bookToContinue,
   booksInProgress,
   isLibrarySort,
+  shelfOrder,
   sortBooks,
   type LibrarySort,
 } from '@/lib/librarySort'
@@ -65,6 +66,8 @@ export const useLibraryStore = defineStore('library', () => {
    * sideways, which costs the page no more height than the single band did.
    */
   const reading = computed(() => booksInProgress(books.value))
+  /** The shelf at the top of the library: the books on the go, then the rest. */
+  const shelf = computed(() => shelfOrder(books.value))
   /** The book the shelf offers first; null on a shelf never read. */
   const continuing = computed(() => bookToContinue(books.value))
 
@@ -212,6 +215,7 @@ export const useLibraryStore = defineStore('library', () => {
     books,
     sortedBooks,
     reading,
+    shelf,
     continuing,
     loaded,
     importing,

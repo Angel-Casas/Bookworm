@@ -57,6 +57,24 @@ export interface SpendRecord {
  * One record: shelves that hold no book yet exist only here, so this is user
  * data like any other and lives with it. See lib/topics.
  */
+/**
+ * A book's painted spine (see lib/spineArt): the artwork only, shrunk to the
+ * size the shelf draws it at. Its own store, not a field on the book, so the
+ * shelf listing stays small and a spine can be dropped without touching the
+ * book.
+ */
+export interface SpineRecord {
+  bookId: string
+  blob: Blob
+  modelId: string
+  at: number
+  /**
+   * Set aside: the reader chose the spine made from the cover instead. Kept,
+   * because it was paid for — choosing it again must cost nothing.
+   */
+  setAside?: boolean
+}
+
 export interface ShelfOrder {
   id: 'order'
   names: string[]
@@ -71,10 +89,11 @@ interface BookwormSchema extends DBSchema {
   stats: { key: string; value: ReadingStats }
   locations: { key: string; value: BookLocations }
   shelves: { key: string; value: ShelfOrder }
+  spines: { key: string; value: SpineRecord }
 }
 
 const DB_NAME = 'bookworm'
-const DB_VERSION = 6
+const DB_VERSION = 7
 
 let dbPromise: Promise<IDBPDatabase<BookwormSchema>> | null = null
 
@@ -105,6 +124,9 @@ function applySchema(db: IDBPDatabase<BookwormSchema>): void {
   if (!db.objectStoreNames.contains('shelves')) {
     db.createObjectStore('shelves', { keyPath: 'id' })
   }
+  if (!db.objectStoreNames.contains('spines')) {
+    db.createObjectStore('spines', { keyPath: 'bookId' })
+  }
 }
 
 const REQUIRED_STORES = [
@@ -116,6 +138,7 @@ const REQUIRED_STORES = [
   'stats',
   'locations',
   'shelves',
+  'spines',
 ] as const
 
 function isVersionError(error: unknown): boolean {
@@ -184,7 +207,7 @@ export async function getBookFile(id: string): Promise<Blob | undefined> {
 export async function deleteBook(id: string): Promise<void> {
   const db = await getDB()
   const tx = db.transaction(
-    ['books', 'files', 'chats', 'annotations', 'stats', 'locations'],
+    ['books', 'files', 'chats', 'annotations', 'stats', 'locations', 'spines'],
     'readwrite',
   )
   const annotationIndex = tx.objectStore('annotations').index('by-book')
@@ -195,6 +218,7 @@ export async function deleteBook(id: string): Promise<void> {
     tx.objectStore('chats').delete(id),
     tx.objectStore('stats').delete(id),
     tx.objectStore('locations').delete(id),
+    tx.objectStore('spines').delete(id),
     ...annotationIds.map((key) => tx.objectStore('annotations').delete(key)),
     tx.done,
   ])
@@ -287,4 +311,24 @@ export async function getShelfOrder(): Promise<string[]> {
 export async function saveShelfOrder(names: string[]): Promise<void> {
   const db = await getDB()
   await db.put('shelves', { id: 'order', names })
+}
+
+export async function listSpines(): Promise<SpineRecord[]> {
+  const db = await getDB()
+  return db.getAll('spines')
+}
+
+export async function getSpine(bookId: string): Promise<SpineRecord | undefined> {
+  const db = await getDB()
+  return db.get('spines', bookId)
+}
+
+export async function saveSpine(record: SpineRecord): Promise<void> {
+  const db = await getDB()
+  await db.put('spines', record)
+}
+
+export async function deleteSpine(bookId: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('spines', bookId)
 }

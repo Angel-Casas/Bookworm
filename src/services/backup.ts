@@ -12,8 +12,10 @@ import {
   listChatConversations,
   listReadingStats,
   listSpendRecords,
+  listSpines,
   putReadingStats,
   saveBook,
+  saveSpine,
   saveChatConversation,
   saveShelfOrder,
 } from '@/services/db'
@@ -22,13 +24,14 @@ import { uniqueTopics } from '@/lib/topics'
 const MIME_BY_FORMAT = { pdf: 'application/pdf', epub: 'application/epub+zip' } as const
 
 export async function exportLibrary(): Promise<Blob> {
-  const [books, annotations, chats, spend, stats, shelves] = await Promise.all([
+  const [books, annotations, chats, spend, stats, shelves, spines] = await Promise.all([
     listBooks(),
     listAnnotations(),
     listChatConversations(),
     listSpendRecords(),
     listReadingStats(),
     getShelfOrder(),
+    listSpines(),
   ])
   const manifest = buildManifest(books, annotations, chats, spend, stats, Date.now(), shelves)
 
@@ -46,6 +49,22 @@ export async function exportLibrary(): Promise<Blob> {
         { level: 0 },
       ]
     }
+  }
+  // Painted spines were paid for, so they travel too. Beside the manifest, not
+  // in it: a backup without them is still a valid backup, old or new.
+  for (const spine of spines) {
+    zippable[`spines/${spine.bookId}`] = [
+      new Uint8Array(await spine.blob.arrayBuffer()),
+      { level: 0 },
+    ]
+    zippable[`spines/${spine.bookId}.json`] = strToU8(
+      JSON.stringify({
+        modelId: spine.modelId,
+        at: spine.at,
+        type: spine.blob.type,
+        setAside: spine.setAside === true,
+      }),
+    )
   }
   const zipped = zipSync(zippable)
   return new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' })
@@ -81,6 +100,23 @@ export async function importLibrary(file: File): Promise<ImportSummary> {
     })
     await saveBook(bookMeta, blob)
     importedBooks += 1
+    const spineBytes = entries[`spines/${backupBook.id}`]
+    const spineInfo = entries[`spines/${backupBook.id}.json`]
+    if (spineBytes && spineInfo) {
+      const info = JSON.parse(strFromU8(spineInfo)) as {
+        modelId?: string
+        at?: number
+        type?: string
+        setAside?: boolean
+      }
+      await saveSpine({
+        bookId: backupBook.id,
+        blob: new Blob([spineBytes.buffer as ArrayBuffer], { type: info.type ?? 'image/webp' }),
+        modelId: String(info.modelId ?? ''),
+        at: Number(info.at ?? Date.now()),
+        setAside: info.setAside === true,
+      })
+    }
   }
   for (const annotation of manifest.annotations) await addAnnotation(annotation)
   for (const chat of manifest.chats) await saveChatConversation(chat)

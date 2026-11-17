@@ -5,6 +5,7 @@ import {
   bookToContinue,
   booksInProgress,
   isLibrarySort,
+  shelfOrder,
   sortBooks,
 } from '../librarySort'
 import type { BookMeta } from '../types'
@@ -132,5 +133,31 @@ describe('booksInProgress', () => {
   it('is empty for a shelf nobody has read', () => {
     expect(booksInProgress([book({ id: 'a' })])).toEqual([])
     expect(booksInProgress([])).toEqual([])
+  })
+})
+
+describe('shelfOrder', () => {
+  it('puts the books on the go first, the one left last leading', () => {
+    const books = [
+      book({ id: 'new', addedAt: 50 }),
+      book({ id: 'older-read', lastOpenedAt: 10 }),
+      book({ id: 'latest-read', lastOpenedAt: 20 }),
+      book({ id: 'old', addedAt: 5 }),
+    ]
+    expect(ids(shelfOrder(books))).toEqual(['latest-read', 'older-read', 'new', 'old'])
+  })
+
+  it('keeps finished books on the shelf, with the rest', () => {
+    const books = [
+      book({ id: 'reading', lastOpenedAt: 10 }),
+      book({ id: 'done', lastOpenedAt: 30, finishedAt: 40, addedAt: 9 }),
+      book({ id: 'unread', addedAt: 1 }),
+    ]
+    expect(ids(shelfOrder(books))).toEqual(['reading', 'done', 'unread'])
+  })
+
+  it('is the whole library, every book once', () => {
+    const books = [book({ id: 'a' }), book({ id: 'b', lastOpenedAt: 1 }), book({ id: 'c' })]
+    expect(shelfOrder(books)).toHaveLength(3)
   })
 })

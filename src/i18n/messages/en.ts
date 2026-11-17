@@ -75,8 +75,6 @@ const en = {
   // ————————————————————————— a book on the shelf —————————————————————————
   'card.cover': 'Cover of {title}',
   'card.finished': 'Finished',
-  'card.markFinished': 'Mark finished',
-  'card.finishedTick': 'Finished ✓',
   'card.remove': 'Remove',
   'card.progressOf': 'Progress through {title}',
   'card.read': '{duration} read',
@@ -87,6 +85,35 @@ const en = {
   'continue.progress': 'Progress through this book',
   'continue.uncounted': 'Not counted yet',
   'continue.justOpened': 'Just opened',
+  // The shelf at the top of the library, and the spines on it (lib/spine).
+  'continue.resume': 'Continue reading',
+  'continue.start': 'Start reading',
+  'continue.notStarted': 'Not started',
+  'continue.shelf': 'Your shelf',
+  'continue.shelfHint':
+    'Your books, spine out. The arrow keys move along the shelf; Enter opens the book in front.',
+  'continue.previous': 'Previous book',
+  'continue.next': 'Next book',
+  'spine.infoLabel': 'What is painting a spine?',
+  'spine.info':
+    'Every spine on the shelf is made from its cover, for free. Painting sends the cover to an image model, using your NanoGPT key, and it paints a spine in the same style; Bookworm still sets the title. You pay once per book, it counts in your spend, and you can switch back to the cover’s spine whenever you like without losing it.',
+  'spine.thisOne': 'This spine',
+  'spine.remaining': { one: 'The {count} remaining', other: 'The {count} remaining' },
+  'spine.pressAgain': 'Press again',
+  'spine.unpaint': 'Use the cover’s spine',
+  'spine.usePainted': 'Use the painted spine',
+  'spine.paid': 'paid',
+  'spine.painting': 'Painting the spine of “{title}”…',
+  'spine.paintingOf': '{done} of {count}',
+  'spine.needKey': 'Spines can be painted to match each cover, with your NanoGPT key.',
+  'spine.openSettings': 'Open settings',
+  'spine.noImage':
+    'NanoGPT answered without a picture. Try again, or choose another model in Settings.',
+  'spine.dismiss': 'Dismiss',
+  'settings.spineTitle': 'Painted spines',
+  'settings.spineHint':
+    'Used when you paint a spine on the shelf. The cover is sent as a reference and Bookworm still sets the title itself. Each spine is counted in your spend.',
+  'settings.spineAbout': 'About {amount} a spine with this model.',
 
   // ———————————————————— units, for the number layer ————————————————————
   // Appended to a number: "3h 12m". Keep them short — they sit in a shelf card.

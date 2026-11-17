@@ -56,6 +56,19 @@ export function bookToContinue(books: readonly BookMeta[]): BookMeta | null {
 }
 
 /**
+ * The order of the shelf at the top of the library: everything on the go
+ * first, latest first, so the book left last is the one the shelf opens on;
+ * then the rest of the library, newest additions first. A shelf of only the
+ * books in progress was one or two spines on a long plank — the rest of the
+ * library is what makes it read as a shelf.
+ */
+export function shelfOrder(books: readonly BookMeta[]): BookMeta[] {
+  const reading = booksInProgress(books)
+  const rest = books.filter((book) => !reading.includes(book)).sort((a, b) => b.addedAt - a.addedAt)
+  return [...reading, ...rest]
+}
+
+/**
  * Returns a NEW array ordered per `sort`:
  * - reading:  most recently opened first; never-opened books last (by added date).
  * - finished: finished books first (latest finish first), the rest below, each

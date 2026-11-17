@@ -3,6 +3,7 @@ import {
   formatCount,
   formatDuration,
   formatMoney,
+  formatPrice,
   formatPercent,
   plural,
   pluralCategory,
@@ -106,5 +107,25 @@ describe('formatDuration', () => {
   it('has a dash for a duration that makes no sense', () => {
     expect(formatDuration(Number.NaN, 'en')).toBe('—')
     expect(formatDuration(-5, 'en')).toBe('—')
+  })
+})
+
+describe('formatPrice', () => {
+  it('quotes to the cent, never to the millicent', () => {
+    expect(formatPrice(0.035, 'en')).toBe('$0.04')
+    expect(formatPrice(0.1396, 'en')).toBe('$0.14')
+  })
+
+  it('never quotes something that costs money as free', () => {
+    expect(formatPrice(0.002, 'en')).toBe('$0.01')
+    expect(formatPrice(0, 'en')).toBe('$0.00')
+  })
+
+  it('says nothing when there is no price', () => {
+    expect(formatPrice(null, 'en')).toBe('—')
+  })
+
+  it('takes its shape from the reader’s language', () => {
+    expect(formatPrice(0.035, 'de')).toMatch(/0,04/)
   })
 })

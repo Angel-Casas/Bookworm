@@ -92,6 +92,26 @@ export function formatMoney(amount: number | null, locale: Locale, currency = 'U
   }
 }
 
+/**
+ * A price quoted before buying, to the cent. Unlike a total spent, an
+ * estimate does not deserve four decimals: "$0.0350" claims a precision the
+ * next spine will not have. Anything above zero shows at least one cent.
+ */
+export function formatPrice(amount: number | null, locale: Locale, currency = 'USD'): string {
+  if (amount === null || !Number.isFinite(amount) || amount < 0) return '—'
+  const cents = amount > 0 ? Math.max(0.01, Math.round(amount * 100) / 100) : 0
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(cents)
+  } catch {
+    return `$${cents.toFixed(2)}`
+  }
+}
+
 export interface DurationWords {
   /** e.g. "h" — appended to a number of hours. */
   hour: string
